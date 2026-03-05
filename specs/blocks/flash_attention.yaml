@@ -1,0 +1,16 @@
+kind: block
+schema_version: 2
+id: flash_attention
+display_name: "Flash Attention Optimization"
+tags:
+  - optimization
+  - attention
+  - accelerator
+components:
+  pip:
+    - name: flash-attn
+      version: ">=2.6,<3.0"
+requires:
+  gpu_vendor: nvidia
+provides:
+  layer: optimization_compilation

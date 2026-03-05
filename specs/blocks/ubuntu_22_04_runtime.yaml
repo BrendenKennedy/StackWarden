@@ -1,0 +1,21 @@
+kind: block
+schema_version: 2
+id: ubuntu_22_04_runtime
+display_name: "Ubuntu 22.04 Runtime Baseline"
+tags:
+  - system
+  - runtime
+  - infra
+  - ubuntu
+  - "22.04"
+components:
+  apt:
+    - ca-certificates
+    - curl
+    - tzdata
+requires:
+  os_family_id: ubuntu
+  os_version_id: ubuntu_22_04
+provides:
+  layer: system_runtime
+  os_runtime: ubuntu_22_04

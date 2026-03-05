@@ -1,0 +1,18 @@
+kind: block
+schema_version: 2
+id: whisper_asr
+display_name: "Whisper Speech Recognition"
+tags:
+  - asr
+  - speech
+  - audio
+components:
+  pip:
+    - name: faster-whisper
+      version: ">=1.1,<2.0"
+    - name: soundfile
+      version: ">=0.12,<1.0"
+requires:
+  gpu_vendor: nvidia
+provides:
+  layer: core_compute

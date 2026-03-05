@@ -1,0 +1,22 @@
+kind: block
+schema_version: 2
+id: transformers_hub
+display_name: "Hugging Face Transformers Hub"
+tags:
+  - core
+  - transformers
+  - hub
+components:
+  pip:
+    - name: transformers
+      version: ">=4.46,<4.50"
+    - name: datasets
+      version: ">=2.14,<4.0"
+    - name: accelerate
+      version: ">=1.0,<2.0"
+    - name: huggingface-hub
+      version: ">=0.26,<1.0"
+    - name: safetensors
+      version: ">=0.4,<1.0"
+provides:
+  layer: core_compute

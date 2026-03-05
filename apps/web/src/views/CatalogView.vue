@@ -1,0 +1,358 @@
+<template>
+  <div>
+    <PageEntityTable
+      title="Catalog"
+      create-label="Create Build"
+      :loading="loading"
+      loading-message="Loading catalog items..."
+      empty-message="No catalog items yet."
+      :error-message="buildError"
+      :rows="tableRows"
+      :columns="tableColumns"
+      route-base="/catalog"
+      id-key="row_id"
+      view-path-key="view_path"
+      :show-edit="false"
+      :show-delete="true"
+      :deletable="(row) => !!row.artifact_id"
+      :deleting-id="deletingId"
+      :show-retry="true"
+      :retryable="(row) => row.status === 'failed' && !!row.job_id"
+      retry-id-key="job_id"
+      :retrying-id="retryingId"
+      @create="showBuild = true"
+      @refresh="fetchItems"
+      @delete="deleteCatalogItem"
+      @retry="retryCatalogJob"
+    />
+
+    <div v-if="showBuild" class="build-modal-overlay" @click.self="showBuild = false" @keydown="onKeydown">
+      <div ref="buildDialogRef" class="build-modal card" role="dialog" aria-modal="true" aria-labelledby="catalog-build-title">
+        <div class="build-modal-header">
+          <h3 id="catalog-build-title">Catalog Build</h3>
+          <button class="btn" @click="showBuild = false">Close</button>
+        </div>
+        <p class="build-help">
+          Choose a runtime profile and stack recipe. This is the final resolve/build step.
+        </p>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Build Profile</label>
+            <select v-model="buildProfileId">
+              <option value="">Select profile</option>
+              <option v-for="p in profilesList" :key="p.id" :value="p.id">{{ p.display_name }} ({{ p.id }})</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Stack</label>
+            <select v-model="buildStackId">
+              <option value="">Select stack</option>
+              <option v-for="s in stacksList" :key="s.id" :value="s.id">{{ s.display_name }} ({{ s.id }})</option>
+            </select>
+          </div>
+        </div>
+        <div class="catalog-actions">
+          <button class="btn btn-primary" :disabled="!canBuild || startingBuild" @click="startBuild">
+            {{ startingBuild ? 'Starting...' : 'Start Build' }}
+          </button>
+        </div>
+        <div v-if="compatibilityErrors.length" class="catalog-message catalog-error">
+          <div v-for="(e, idx) in compatibilityErrors" :key="idx">{{ e }}</div>
+        </div>
+        <div v-if="compatibilityWarnings.length" class="catalog-message catalog-warning">
+          <div v-for="(w, idx) in compatibilityWarnings" :key="`w-${idx}`">{{ w }}</div>
+        </div>
+        <div v-if="compatibilityInfo.length" class="catalog-message catalog-info">
+          <div v-for="(i, idx) in compatibilityInfo" :key="`i-${idx}`">{{ i }}</div>
+        </div>
+        <div v-if="compatibilitySuggestedFixes.length" class="catalog-section">
+          <div class="catalog-section-title">Suggested fixes</div>
+          <ul class="catalog-fix-list">
+            <li v-for="(f, idx) in compatibilitySuggestedFixes" :key="`f-${idx}`" class="catalog-fix-item">{{ f }}</li>
+          </ul>
+        </div>
+        <details v-if="compatibilityDecisionTrace.length" class="catalog-section">
+          <summary class="catalog-summary">Why this was chosen</summary>
+          <div class="catalog-trace">
+            <div v-for="(line, idx) in compatibilityDecisionTrace" :key="`t-${idx}`">{{ line }}</div>
+          </div>
+        </details>
+        <details v-if="Object.keys(tupleDecision).length" class="catalog-section">
+          <summary class="catalog-summary">Tuple Decision</summary>
+          <pre class="json-viewer catalog-json">{{ JSON.stringify(tupleDecision, null, 2) }}</pre>
+        </details>
+        <div v-if="buildError" class="catalog-message catalog-error">{{ buildError }}</div>
+      </div>
+    </div>
+
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, ref, onMounted, watch } from 'vue'
+import type { CatalogItem, ProfileSummary, StackSummary } from '@/api/types'
+import {
+  artifacts as artifactsApi,
+  catalog as catalogApi,
+  compatibility as compatibilityApi,
+  jobs as jobsApi,
+  profiles as profilesApi,
+  stacks as stacksApi,
+} from '@/api/endpoints'
+import PageEntityTable from '@/components/PageEntityTable.vue'
+import { useModalFocusTrap } from '@/composables/useModalFocusTrap'
+
+const items = ref<CatalogItem[]>([])
+const loading = ref(true)
+const showBuild = ref(false)
+const deletingId = ref<string | null>(null)
+const retryingId = ref<string | null>(null)
+const profilesList = ref<ProfileSummary[]>([])
+const stacksList = ref<StackSummary[]>([])
+const buildProfileId = ref('')
+const buildStackId = ref('')
+const startingBuild = ref(false)
+const buildError = ref('')
+const compatibilityErrors = ref<string[]>([])
+const compatibilityWarnings = ref<string[]>([])
+const compatibilityInfo = ref<string[]>([])
+const compatibilitySuggestedFixes = ref<string[]>([])
+const compatibilityDecisionTrace = ref<string[]>([])
+const tupleDecision = ref<Record<string, any>>({})
+const buildDialogRef = ref<HTMLElement | null>(null)
+const { onKeydown } = useModalFocusTrap(buildDialogRef, showBuild, () => { showBuild.value = false })
+
+const canBuild = computed(() =>
+  buildProfileId.value !== '' &&
+  buildStackId.value !== '' &&
+  compatibilityErrors.value.length === 0
+)
+const tableColumns = [
+  { key: 'profile_id', label: 'Profile', width: '145px' },
+  { key: 'stack_id', label: 'Stack', width: '145px' },
+  { key: 'tag', label: 'Tag' },
+  { key: 'created', label: 'Created', multiline: true },
+  { key: 'status', label: 'Status', badge: true },
+]
+const tableRows = computed(() =>
+  items.value.map((i) => ({
+    row_id: i.row_id,
+    status: i.status,
+    source: i.source,
+    profile_id: i.profile_id,
+    stack_id: i.stack_id,
+    tag: i.tag || '-',
+    created: formatDate(i.created_at),
+    artifact_id: i.artifact_id,
+    job_id: i.job_id,
+    view_path: i.artifact_id
+      ? `/artifacts/${i.artifact_id}`
+      : (i.job_id ? `/jobs/${i.job_id}` : ''),
+  })),
+)
+
+async function fetchItems() {
+  loading.value = true
+  try {
+    const rows = await catalogApi.items({})
+    items.value = rows
+  } catch (e: any) {
+    buildError.value = e.message
+  } finally {
+    loading.value = false
+  }
+}
+
+async function deleteCatalogItem(rowId: string) {
+  const row = items.value.find((item) => item.row_id === rowId)
+  if (!row) return
+  if (!row.artifact_id) {
+    buildError.value = 'Cannot delete: no artifact to remove.'
+    return
+  }
+  deletingId.value = rowId
+  buildError.value = ''
+  try {
+    await artifactsApi.remove(row.artifact_id)
+    await fetchItems()
+  } catch (e: any) {
+    buildError.value = e?.message || String(e)
+  } finally {
+    deletingId.value = null
+  }
+}
+
+async function retryCatalogJob(jobId: string) {
+  if (!jobId) return
+  retryingId.value = jobId
+  buildError.value = ''
+  try {
+    await jobsApi.retry(jobId)
+    await fetchItems()
+  } catch (e: any) {
+    buildError.value = e?.message || String(e)
+  } finally {
+    retryingId.value = null
+  }
+}
+
+async function loadBuildInputs() {
+  try {
+    ;[profilesList.value, stacksList.value] = await Promise.all([
+      profilesApi.list(),
+      stacksApi.list(),
+    ])
+  } catch {
+    // best-effort
+  }
+}
+
+async function startBuild() {
+  if (!canBuild.value) return
+  startingBuild.value = true
+  buildError.value = ''
+  try {
+    await jobsApi.ensure({
+      profile_id: buildProfileId.value,
+      stack_id: buildStackId.value,
+      flags: {},
+    })
+    showBuild.value = false
+    await fetchItems()
+  } catch (e: any) {
+    buildError.value = e.message
+  } finally {
+    startingBuild.value = false
+  }
+}
+
+async function refreshCompatibility() {
+  compatibilityErrors.value = []
+  compatibilityWarnings.value = []
+  compatibilityInfo.value = []
+  compatibilitySuggestedFixes.value = []
+  compatibilityDecisionTrace.value = []
+  tupleDecision.value = {}
+  if (!buildProfileId.value || !buildStackId.value) return
+  try {
+    const report = await compatibilityApi.preview({
+      profile_id: buildProfileId.value,
+      stack_id: buildStackId.value,
+    })
+    compatibilityErrors.value = report.errors.map(e => `${e.code}: ${e.message}`)
+    compatibilityWarnings.value = report.warnings.map(w => `${w.code}: ${w.message}`)
+    compatibilityInfo.value = report.info.map(i => `${i.code}: ${i.message}`)
+    compatibilitySuggestedFixes.value = report.suggested_fixes || []
+    compatibilityDecisionTrace.value = report.decision_trace || []
+    tupleDecision.value = report.tuple_decision || {}
+  } catch (e: any) {
+    compatibilityErrors.value = [e.message]
+    compatibilityWarnings.value = []
+    compatibilityInfo.value = []
+    compatibilitySuggestedFixes.value = []
+    compatibilityDecisionTrace.value = []
+    tupleDecision.value = {}
+  }
+}
+
+function formatDate(iso: string) {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  const [ymd, hms] = date.toISOString().replace('.000Z', '').split('T')
+  return `${ymd}\n${hms} UTC`
+}
+
+onMounted(async () => {
+  await Promise.all([fetchItems(), loadBuildInputs()])
+})
+
+watch([buildProfileId, buildStackId], () => {
+  refreshCompatibility()
+})
+</script>
+
+<style scoped>
+.catalog-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.build-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.build-modal {
+  width: min(760px, 95vw);
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.build-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.build-help {
+  margin-top: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.catalog-message {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+.catalog-error {
+  color: var(--error);
+}
+
+.catalog-warning {
+  color: var(--warning);
+}
+
+.catalog-info {
+  color: var(--text-secondary);
+}
+
+.catalog-section {
+  margin-top: var(--space-3);
+}
+
+.catalog-section-title,
+.catalog-summary {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.catalog-summary {
+  cursor: pointer;
+}
+
+.catalog-fix-list {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.catalog-fix-item {
+  font-size: var(--font-size-sm);
+}
+
+.catalog-trace {
+  margin-top: 0.4rem;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
+}
+
+.catalog-json {
+  margin-top: 0.4rem;
+}
+</style>

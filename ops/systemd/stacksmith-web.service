@@ -1,0 +1,29 @@
+[Unit]
+Description=Stacksmith Web UI
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=stacksmith
+Environment=STACKSMITH_WEB_HOST=127.0.0.1
+Environment=STACKSMITH_WEB_PORT=8765
+EnvironmentFile=-/etc/stacksmith/stacksmith-web.env
+
+ExecStart=/usr/local/bin/stacksmith-web
+Restart=on-failure
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+ReadWritePaths=/var/lib/stacksmith
+MemoryMax=512M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

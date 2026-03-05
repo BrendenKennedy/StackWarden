@@ -1,0 +1,35 @@
+kind: stack_recipe
+schema_version: 2
+id: robotics_isaac_lab
+display_name: "Robotics Simulation (Isaac Lab)"
+blocks:
+  - pytorch_core_compute
+  - isaac_lab_robotics
+  - stable_baselines_rl
+
+components:
+  base_role: pytorch
+  pip:
+    # >=2.14 avoids NGC protobuf conflict; overrides file backs this for stacks
+    - name: tensorboard
+      version: ">=2.14,<3.0"
+    - name: matplotlib
+      version: ">=3.9,<4.0"
+  apt:
+    - git
+    - curl
+
+build_strategy: overlay
+env:
+  - PYTHONUNBUFFERED=1
+  - NVIDIA_VISIBLE_DEVICES=all
+
+entrypoint:
+  cmd:
+    - python
+    - train.py
+
+files:
+  copy:
+    - src: "workspaces/robotics/"
+      dst: "/workspace"

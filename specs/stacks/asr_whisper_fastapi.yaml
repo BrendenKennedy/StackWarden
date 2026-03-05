@@ -1,0 +1,45 @@
+kind: stack_recipe
+schema_version: 2
+id: asr_whisper_fastapi
+display_name: "Speech Recognition (Whisper) + FastAPI"
+blocks:
+  - fastapi
+  - whisper_asr
+  - cudnn
+
+components:
+  base_role: pytorch
+  pip:
+    - name: fastapi
+      version: "==0.115.*"
+    - name: uvicorn
+      version: "[standard]==0.30.*"
+    - name: python-multipart
+      version: ">=0.0.12,<1.0"
+  apt:
+    - git
+    - curl
+    - ffmpeg
+
+build_strategy: overlay
+env:
+  - PYTHONUNBUFFERED=1
+
+ports:
+  - 8000
+
+entrypoint:
+  cmd:
+    - python
+    - "-m"
+    - uvicorn
+    - app.main:app
+    - "--host"
+    - "0.0.0.0"
+    - "--port"
+    - "8000"
+
+files:
+  copy:
+    - src: "services/asr_api/"
+      dst: "/app"

@@ -1,0 +1,47 @@
+schema_version: 2
+id: diffusion_fastapi
+display_name: "Diffusion (PyTorch) + FastAPI"
+task: diffusion
+serve: python_api
+api: fastapi
+blocks:
+  - fastapi
+  - cudnn
+build_strategy: overlay
+
+components:
+  base_role: pytorch
+  pip:
+    - name: "fastapi"
+      version: "==0.115.*"
+    - name: "uvicorn"
+      version: "[standard]==0.30.*"
+    - name: "diffusers"
+      version: ">=0.30,<0.33"
+    - name: "transformers"
+      version: ">=4.40,<4.48"
+  apt:
+    - "git"
+    - "curl"
+
+env:
+  - "PYTHONUNBUFFERED=1"
+
+ports:
+  - 8000
+
+entrypoint:
+  cmd:
+    - "python"
+    - "-m"
+    - "uvicorn"
+    - "app.main:app"
+    - "--host"
+    - "0.0.0.0"
+    - "--port"
+    - "8000"
+
+files:
+  copy:
+    - src: "services/diffusion_api/"
+      dst: "/app"

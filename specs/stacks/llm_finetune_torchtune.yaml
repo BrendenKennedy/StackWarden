@@ -1,0 +1,33 @@
+kind: stack_recipe
+schema_version: 2
+id: llm_finetune_torchtune
+display_name: "LLM Fine-Tuning (TorchTune)"
+blocks:
+  - pytorch_core_compute
+  - torchtune_finetune
+  - quantization_tooling
+
+components:
+  base_role: pytorch
+  pip:
+    - name: wandb
+      version: ">=0.18,<1.0"
+  apt:
+    - git
+    - curl
+
+build_strategy: overlay
+env:
+  - PYTHONUNBUFFERED=1
+  - HF_HOME=/workspace/hf_cache
+
+entrypoint:
+  cmd:
+    - tune
+    - run
+    - lora_finetune_single_device
+
+files:
+  copy:
+    - src: "configs/finetune/"
+      dst: "/workspace/configs"

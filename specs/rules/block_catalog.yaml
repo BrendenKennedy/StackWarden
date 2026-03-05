@@ -1,0 +1,16 @@
+schema_version: 1
+revision: 1
+# Optional override file for the built-in block preset catalog.
+# If `categories` or `presets` are omitted, Stacksmith uses the bundled defaults.
+# To fully replace defaults, provide explicit `categories` and `presets` arrays.
+#
+# Preset entries may include optional `layers` for stack wizard guidance:
+# - hardware_layer
+# - system_runtime_layer
+# - driver_accelerator_layer
+# - core_compute_layer
+# - model_runtime_layer
+# - optimization_compilation_layer
+# - serving_layer
+# - application_orchestration_layer
+# - observability_operations_layer

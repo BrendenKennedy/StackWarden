@@ -1,0 +1,56 @@
+schema_version: 1
+rules:
+  - id: nvidia-runtime-required
+    version: 1
+    enabled: true
+    strict_hard: true
+    when:
+      gpu_vendor: nvidia
+    requires:
+      container_runtime: nvidia
+    outcome:
+      code: RUNTIME_MISMATCH
+      severity: error
+      message: NVIDIA workloads require the nvidia container runtime.
+      fix_hint: Set profile container_runtime to nvidia.
+
+  - id: cuda-driver-minimum
+    version: 1
+    enabled: true
+    strict_hard: false
+    when:
+      gpu_vendor: nvidia
+    requires:
+      driver_min: 535.0
+    outcome:
+      code: DRIVER_TOO_OLD
+      severity: warning
+      message: Driver may be too old for selected CUDA/runtime requirements.
+      fix_hint: Upgrade host driver or choose blocks with lower CUDA requirements.
+
+  - id: ampere-cuda-window
+    version: 1
+    enabled: true
+    strict_hard: false
+    when:
+      gpu_family: ampere
+    requires:
+      cuda_min: 11.8
+      cuda_max: 12.5
+    outcome:
+      code: CUDA_RANGE_UNSUPPORTED
+      severity: warning
+      message: Selected CUDA runtime may be outside the tested Ampere window.
+      fix_hint: Prefer CUDA runtime between 11.8 and 12.5 for Ampere.
+
+  - id: hopper-flashattn-optimization
+    version: 1
+    enabled: true
+    strict_hard: false
+    when:
+      gpu_family: hopper
+      compute_capability_min: 9.0
+    outcome:
+      code: FLASH_ATTN_OPT_PATH
+      severity: info
+      message: Hopper-class GPU detected; optimized attention path can be enabled.

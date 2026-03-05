@@ -1,0 +1,16 @@
+kind: block
+schema_version: 2
+id: chromadb_vectorstore
+display_name: "ChromaDB Vector Store"
+tags:
+  - vectordb
+  - rag
+  - storage
+components:
+  pip:
+    - name: chromadb
+      version: ">=0.5,<1.0"
+ports:
+  - 8200
+provides:
+  layer: serving

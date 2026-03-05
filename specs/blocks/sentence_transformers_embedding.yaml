@@ -1,0 +1,14 @@
+kind: block
+schema_version: 2
+id: sentence_transformers_embedding
+display_name: "Sentence Transformers Embedding"
+tags:
+  - embedding
+  - retrieval
+  - nlp
+components:
+  pip:
+    - name: sentence-transformers
+      version: ">=3.0,<4.0"
+provides:
+  layer: core_compute

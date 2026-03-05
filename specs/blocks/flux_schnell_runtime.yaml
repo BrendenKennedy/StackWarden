@@ -1,0 +1,25 @@
+kind: block
+schema_version: 2
+id: flux_schnell_runtime
+display_name: "Flux Schnell Runtime"
+block_kind: runtime
+tags:
+  - diffusion
+  - flux
+  - image-gen
+components:
+  pip:
+    - name: diffusers
+      version: ">=0.32,<0.35"
+    - name: transformers
+      version: ">=4.55,<4.60"
+    - name: accelerate
+      version: ">=0.26,<1.0"
+    - name: safetensors
+      version: ">=0.4,<1.0"
+    - name: huggingface-hub
+      version: ">=0.26,<1.0"
+requires:
+  gpu_vendor: nvidia
+provides:
+  layer: model_runtime_layer

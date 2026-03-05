@@ -1,0 +1,21 @@
+kind: block
+schema_version: 2
+id: debian_bookworm_runtime
+display_name: "Debian 12 (Bookworm) Runtime Baseline"
+tags:
+  - system
+  - runtime
+  - infra
+  - debian
+  - bookworm
+components:
+  apt:
+    - ca-certificates
+    - wget
+    - tzdata
+requires:
+  os_family_id: debian
+  os_version_id: debian_12
+provides:
+  layer: system_runtime
+  os_runtime: debian_bookworm

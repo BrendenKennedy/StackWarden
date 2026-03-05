@@ -1,0 +1,45 @@
+schema_version: 2
+id: llm_vllm_fastapi
+display_name: "LLM + vLLM + FastAPI"
+task: llm
+serve: vllm
+api: fastapi
+blocks:
+  - fastapi
+  - triton
+build_strategy: overlay
+
+components:
+  base_role: pytorch
+  pip:
+    - name: "vllm"
+      version: ">=0.6,<0.8"
+    - name: "fastapi"
+      version: "==0.115.*"
+    - name: "uvicorn"
+      version: "[standard]==0.30.*"
+  apt:
+    - "git"
+    - "curl"
+
+env:
+  - "PYTHONUNBUFFERED=1"
+
+ports:
+  - 8000
+
+entrypoint:
+  cmd:
+    - "python"
+    - "-m"
+    - "uvicorn"
+    - "app.main:app"
+    - "--host"
+    - "0.0.0.0"
+    - "--port"
+    - "8000"
+
+files:
+  copy:
+    - src: "services/llm_api/"
+      dst: "/app"

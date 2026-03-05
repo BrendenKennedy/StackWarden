@@ -1,0 +1,41 @@
+kind: stack_recipe
+schema_version: 2
+id: flux_schnell_fastapi
+display_name: "Flux Schnell + FastAPI"
+task: diffusion
+serve: python_api
+api: fastapi
+blocks:
+  - fastapi
+  - flux_schnell_runtime
+  - flash_attention
+  - cudnn
+build_strategy: overlay
+
+components:
+  base_role: pytorch
+  apt:
+    - "git"
+    - "curl"
+
+env:
+  - "PYTHONUNBUFFERED=1"
+
+ports:
+  - 8000
+
+entrypoint:
+  cmd:
+    - "python"
+    - "-m"
+    - "uvicorn"
+    - "app.main:app"
+    - "--host"
+    - "0.0.0.0"
+    - "--port"
+    - "8000"
+
+files:
+  copy:
+    - src: "services/flux_schnell_api/"
+      dst: "/app"

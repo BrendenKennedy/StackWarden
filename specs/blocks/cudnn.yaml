@@ -1,0 +1,17 @@
+kind: block
+schema_version: 2
+id: cudnn
+display_name: "cuDNN runtime layer"
+block_kind: accelerator
+tags:
+  - cuda
+  - cudnn
+components:
+  apt:
+    - "libcudnn9"
+requires:
+  gpu_vendor: nvidia
+  cuda_runtime:
+    min: "12.0"
+provides:
+  capability: cudnn

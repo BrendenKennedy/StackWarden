@@ -1,0 +1,17 @@
+kind: block
+schema_version: 2
+id: vllm_model_runtime
+display_name: "vLLM Model Runtime"
+tags:
+  - runtime
+  - llm
+  - inference
+components:
+  pip:
+    # >=0.8.3 required for PyTorch 2.7 (NGC 25.03+); overrides file backs this for older blocks
+    - name: vllm
+      version: ">=0.8.3,<1.0"
+requires:
+  gpu_vendor: nvidia
+provides:
+  layer: model_runtime

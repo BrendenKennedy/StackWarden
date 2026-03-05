@@ -1,0 +1,1 @@
+# Flux Schnell inference API

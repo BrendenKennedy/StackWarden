@@ -1,0 +1,16 @@
+kind: block
+schema_version: 2
+id: torchtune_finetune
+display_name: "TorchTune LLM Fine-Tuning"
+tags:
+  - training
+  - finetune
+  - llm
+components:
+  pip:
+    - name: torchtune
+      version: ">=0.5,<1.0"
+    - name: torchao
+      version: ">=0.7,<1.0"
+provides:
+  layer: application_orchestration

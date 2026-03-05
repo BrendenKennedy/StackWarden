@@ -1,0 +1,43 @@
+kind: stack_recipe
+schema_version: 2
+id: embedding_service_fastapi
+display_name: "Embedding Service (Sentence Transformers + FastAPI)"
+blocks:
+  - fastapi
+  - sentence_transformers_embedding
+  - pytorch_core_compute
+
+components:
+  base_role: pytorch
+  pip:
+    - name: fastapi
+      version: "==0.115.*"
+    - name: uvicorn
+      version: "[standard]==0.30.*"
+  apt:
+    - git
+    - curl
+
+build_strategy: overlay
+env:
+  - PYTHONUNBUFFERED=1
+  - HF_HOME=/workspace/hf_cache
+
+ports:
+  - 8000
+
+entrypoint:
+  cmd:
+    - python
+    - "-m"
+    - uvicorn
+    - app.main:app
+    - "--host"
+    - "0.0.0.0"
+    - "--port"
+    - "8000"
+
+files:
+  copy:
+    - src: "services/embedding_api/"
+      dst: "/app"

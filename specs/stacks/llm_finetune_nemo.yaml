@@ -1,0 +1,33 @@
+kind: stack_recipe
+schema_version: 2
+id: llm_finetune_nemo
+display_name: "LLM Fine-Tuning (NeMo)"
+blocks:
+  - pytorch_core_compute
+  - nemo_framework
+  - deepspeed_training
+
+components:
+  base_role: pytorch
+  pip:
+    - name: wandb
+      version: ">=0.18,<1.0"
+  apt:
+    - git
+    - curl
+
+build_strategy: overlay
+env:
+  - PYTHONUNBUFFERED=1
+  - NEMO_CACHE_DIR=/workspace/nemo_cache
+
+entrypoint:
+  cmd:
+    - python
+    - "-m"
+    - nemo.collections.llm.train
+
+files:
+  copy:
+    - src: "configs/nemo/"
+      dst: "/workspace/configs"

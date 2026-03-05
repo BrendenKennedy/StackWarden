@@ -1,0 +1,92 @@
+advanced_override: false
+arch: arm64
+base_candidates:
+- name: nvcr.io/nvidia/pytorch
+  tags:
+  - 25.03-py3
+  - 25.02-py3
+  score_bias: 100
+- name: nvcr.io/nvidia/cuda
+  tags:
+  - 13.0.0-devel-ubuntu24.04
+  - 13.0.0-runtime-ubuntu24.04
+  score_bias: 0
+capability_ranges:
+- max: '13.0'
+  min: '13.0'
+  name: cuda_runtime
+  values: []
+constraints:
+  disallow: {}
+  require: {}
+container_runtime: nvidia
+cuda:
+  major: 13
+  minor: 0
+  variant: cuda13.0
+decision_trace: []
+defaults:
+  python: '3.10'
+  user: root
+  workdir: /workspace
+derived_capabilities: []
+display_name: DGX Spark
+fix_suggestions: []
+gpu:
+  compute_capability: '12.1'
+  family: Blackwell
+  family_id: blackwell
+  model_id: nvidia_gb10
+  notes: ''
+  vendor: NVIDIA
+  vendor_id: nvidia
+gpu_devices:
+- compute_capability: '12.1'
+  family: blackwell
+  index: 0
+  memory_gb: null
+  model: NVIDIA GB10
+host_facts:
+  confidence:
+    arch: detected
+    compute_capability: detected
+    container_runtime: detected
+    cpu_cores_logical: detected
+    cpu_cores_physical: detected
+    cpu_model: detected
+    cuda_runtime: detected
+    disk_gb_total: detected
+    driver_version: detected
+    gpu_family: inferred
+    gpu_model: detected
+    gpu_vendor: detected
+    memory_gb_total: detected
+    os: detected
+    os_family: detected
+    os_version: detected
+  cpu_cores_logical: 20
+  cpu_cores_physical: 10
+  cpu_model: Cortex-X925
+  detected_at: '2026-03-03T17:23:14.715Z'
+  disk_gb_total: 3753.98
+  driver_version: 580.126.09
+  memory_gb_total: 119.69
+  runtime_version: null
+id: aitopatom-6d9b
+intent:
+  outcome: null
+  summary: null
+labels: {}
+os: linux
+os_family: ubuntu
+os_family_id: ubuntu
+os_version: Ubuntu 24.04
+os_version_id: ubuntu_24_04
+rejected_candidates: []
+requirements:
+  constraints: {}
+  needs: []
+  optimize_for: []
+schema_version: 3
+selected_features: []
+tags: []

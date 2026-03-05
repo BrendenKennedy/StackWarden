@@ -1,0 +1,378 @@
+schema_version: 1
+revision: 1
+arch:
+  - id: amd64
+    label: AMD64
+    aliases: [x86_64]
+  - id: arm64
+    label: ARM64
+    aliases: [aarch64]
+  - id: ppc64le
+    label: PPC64LE
+    aliases: [powerpc64le]
+os_family:
+  - id: linux
+    label: Linux
+  - id: ubuntu
+    label: Ubuntu
+  - id: debian
+    label: Debian
+  - id: rhel
+    label: RHEL
+  - id: rocky
+    label: Rocky Linux
+  - id: almalinux
+    label: AlmaLinux
+  - id: centos
+    label: CentOS
+  - id: sles
+    label: SUSE Linux Enterprise
+  - id: opensuse
+    label: openSUSE
+  - id: amazonlinux
+    label: Amazon Linux
+  - id: fedora
+    label: Fedora
+os_version:
+  - id: linux_generic
+    label: Generic Linux
+    aliases: [linux]
+    parent_id: linux
+  - id: ubuntu_20_04
+    label: Ubuntu 20.04
+    aliases: ["20.04"]
+    parent_id: ubuntu
+  - id: ubuntu_22_04
+    label: Ubuntu 22.04
+    aliases: ["22.04"]
+    parent_id: ubuntu
+  - id: ubuntu_24_04
+    label: Ubuntu 24.04
+    aliases: ["24.04"]
+    parent_id: ubuntu
+  - id: ubuntu_24_10
+    label: Ubuntu 24.10
+    aliases: ["24.10", oracular]
+    parent_id: ubuntu
+  - id: debian_11
+    label: Debian 11
+    aliases: ["11", bullseye]
+    parent_id: debian
+  - id: debian_12
+    label: Debian 12
+    aliases: ["12", bookworm]
+    parent_id: debian
+  - id: debian_13
+    label: Debian 13
+    aliases: ["13", trixie]
+    parent_id: debian
+  - id: rhel_8
+    label: RHEL 8
+    aliases: ["8", rhel8, redhat8]
+    parent_id: rhel
+  - id: rhel_9
+    label: RHEL 9
+    aliases: ["9", rhel9, redhat9]
+    parent_id: rhel
+  - id: rocky_8
+    label: Rocky Linux 8
+    aliases: [rocky8]
+    parent_id: rocky
+  - id: rocky_9
+    label: Rocky Linux 9
+    aliases: [rocky9]
+    parent_id: rocky
+  - id: almalinux_8
+    label: AlmaLinux 8
+    aliases: [alma8]
+    parent_id: almalinux
+  - id: almalinux_9
+    label: AlmaLinux 9
+    aliases: [alma9]
+    parent_id: almalinux
+  - id: centos_7
+    label: CentOS 7
+    aliases: [centos7]
+    parent_id: centos
+  - id: centos_stream_8
+    label: CentOS Stream 8
+    aliases: [centos8]
+    parent_id: centos
+  - id: centos_stream_9
+    label: CentOS Stream 9
+    aliases: [centos9]
+    parent_id: centos
+  - id: sles_15
+    label: SLES 15
+    aliases: [sles15]
+    parent_id: sles
+  - id: opensuse_15_6
+    label: openSUSE Leap 15.6
+    aliases: [leap15.6]
+    parent_id: opensuse
+  - id: opensuse_tumbleweed
+    label: openSUSE Tumbleweed
+    aliases: [tumbleweed]
+    parent_id: opensuse
+  - id: amazonlinux_2
+    label: Amazon Linux 2
+    aliases: [amzn2]
+    parent_id: amazonlinux
+  - id: amazonlinux_2023
+    label: Amazon Linux 2023
+    aliases: [amzn2023]
+    parent_id: amazonlinux
+  - id: fedora_39
+    label: Fedora 39
+    aliases: [f39]
+    parent_id: fedora
+  - id: fedora_40
+    label: Fedora 40
+    aliases: [f40]
+    parent_id: fedora
+  - id: fedora_41
+    label: Fedora 41
+    aliases: [f41]
+    parent_id: fedora
+container_runtime:
+  - id: nvidia
+    label: NVIDIA Runtime
+  - id: runc
+    label: runc
+gpu_vendor:
+  - id: nvidia
+    label: NVIDIA
+  - id: amd
+    label: AMD
+  - id: intel
+    label: Intel
+gpu_family:
+  - id: blackwell
+    label: Blackwell
+    parent_id: nvidia
+  - id: ada
+    label: Ada
+    parent_id: nvidia
+  - id: hopper
+    label: Hopper
+    parent_id: nvidia
+  - id: ampere
+    label: Ampere
+    parent_id: nvidia
+  - id: turing
+    label: Turing
+    parent_id: nvidia
+  - id: volta
+    label: Volta
+    parent_id: nvidia
+  - id: pascal
+    label: Pascal
+    parent_id: nvidia
+  - id: maxwell
+    label: Maxwell
+    parent_id: nvidia
+  - id: cdna3
+    label: CDNA3
+    parent_id: amd
+  - id: cdna2
+    label: CDNA2
+    parent_id: amd
+  - id: cdna
+    label: CDNA
+    parent_id: amd
+  - id: rdna3
+    label: RDNA3
+    parent_id: amd
+  - id: rdna2
+    label: RDNA2
+    parent_id: amd
+  - id: gcn
+    label: GCN
+    parent_id: amd
+  - id: xehpc
+    label: Xe HPC
+    parent_id: intel
+  - id: xehpg
+    label: Xe HPG
+    parent_id: intel
+  - id: xelp
+    label: Xe LP
+    parent_id: intel
+  - id: max
+    label: Data Center GPU Max
+    parent_id: intel
+  - id: arc
+    label: Arc
+    parent_id: intel
+  - id: flex
+    label: Data Center GPU Flex
+    parent_id: intel
+gpu_model:
+  - id: nvidia_gb10
+    label: NVIDIA GB10
+    aliases: [gb10, nvidia gb10]
+    parent_id: blackwell
+  - id: nvidia_b200
+    label: NVIDIA B200
+    aliases: [b200]
+    parent_id: blackwell
+  - id: nvidia_b100
+    label: NVIDIA B100
+    aliases: [b100]
+    parent_id: blackwell
+  - id: nvidia_h200
+    label: NVIDIA H200
+    aliases: [h200]
+    parent_id: hopper
+  - id: nvidia_h100
+    label: NVIDIA H100
+    aliases: [h100, sxm_h100, pcie_h100]
+    parent_id: hopper
+  - id: nvidia_gh200
+    label: NVIDIA GH200
+    aliases: [gh200]
+    parent_id: hopper
+  - id: nvidia_l40s
+    label: NVIDIA L40S
+    aliases: [l40s]
+    parent_id: ada
+  - id: nvidia_l40
+    label: NVIDIA L40
+    aliases: [l40]
+    parent_id: ada
+  - id: nvidia_rtx_6000_ada
+    label: NVIDIA RTX 6000 Ada
+    aliases: [rtx 6000 ada, rtx6000_ada]
+    parent_id: ada
+  - id: nvidia_l4
+    label: NVIDIA L4
+    aliases: [l4]
+    parent_id: ada
+  - id: nvidia_a100
+    label: NVIDIA A100
+    aliases: [a100, sxm_a100, pcie_a100]
+    parent_id: ampere
+  - id: nvidia_a30
+    label: NVIDIA A30
+    aliases: [a30]
+    parent_id: ampere
+  - id: nvidia_a10
+    label: NVIDIA A10
+    aliases: [a10]
+    parent_id: ampere
+  - id: nvidia_a10g
+    label: NVIDIA A10G
+    aliases: [a10g]
+    parent_id: ampere
+  - id: nvidia_a16
+    label: NVIDIA A16
+    aliases: [a16]
+    parent_id: ampere
+  - id: nvidia_rtx_a6000
+    label: NVIDIA RTX A6000
+    aliases: [rtx a6000]
+    parent_id: ampere
+  - id: nvidia_rtx_3090
+    label: NVIDIA RTX 3090
+    aliases: [rtx 3090, "3090"]
+    parent_id: ampere
+  - id: nvidia_rtx_3080
+    label: NVIDIA RTX 3080
+    aliases: [rtx 3080, "3080"]
+    parent_id: ampere
+  - id: nvidia_t4
+    label: NVIDIA T4
+    aliases: [t4, tesla_t4]
+    parent_id: turing
+  - id: nvidia_rtx_2080_ti
+    label: NVIDIA RTX 2080 Ti
+    aliases: [rtx 2080 ti, 2080ti]
+    parent_id: turing
+  - id: nvidia_v100
+    label: NVIDIA V100
+    aliases: [v100, tesla_v100]
+    parent_id: volta
+  - id: nvidia_titan_v
+    label: NVIDIA TITAN V
+    aliases: [titan v]
+    parent_id: volta
+  - id: nvidia_p100
+    label: NVIDIA P100
+    aliases: [p100, tesla_p100]
+    parent_id: pascal
+  - id: nvidia_p40
+    label: NVIDIA P40
+    aliases: [p40, tesla_p40]
+    parent_id: pascal
+  - id: nvidia_m60
+    label: NVIDIA M60
+    aliases: [m60, tesla_m60]
+    parent_id: maxwell
+  - id: amd_mi325x
+    label: AMD Instinct MI325X
+    aliases: [mi325x]
+    parent_id: cdna3
+  - id: amd_mi300x
+    label: AMD Instinct MI300X
+    aliases: [mi300x]
+    parent_id: cdna3
+  - id: amd_mi300a
+    label: AMD Instinct MI300A
+    aliases: [mi300a]
+    parent_id: cdna3
+  - id: amd_mi250x
+    label: AMD Instinct MI250X
+    aliases: [mi250x]
+    parent_id: cdna2
+  - id: amd_mi210
+    label: AMD Instinct MI210
+    aliases: [mi210]
+    parent_id: cdna2
+  - id: amd_mi100
+    label: AMD Instinct MI100
+    aliases: [mi100]
+    parent_id: cdna
+  - id: amd_w7900
+    label: AMD Radeon PRO W7900
+    aliases: [w7900]
+    parent_id: rdna3
+  - id: amd_w7800
+    label: AMD Radeon PRO W7800
+    aliases: [w7800]
+    parent_id: rdna3
+  - id: amd_rx_7900_xtx
+    label: AMD Radeon RX 7900 XTX
+    aliases: [rx 7900 xtx, 7900xtx]
+    parent_id: rdna3
+  - id: amd_rx_6800_xt
+    label: AMD Radeon RX 6800 XT
+    aliases: [rx 6800 xt, 6800xt]
+    parent_id: rdna2
+  - id: amd_v520
+    label: AMD Radeon Pro V520
+    aliases: [v520]
+    parent_id: gcn
+  - id: intel_max_1550
+    label: Intel Data Center GPU Max 1550
+    aliases: [max 1550]
+    parent_id: max
+  - id: intel_max_1100
+    label: Intel Data Center GPU Max 1100
+    aliases: [max 1100]
+    parent_id: max
+  - id: intel_flex_170
+    label: Intel Data Center GPU Flex 170
+    aliases: [flex 170]
+    parent_id: flex
+  - id: intel_flex_140
+    label: Intel Data Center GPU Flex 140
+    aliases: [flex 140]
+    parent_id: flex
+  - id: intel_arc_a770
+    label: Intel Arc A770
+    aliases: [arc a770, a770]
+    parent_id: arc
+  - id: intel_arc_a750
+    label: Intel Arc A750
+    aliases: [arc a750, a750]
+    parent_id: arc

@@ -1,0 +1,61 @@
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.hypothesis/
+
+# Packaging/build artifacts
+*.egg-info/
+.eggs/
+build/
+dist/
+pip-wheel-metadata/
+generated/*
+!generated/.gitkeep
+
+# Local/runtime data
+.stacksmith/
+*.db
+*.log
+*.sqlite
+*.sqlite3
+
+# Frontend dependencies and build caches
+apps/web/node_modules/
+apps/web/.vite/
+apps/web/dist/
+apps/web/coverage/
+apps/web/tsconfig.tsbuildinfo
+apps/web/tsconfig.node.tsbuildinfo
+*.tsbuildinfo
+
+# Secrets and environment files
+.env
+.env.*
+*.env
+
+# User wheelhouse (pre-built .whl files — can be large, machine-specific)
+wheels/
+wheelhouse/
+
+# Jupyter/notebook outputs
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Local config overrides (user-specific)
+*.local.yaml
+*.local.yml
+
+# Editor and OS noise
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+*.swo

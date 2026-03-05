@@ -1,0 +1,14 @@
+kind: block
+schema_version: 2
+id: llama_cpp_model_runtime
+display_name: "llama.cpp Model Runtime"
+tags:
+  - runtime
+  - llm
+  - cpu
+components:
+  pip:
+    - name: llama-cpp-python
+      version: ">=0.3,<0.4"
+provides:
+  layer: model_runtime

@@ -1,0 +1,35 @@
+blocks:
+- debian_system_runtime
+build_strategy: null
+components:
+  apt: []
+  apt_constraints: {}
+  apt_install_mode: repo
+  base_role: ''
+  npm: []
+  npm_install_mode: spec
+  pip: []
+  pip_install_mode: index
+  pip_wheelhouse_path: ''
+decision_trace: []
+derived_capabilities: []
+display_name: dfhghdf
+entrypoint: null
+env: []
+files:
+  copy: []
+fix_suggestions: []
+id: htdtdh
+intent:
+  outcome: null
+  summary: null
+kind: stack_recipe
+ports: []
+rejected_candidates: []
+requirements:
+  constraints: {}
+  needs: []
+  optimize_for: []
+schema_version: 3
+selected_features: []
+variants: {}

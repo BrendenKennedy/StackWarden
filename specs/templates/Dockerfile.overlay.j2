@@ -1,0 +1,66 @@
+# stacksmith_template_version=1
+FROM {{ base_image }}
+
+{% for key, value in labels.items() %}
+LABEL {{ key }}="{{ value | replace('\\', '\\\\') | replace('"', '\\"') | replace('$', '\\$') | replace('\n', ' ') }}"
+{% endfor %}
+
+WORKDIR /app
+
+ARG STACKSMITH_BUILD_JOBS=2
+ARG STACKSMITH_BUILD_MEMORY_BUDGET_GB=4.00
+ARG STACKSMITH_EST_BUILD_MEMORY_GB=2.00
+ARG STACKSMITH_OOM_RISK=medium
+ENV STACKSMITH_BUILD_JOBS="${STACKSMITH_BUILD_JOBS}" \
+    STACKSMITH_BUILD_MEMORY_BUDGET_GB="${STACKSMITH_BUILD_MEMORY_BUDGET_GB}" \
+    STACKSMITH_EST_BUILD_MEMORY_GB="${STACKSMITH_EST_BUILD_MEMORY_GB}" \
+    STACKSMITH_OOM_RISK="${STACKSMITH_OOM_RISK}" \
+    MAKEFLAGS="-j${STACKSMITH_BUILD_JOBS}" \
+    CMAKE_BUILD_PARALLEL_LEVEL="${STACKSMITH_BUILD_JOBS}" \
+    NPM_CONFIG_JOBS="${STACKSMITH_BUILD_JOBS}"
+
+{% if apt_packages %}
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  {% for p in apt_packages %}{{ p }} {% endfor %}\
+  && rm -rf /var/lib/apt/lists/*
+{% endif %}
+
+{% if pip_requirements %}
+{# Clear NGC constraint file and upgrade setuptools so packages (e.g. sglang) that
+   require setuptools>=77 can build. --break-system-packages for PEP 668 envs. #}
+ENV PIP_CONSTRAINT=
+RUN python -m pip install --no-cache-dir --break-system-packages --force-reinstall --no-deps "setuptools>=77"
+COPY requirements.txt /tmp/requirements.txt
+{% if pip_install_mode == "wheelhouse_only" %}
+RUN test -d "{{ pip_wheelhouse_path }}" || (echo "pip_wheelhouse_path not found in build context: {{ pip_wheelhouse_path }}" && exit 1)
+RUN python -m pip install --no-cache-dir {% if pip_install_options %}{{ pip_install_options }} {% endif %}--no-index --find-links "{{ pip_wheelhouse_path }}" -r /tmp/requirements.txt
+{% elif pip_install_mode == "wheelhouse_prefer" %}
+RUN test -d "{{ pip_wheelhouse_path }}" || (echo "pip_wheelhouse_path not found in build context: {{ pip_wheelhouse_path }}" && exit 1)
+RUN python -m pip install --no-cache-dir {% if pip_install_options %}{{ pip_install_options }} {% endif %}--find-links "{{ pip_wheelhouse_path }}" -r /tmp/requirements.txt
+{% else %}
+RUN python -m pip install --no-cache-dir {% if pip_install_options %}{{ pip_install_options }} {% endif %}-r /tmp/requirements.txt
+{% endif %}
+{% endif %}
+
+{% if npm_install_commands %}
+{% for cmd in npm_install_commands %}
+RUN {{ cmd }}
+{% endfor %}
+{% endif %}
+
+{% for item in copy_items %}
+COPY "{{ item.src }}" "{{ item.dst }}"
+{% endfor %}
+
+{% for e in env %}
+{% set kv = e.split('=', 1) %}
+ENV {{ kv[0] }}="{{ kv[1] | replace('\\', '\\\\') | replace('"', '\\"') | replace('$', '\\$') }}"
+{% endfor %}
+
+{% if expose_ports %}
+{% for p in expose_ports %}
+EXPOSE {{ p }}
+{% endfor %}
+{% endif %}
+
+CMD {{ entrypoint_cmd_json }}

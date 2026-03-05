@@ -1,0 +1,23 @@
+# Pip compatibility overrides applied during overlay builds.
+# When the base image matches a rule, package versions are overridden to resolve
+# known conflicts with pre-installed dependencies (e.g. NGC PyTorch containers).
+# This enables stacks to "just work" without users debugging pip conflicts.
+#
+# Add new rules when base + package combinations fail; prefer config edits here
+# over requiring users to patch blocks or stacks manually.
+#
+schema_version: 1
+revision: 1
+
+overrides:
+  # NGC PyTorch 25.03+ ships torch 2.7.x, setuptools 75.8.x, protobuf/dill pins.
+  # Setuptools is handled by Dockerfile bootstrap; these fix package-level conflicts.
+  - when:
+      base_image_contains: "nvcr.io/nvidia/pytorch"
+    packages:
+      # vLLM 0.8.3+ supports torch 2.7; older versions pin torch==2.5.1
+      vllm: ">=0.8.3,<1.0"
+      # tensorboard 2.18+ conflicts with NGC protobuf; 2.14-2.17 works
+      tensorboard: ">=2.14,<3.0"
+      # coqui-tts (Python 3.12+) - relax version for NGC compatibility
+      coqui-tts: ">=0.22,<0.28"

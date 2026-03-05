@@ -1,0 +1,45 @@
+kind: stack_recipe
+schema_version: 2
+id: agentic_rag_fastapi
+display_name: "Agentic RAG (LangChain Agents + ChromaDB + FastAPI)"
+blocks:
+  - fastapi
+  - agent_orchestration
+  - langchain_rag
+  - chromadb_vectorstore
+  - sentence_transformers_embedding
+
+components:
+  base_role: pytorch
+  pip:
+    - name: fastapi
+      version: "==0.115.*"
+    - name: uvicorn
+      version: "[standard]==0.30.*"
+  apt:
+    - git
+    - curl
+
+build_strategy: overlay
+env:
+  - PYTHONUNBUFFERED=1
+  - CHROMA_PERSIST_DIR=/workspace/chroma_data
+
+ports:
+  - 8000
+
+entrypoint:
+  cmd:
+    - python
+    - "-m"
+    - uvicorn
+    - app.main:app
+    - "--host"
+    - "0.0.0.0"
+    - "--port"
+    - "8000"
+
+files:
+  copy:
+    - src: "services/agentic_rag_api/"
+      dst: "/app"

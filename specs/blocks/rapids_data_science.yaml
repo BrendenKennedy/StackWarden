@@ -1,0 +1,20 @@
+kind: block
+schema_version: 2
+id: rapids_data_science
+display_name: "NVIDIA RAPIDS Data Science"
+tags:
+  - data-science
+  - gpu
+  - analytics
+components:
+  pip:
+    - name: cudf-cu12
+      version: ">=25.2,<26.0"
+    - name: cuml-cu12
+      version: ">=25.2,<26.0"
+    - name: polars
+      version: ">=1.0,<2.0"
+requires:
+  gpu_vendor: nvidia
+provides:
+  layer: core_compute

@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stacksmith"
+version = "0.1.0"
+description = "Hardware-aware ML container build manager"
+requires-python = ">=3.10"
+dependencies = [
+    "typer[all]>=0.9,<1.0",
+    "pydantic>=2.0,<3.0",
+    "pyyaml>=6.0,<7.0",
+    "jinja2>=3.1,<4.0",
+    "docker>=7.0,<8.0",
+    "sqlalchemy>=2.0,<3.0",
+    "rich>=13.0,<14.0",
+    "filelock>=3.12,<4.0",
+    "packaging>=24.0,<25.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov", "ruff", "mypy"]
+wizard = ["questionary>=2.0"]
+web = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sse-starlette>=2.0",
+    "pydantic-settings>=2.0",
+]
+
+[project.scripts]
+stacksmith = "stacksmith.cli_app:app"
+stacksmith-web = "stacksmith.web_entry:main"
+
+[tool.setuptools]
+package-dir = {"" = "packages/stacksmith/src"}
+
+[tool.setuptools.packages.find]
+where = ["packages/stacksmith/src"]
+include = ["stacksmith*"]
+
+[tool.setuptools.package-data]
+"stacksmith.licenses" = ["spdx_map.yaml"]
+"stacksmith.web" = ["static/**", "static/**/*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["packages/stacksmith/src"]
