@@ -66,7 +66,7 @@ catalogWrite --> verifyStep[Inspect Verify Drift Checks]
 
 ## Security and Safety
 
-- Token-gated API mutation, admin token boundaries, and path traversal guards.
+- Session-cookie API protection for authenticated admin workflows, setup/login bootstrap endpoints, and path traversal guards.
 - Compatibility and policy checks before expensive runtime operations.
 
 ## Reliability

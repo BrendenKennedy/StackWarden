@@ -1,5 +1,4 @@
 import { ref } from 'vue'
-import type { Ref } from 'vue'
 import { useEntityListPage } from '@/composables/useEntityListPage'
 import { useQueryModal } from '@/composables/useQueryModal'
 

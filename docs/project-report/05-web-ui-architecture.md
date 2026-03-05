@@ -27,24 +27,27 @@ This structure keeps views orchestration-focused while moving reusable logic int
 
 ## Routing and State Patterns
 
-Routing is centralized in `apps/web/src/router.ts` with list/detail/edit and workflow routes for entity domains and operations.
+Routing is centralized in `apps/web/src/router.ts` with auth-aware guards and explicit auth routes (`/login`, `/setup`) plus post-auth destination (`/dashboard`) alongside entity/workflow routes.
 
 State model:
 
 - Local reactive state (`ref`, `computed`, `watch`) in pages/composables
 - Shared workflow abstractions in composables (for example, entity list page and create flow helpers)
 - No heavy global store as primary pattern for current architecture
+- App shell behavior is route-aware (`App.vue`): auth pages render without the standard nav/sidebar layout
 
 ## Data-Fetching and API Integration
 
 Frontend API integration is centered on:
 
-- `apps/web/src/api/client.ts` for fetch behavior, auth header, timeout, and error normalization
+- `apps/web/src/api/client.ts` for fetch behavior, cookie-session transport, timeout, and error normalization
 - `apps/web/src/api/endpoints.ts` for domain-specific API methods
 
 Authentication model:
 
-- Bearer token stored in local storage and attached to API and SSE requests
+- `useAuthSession` provides cached status checks plus setup/login/logout/change-password actions
+- Auth state is server-backed by HTTP-only session cookies rather than browser-stored bearer tokens
+- Route guards redirect to setup/login/dashboard based on current session status
 
 Long-running job observability:
 

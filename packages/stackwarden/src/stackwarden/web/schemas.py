@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from stackwarden.domain.models import (
     ArtifactRecord,
@@ -300,6 +300,18 @@ class PlanRequestDTO(BaseModel):
     variants: dict[str, Any] | None = None
     flags: dict[str, bool] = Field(default_factory=dict)
 
+    @field_validator("flags")
+    @classmethod
+    def _validate_flags(cls, value: dict[str, bool]) -> dict[str, bool]:
+        allowed = {"explain"}
+        unknown = sorted(set(value) - allowed)
+        if unknown:
+            allowed_csv = ", ".join(sorted(allowed))
+            raise ValueError(
+                f"Unknown plan flag(s): {', '.join(unknown)}. Allowed flags: {allowed_csv}",
+            )
+        return value
+
 
 class CompatibilityPreviewRequestDTO(BaseModel):
     profile_id: str
@@ -398,6 +410,18 @@ class EnsureRequestDTO(BaseModel):
     variants: dict[str, Any] | None = None
     flags: dict[str, bool] = Field(default_factory=dict)
 
+    @field_validator("flags")
+    @classmethod
+    def _validate_flags(cls, value: dict[str, bool]) -> dict[str, bool]:
+        allowed = {"rebuild", "upgrade_base", "immutable", "no_hooks", "explain"}
+        unknown = sorted(set(value) - allowed)
+        if unknown:
+            allowed_csv = ", ".join(sorted(allowed))
+            raise ValueError(
+                f"Unknown ensure flag(s): {', '.join(unknown)}. Allowed flags: {allowed_csv}",
+            )
+        return value
+
 class EnsureResponseDTO(BaseModel):
     job_id: str
 
@@ -437,15 +461,9 @@ class RetryWithFixResponseDTO(BaseModel):
     message: str
 
 
-class JobEventDTO(BaseModel):
-    type: Literal["status", "log", "progress", "result", "error"]
-    ts: str
-    payload: str
-
-
 class CatalogItemDTO(BaseModel):
     row_id: str
-    source: Literal["artifact", "job"]
+    source: Literal["artifact"]
     status: str
     profile_id: str
     stack_id: str
@@ -500,6 +518,27 @@ class SettingsConfigUpdateRequestDTO(BaseModel):
     remote_catalog_auto_pull: bool | None = None
     tuple_layer_mode: str | None = None
     sync_now: bool = False
+
+
+class AuthSessionStatusDTO(BaseModel):
+    setup_required: bool
+    authenticated: bool
+    username: str | None = None
+
+
+class AuthSetupRequestDTO(BaseModel):
+    username: str
+    password: str
+
+
+class AuthLoginRequestDTO(BaseModel):
+    username: str
+    password: str
+
+
+class AuthChangePasswordRequestDTO(BaseModel):
+    current_password: str
+    new_password: str
 
 
 # Detection hints (server-host probing)

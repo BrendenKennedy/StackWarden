@@ -21,12 +21,12 @@ Complete map of all StackWarden documentation. See also the [root README](../REA
 | [project-report/01-philosophy-and-principles.md](project-report/01-philosophy-and-principles.md) | Design philosophy: intent-first contracts, determinism, and provenance |
 | [project-report/02-system-architecture.md](project-report/02-system-architecture.md) | System architecture overview -- domain layers, data flow, and component boundaries |
 | [project-report/03-cli-architecture.md](project-report/03-cli-architecture.md) | CLI layer design: Typer commands, shared decorators, and wizard flows |
-| [project-report/04-web-api-architecture.md](project-report/04-web-api-architecture.md) | Web API layer: FastAPI routes, job streaming, and schema contracts |
-| [project-report/05-web-ui-architecture.md](project-report/05-web-ui-architecture.md) | Web UI layer: Vue 3 SPA, composables, modal wizards, and entity tables |
+| [project-report/04-web-api-architecture.md](project-report/04-web-api-architecture.md) | Web API layer: FastAPI routes, session auth boundaries, job streaming, and schema contracts |
+| [project-report/05-web-ui-architecture.md](project-report/05-web-ui-architecture.md) | Web UI layer: Vue 3 SPA routes/guards, session-aware workflows, composables, and entity tables |
 | [project-report/06-cross-layer-interactions.md](project-report/06-cross-layer-interactions.md) | How CLI, API, and UI layers interact through the shared domain |
 | [project-report/07-design-decisions-and-adrs.md](project-report/07-design-decisions-and-adrs.md) | Key design decisions and architecture decision records |
-| [project-report/08-onboarding-guide.md](project-report/08-onboarding-guide.md) | First-day setup, mental model, repository walkthrough, and suggested first contributions |
-| [project-report/09-testing-and-quality-strategy.md](project-report/09-testing-and-quality-strategy.md) | Testing strategy: unit, contract, integration, and frontend tests |
+| [project-report/08-onboarding-guide.md](project-report/08-onboarding-guide.md) | First-day setup using current Makefile workflow, mental model, repository walkthrough, and suggested first contributions |
+| [project-report/09-testing-and-quality-strategy.md](project-report/09-testing-and-quality-strategy.md) | Testing strategy: unit, contract, integration, frontend, auth/session, and stress checks |
 | [project-report/10-glossary-and-concepts.md](project-report/10-glossary-and-concepts.md) | Glossary of StackWarden-specific terms and concepts |
 | [adr/intent-first-contract.md](adr/intent-first-contract.md) | ADR: intent-first contract design -- frozen terminology, ownership, and precedence |
 | [repository_layout.md](repository_layout.md) | Monorepo directory structure, placement rules, and ownership summary |

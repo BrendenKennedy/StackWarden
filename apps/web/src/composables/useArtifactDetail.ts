@@ -1,6 +1,7 @@
 import { computed, ref, type Ref, watch } from 'vue'
 import type { ArtifactDetail, VerifyResponse } from '@/api/types'
 import { artifacts as artifactsApi, verify as verifyApi } from '@/api/endpoints'
+import { ApiError } from '@/api/client'
 import { toUserErrorMessage } from '@/utils/errors'
 
 const TABS = [
@@ -52,14 +53,13 @@ export function useArtifactDetail(
       tabData.value = data
     } catch (err: unknown) {
       if (reqId !== tabRequestId) return
-      const msg = toUserErrorMessage(err)
-      if (msg.includes('404') || msg.includes('Not Found')) {
+      if (err instanceof ApiError && err.status === 404) {
         tabError.value =
           key === 'sbom'
             ? 'SBOM not generated. Run `stackwarden sbom <tag>` to export.'
             : `${key}.json not found`
       } else {
-        tabError.value = msg
+        tabError.value = toUserErrorMessage(err)
       }
     } finally {
       if (reqId === tabRequestId) tabLoading.value = false
@@ -110,8 +110,8 @@ export function useArtifactDetail(
     try {
       await artifactsApi.markStale(id)
       artifact.value = await artifactsApi.get(id)
-    } catch (e) {
-      console.error('Failed to mark stale:', e)
+    } catch (e: unknown) {
+      loadError.value = toUserErrorMessage(e)
     }
   }
 
@@ -123,7 +123,6 @@ export function useArtifactDetail(
       await artifactsApi.remove(id)
       options?.onDeleted?.()
     } catch (err: unknown) {
-      console.error('Failed to delete artifact:', err)
       loadError.value = toUserErrorMessage(err)
     } finally {
       deleting.value = false

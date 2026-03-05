@@ -17,14 +17,9 @@ export class ApiError extends Error {
 }
 
 function getHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
+  return {
     'Content-Type': 'application/json',
   }
-  const token = localStorage.getItem('stackwarden_token')
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-  return headers
 }
 
 function withTimeout(ms: number = DEFAULT_TIMEOUT_MS): AbortSignal {

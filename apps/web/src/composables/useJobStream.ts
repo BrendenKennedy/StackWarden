@@ -1,4 +1,4 @@
-import { ref, onUnmounted, type Ref } from 'vue'
+import { ref, onUnmounted, watch, type Ref } from 'vue'
 import { toUserErrorMessage } from '@/utils/errors'
 
 export interface LogLine {
@@ -12,6 +12,12 @@ function safeParse(raw: string): unknown | null {
   } catch {
     return null
   }
+}
+
+function streamHeaders(): HeadersInit | undefined {
+  const token = localStorage.getItem('stackwarden_token')
+  if (!token) return undefined
+  return { Authorization: `Bearer ${token}` }
 }
 
 export function useJobStream(jobIdRef: Ref<string> | string) {
@@ -57,15 +63,9 @@ export function useJobStream(jobIdRef: Ref<string> | string) {
   }
 
   async function streamEvents(jobId: string, token: number, controller: AbortController) {
-    const requestHeaders: Record<string, string> = {}
-    const authToken = localStorage.getItem('stackwarden_token')
-    if (authToken) {
-      requestHeaders.Authorization = `Bearer ${authToken}`
-    }
-
     const res = await fetch(`/api/jobs/${jobId}/events`, {
       method: 'GET',
-      headers: requestHeaders,
+      headers: streamHeaders(),
       signal: controller.signal,
     })
     if (!res.ok) {
@@ -163,9 +163,22 @@ export function useJobStream(jobIdRef: Ref<string> | string) {
     connect(jobId)
   }
 
-  const initialId = typeof jobIdRef === 'string' ? jobIdRef : jobIdRef.value
-  if (initialId) {
-    connect(initialId)
+  if (typeof jobIdRef === 'string') {
+    if (jobIdRef) {
+      connect(jobIdRef)
+    }
+  } else {
+    watch(
+      () => jobIdRef.value,
+      (jobId) => {
+        if (jobId) {
+          connect(jobId)
+        } else {
+          disconnect()
+        }
+      },
+      { immediate: true },
+    )
   }
   onUnmounted(disconnect)
 

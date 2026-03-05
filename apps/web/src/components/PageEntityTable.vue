@@ -1,16 +1,52 @@
 <template>
   <div>
-    <h1 class="page-title">{{ title }}</h1>
+    <h1 class="page-title page-title-with-icon">
+      <svg v-if="titleIcon === 'catalog'" viewBox="0 0 24 24" class="page-title-icon" aria-hidden="true">
+        <path d="M4 6H20" />
+        <path d="M4 12H20" />
+        <path d="M4 18H20" />
+      </svg>
+      <svg v-else-if="titleIcon === 'profiles'" viewBox="0 0 24 24" class="page-title-icon" aria-hidden="true">
+        <path d="M16 21V19C16 17.34 14.66 16 13 16H7C5.34 16 4 17.34 4 19V21" />
+        <circle cx="10" cy="10" r="3" />
+        <path d="M20 8V14" />
+        <path d="M23 11H17" />
+      </svg>
+      <svg v-else-if="titleIcon === 'stacks'" viewBox="0 0 24 24" class="page-title-icon" aria-hidden="true">
+        <path d="M12 3L3 8L12 13L21 8L12 3Z" />
+        <path d="M3 12L12 17L21 12" />
+        <path d="M3 16L12 21L21 16" />
+      </svg>
+      <svg v-else-if="titleIcon === 'blocks'" viewBox="0 0 24 24" class="page-title-icon" aria-hidden="true">
+        <rect x="4" y="4" width="7" height="7" rx="1.5" />
+        <rect x="13" y="4" width="7" height="7" rx="1.5" />
+        <rect x="4" y="13" width="7" height="7" rx="1.5" />
+        <rect x="13" y="13" width="7" height="7" rx="1.5" />
+      </svg>
+      <svg v-else-if="titleIcon === 'settings'" viewBox="0 0 24 24" class="page-title-icon" aria-hidden="true">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15A1.66 1.66 0 0 0 19.73 16.82L19.79 16.88A2 2 0 1 1 16.96 19.71L16.9 19.65A1.66 1.66 0 0 0 15.08 19.32A1.66 1.66 0 0 0 14 20.85V21A2 2 0 1 1 10 21V20.91A1.66 1.66 0 0 0 8.92 19.38A1.66 1.66 0 0 0 7.1 19.71L7.04 19.77A2 2 0 1 1 4.21 16.94L4.27 16.88A1.66 1.66 0 0 0 4.6 15.06A1.66 1.66 0 0 0 3.07 14H3A2 2 0 1 1 3 10H3.09A1.66 1.66 0 0 0 4.62 8.92A1.66 1.66 0 0 0 4.29 7.1L4.23 7.04A2 2 0 1 1 7.06 4.21L7.12 4.27A1.66 1.66 0 0 0 8.94 4.6H9A1.66 1.66 0 0 0 10 3.09V3A2 2 0 1 1 14 3V3.09A1.66 1.66 0 0 0 15.08 4.62A1.66 1.66 0 0 0 16.9 4.29L16.96 4.23A2 2 0 1 1 19.79 7.06L19.73 7.12A1.66 1.66 0 0 0 19.4 8.94V9A1.66 1.66 0 0 0 20.93 10H21A2 2 0 1 1 21 14H20.91A1.66 1.66 0 0 0 19.38 15Z" />
+      </svg>
+      <span>{{ title }}</span>
+    </h1>
     <div class="page-entity-table-toolbar">
-      <button
-        v-if="createLabel"
-        class="btn btn-primary"
-        @click="$emit('create')"
-        :title="createLabel"
-        :aria-label="createLabel"
-      >
-        {{ createLabel }}
-      </button>
+      <div class="page-entity-table-toolbar-left">
+        <button
+          v-if="createLabel"
+          class="btn page-entity-table-circle-btn"
+          @click="$emit('create')"
+          :title="createLabel"
+          :aria-label="createLabel"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 5V19" />
+            <path d="M5 12H19" />
+          </svg>
+        </button>
+        <button class="btn page-entity-table-circle-btn" @click="$emit('refresh')" title="Refresh" aria-label="Refresh">
+          <IconReload />
+        </button>
+      </div>
       <input
         v-model="searchQuery"
         type="text"
@@ -18,9 +54,6 @@
         placeholder="Search..."
         aria-label="Search table rows"
       />
-      <button class="btn page-entity-table-refresh" @click="$emit('refresh')" title="Refresh" aria-label="Refresh">
-        Refresh
-      </button>
     </div>
 
     <div class="card">
@@ -144,6 +177,7 @@ type RowData = Record<string, string | number | null | undefined>
 
 const props = withDefaults(defineProps<{
   title: string
+  titleIcon?: 'catalog' | 'profiles' | 'stacks' | 'blocks' | 'settings'
   createLabel?: string
   loading: boolean
   loadingMessage?: string
@@ -269,16 +303,54 @@ defineEmits<{
   display: flex;
   gap: 0.5rem;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
-.page-entity-table-refresh {
-  min-width: 5.5rem;
+.page-entity-table-toolbar-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.page-title-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.page-title-icon {
+  width: 1.3rem;
+  height: 1.3rem;
+  flex: 0 0 1.3rem;
+  stroke: var(--accent);
+  stroke-width: 1.9;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.page-entity-table-circle-btn {
+  width: 2rem;
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0.35rem;
+  border-radius: 999px;
+}
+
+.page-entity-table-circle-btn svg {
+  width: 1rem;
+  height: 1rem;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .page-entity-table-search {
   flex: 1;
-  min-width: 220px;
+  min-width: 0;
   border-radius: 9999px;
   padding-left: 0.9rem;
   padding-right: 0.9rem;
@@ -425,12 +497,11 @@ defineEmits<{
 
 @media (max-width: 768px) {
   .page-entity-table-toolbar {
-    flex-direction: column;
-    align-items: stretch;
+    flex-wrap: wrap;
   }
 
   .page-entity-table-search {
-    min-width: 100%;
+    min-width: 14rem;
   }
 }
 </style>

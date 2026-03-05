@@ -31,6 +31,42 @@ def _load_config_data() -> dict:
         return yaml.safe_load(f) or {}
 
 
+def _deleted_profiles_path() -> Path:
+    return get_config_path().with_name("deleted_profiles.yaml")
+
+
+def _load_deleted_profile_ids() -> set[str]:
+    path = _deleted_profiles_path()
+    if not path.exists():
+        return set()
+    with open(path, encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    items = data.get("ids", [])
+    if not isinstance(items, list):
+        return set()
+    return {str(item).strip() for item in items if str(item).strip()}
+
+
+def _save_deleted_profile_ids(ids: set[str]) -> None:
+    from stackwarden.web.util.write_yaml import atomic_write_yaml
+
+    atomic_write_yaml({"ids": sorted(ids)}, _deleted_profiles_path())
+
+
+def mark_profile_deleted(profile_id: str) -> None:
+    ids = _load_deleted_profile_ids()
+    ids.add(profile_id)
+    _save_deleted_profile_ids(ids)
+
+
+def unmark_profile_deleted(profile_id: str) -> None:
+    ids = _load_deleted_profile_ids()
+    if profile_id not in ids:
+        return
+    ids.remove(profile_id)
+    _save_deleted_profile_ids(ids)
+
+
 def _configured_remote_data_dir() -> Path | None:
     data = _load_config_data()
     remote = data.get("remote_catalog", {}) or {}
@@ -190,6 +226,7 @@ def list_profile_ids() -> list[str]:
     for d in _spec_roots("profiles"):
         if d.is_dir():
             ids.update(p.stem for p in d.glob("*.yaml"))
+    ids.difference_update(_load_deleted_profile_ids())
     return sorted(ids)
 
 
@@ -218,6 +255,8 @@ def _safe_resolve(base: Path, name: str, suffix: str) -> Path:
 
 
 def load_profile(profile_id: str) -> Profile:
+    if profile_id in _load_deleted_profile_ids():
+        raise ProfileNotFoundError(profile_id)
     path = _find_spec_path("profiles", profile_id, ".yaml")
     if not path:
         raise ProfileNotFoundError(profile_id)

@@ -37,7 +37,7 @@ The Web UI performs transport-safe interactions through typed API clients; API r
 
 Responsibilities by layer:
 
-- UI: UX state, form flows, error display, token/session usage.
+- UI: UX state, form flows, error display, and auth/session status-driven routing.
 - API: contract validation, auth, HTTP status mapping, async job orchestration.
 - Core: domain invariants, deterministic planning, execution semantics, artifact lifecycle.
 

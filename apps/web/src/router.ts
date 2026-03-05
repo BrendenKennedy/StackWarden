@@ -6,9 +6,16 @@ import SettingsView from './views/SettingsView.vue'
 import ProfilesView from './views/ProfilesView.vue'
 import StacksView from './views/StacksView.vue'
 import BlocksView from './views/BlocksView.vue'
+import DashboardView from './views/DashboardView.vue'
+import LoginView from './views/LoginView.vue'
+import SetupAdminView from './views/SetupAdminView.vue'
+import { useAuthSession } from './composables/useAuthSession'
 
 const routes = [
   { path: '/', redirect: '/catalog' },
+  { path: '/login', name: 'login', component: LoginView },
+  { path: '/setup', name: 'setup-admin', component: SetupAdminView },
+  { path: '/dashboard', name: 'dashboard', component: DashboardView },
   { path: '/catalog', name: 'catalog', component: CatalogView },
   { path: '/artifacts/:id', name: 'artifact-detail', component: ArtifactDetailView, props: true },
   { path: '/build', redirect: '/catalog' },
@@ -39,7 +46,47 @@ const routes = [
   },
 ]
 
-export default createRouter({
+const router = createRouter({
   history: createWebHistory(),
   routes,
 })
+
+router.beforeEach(async (to) => {
+  if (to.name === 'not-found') return true
+  const { refreshStatus, status } = useAuthSession()
+  let session = status.value
+  try {
+    session = await refreshStatus()
+  } catch (error) {
+    if (to.name === 'login' || to.name === 'setup-admin') {
+      return true
+    }
+    if (!session) {
+      return { name: 'login' }
+    }
+  }
+  if (!session) {
+    return to.name === 'login' || to.name === 'setup-admin' ? true : { name: 'login' }
+  }
+
+  if (session.setup_required) {
+    if (to.name !== 'setup-admin') {
+      return { name: 'setup-admin' }
+    }
+    return true
+  }
+
+  if (!session.authenticated) {
+    if (to.name !== 'login') {
+      return { name: 'login' }
+    }
+    return true
+  }
+
+  if (to.name === 'login' || to.name === 'setup-admin') {
+    return { name: 'dashboard' }
+  }
+  return true
+})
+
+export default router

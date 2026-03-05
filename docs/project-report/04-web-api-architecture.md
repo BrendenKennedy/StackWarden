@@ -18,7 +18,7 @@ Primary app modules:
 Core middleware responsibilities:
 
 - CORS in development mode where configured
-- Bearer token auth protection for `/api/*` (except health endpoint)
+- Session auth protection for `/api/*` with explicit public bootstrap paths
 - Unified exception normalization for domain and validation errors
 
 ## Route Domains
@@ -29,6 +29,7 @@ Route modules are organized by domain intent:
 - Creation and composition: `create.py`, `plan.py`, `compatibility.py`, `verify.py`
 - Job orchestration and streaming: `jobs.py`
 - Persistence and artifacts: `catalog.py`, `artifacts.py`
+- Authentication and sessions: `auth.py`
 - System and metadata: `system.py`, `settings.py`, `detection.py`, `meta.py`
 
 This grouping mirrors operator tasks rather than low-level subsystem internals.
@@ -45,14 +46,16 @@ Design intent:
 
 ## Security Model
 
-Security is token-based perimeter control with separate scopes:
+Security uses a server-side session cookie perimeter for API access:
 
-- Primary bearer token for API access
-- Admin token header for privileged settings/catalog mutations
+- Public endpoints are intentionally limited to `/api/health`, `/api/auth/status`, `/api/auth/setup`, and `/api/auth/login`
+- Remaining `/api/*` routes require a valid authenticated admin session
+- If no admin exists yet, protected routes return setup-required behavior until first-run account creation completes
 
 Security hardening patterns include:
 
-- constant-time token comparison
+- hashed/validated session tokens with HTTP-only cookies
+- login throttling and short backoff windows on repeated failures
 - path traversal protections on file/path sensitive routes
 - structured input allowlists and field validation for create/update endpoints
 
@@ -89,6 +92,7 @@ Representative suites:
 - `tests/web/test_entity_api.py`
 - `tests/web/test_settings_catalog.py`
 - `tests/web/test_compatibility_api.py`
+- `tests/web/test_auth_session.py`
 
 Focus areas include response contracts, status codes, lifecycle transitions, and resilience behavior.
 

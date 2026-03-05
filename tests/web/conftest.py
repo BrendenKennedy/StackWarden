@@ -26,7 +26,14 @@ def client(data_dir):
         {"STACKWARDEN_DATA_DIR": str(data_dir), "STACKWARDEN_WEB_DEV": "true"},
     ):
         from stackwarden.web.app import create_app
+        from stackwarden.web.deps import reset_cached_dependencies
         from stackwarden.web.settings import WebSettings
 
+        reset_cached_dependencies()
         app = create_app(WebSettings(token=None, dev=True))
-        yield TestClient(app)
+        with TestClient(app) as test_client:
+            test_client.post(
+                "/api/auth/setup",
+                json={"username": "admin", "password": "dev-password-123"},
+            )
+            yield test_client

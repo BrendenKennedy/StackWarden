@@ -2,6 +2,7 @@
   <div>
     <PageEntityTable
       title="Profiles"
+      title-icon="profiles"
       create-label="Create New Profile"
       :loading="loading"
       loading-message="Loading profiles..."

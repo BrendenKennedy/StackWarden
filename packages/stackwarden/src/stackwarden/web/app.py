@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hmac
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -12,9 +11,10 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from stackwarden.web.auth.session import SESSION_COOKIE_NAME, hash_session_token, parse_session_cookie
+from stackwarden.web.deps import get_auth_store
 from stackwarden.web.settings import WebSettings
 
 log = logging.getLogger(__name__)
@@ -28,23 +28,46 @@ def _format_validation_field(loc: tuple[object, ...] | list[object]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Token auth middleware
+# Session auth middleware
 # ---------------------------------------------------------------------------
 
-class TokenAuthMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, token: str):
-        super().__init__(app)
-        self.token = token
+
+class SessionAuthMiddleware(BaseHTTPMiddleware):
+    """Enforce authenticated admin sessions for protected API routes.
+
+    Public endpoints are intentionally limited to health/auth bootstrap paths so new
+    installs can initialize the first admin without a pre-existing session cookie.
+    """
+
+    _PUBLIC_API_PATHS = {
+        "/api/health",
+        "/api/auth/status",
+        "/api/auth/setup",
+        "/api/auth/login",
+    }
 
     async def dispatch(self, request: Request, call_next):
-        if request.url.path.startswith("/api") and request.url.path != "/api/health":
-            auth = request.headers.get("Authorization", "")
-            expected = f"Bearer {self.token}"
-            if not hmac.compare_digest(auth.encode(), expected.encode()):
-                return JSONResponse(
-                    status_code=401,
-                    content={"detail": "Invalid or missing authentication token"},
-                )
+        if not request.url.path.startswith("/api") or request.url.path in self._PUBLIC_API_PATHS:
+            return await call_next(request)
+
+        store = get_auth_store()
+        if not store.has_admin():
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Admin setup required before accessing protected APIs."},
+            )
+
+        parsed = parse_session_cookie(request.cookies.get(SESSION_COOKIE_NAME))
+        if not parsed:
+            return JSONResponse(status_code=401, content={"detail": "Authentication required."})
+        session_id, token_secret = parsed
+        token_hash = hash_session_token(token_secret)
+        admin = store.validate_session(session_id, token_hash)
+        if not admin:
+            return JSONResponse(status_code=401, content={"detail": "Authentication required."})
+        request.state.admin_id = admin.id
+        request.state.admin_username = admin.username
+        request.state.authenticated = True
         return await call_next(request)
 
 
@@ -83,24 +106,8 @@ def create_app(settings: WebSettings | None = None) -> FastAPI:
             allow_headers=["*"],
         )
 
-    # Token auth
-    if settings.token:
-        app.add_middleware(TokenAuthMiddleware, token=settings.token)
-    else:
-        if settings.dev:
-            _no_auth_msg = (
-                "WARNING: No STACKWARDEN_WEB_TOKEN configured — the web UI is "
-                "running WITHOUT AUTHENTICATION. Any network client can trigger "
-                "builds and modify the catalog. Set STACKWARDEN_WEB_TOKEN to "
-                "enable bearer-token auth."
-            )
-            log.warning(_no_auth_msg)
-            import sys
-            print(f"\n{'=' * 72}\n{_no_auth_msg}\n{'=' * 72}\n", file=sys.stderr)
-        else:
-            raise RuntimeError(
-                "STACKWARDEN_WEB_TOKEN is required when STACKWARDEN_WEB_DEV is false."
-            )
+    # Session auth
+    app.add_middleware(SessionAuthMiddleware)
 
     # Global error handler for StackWarden domain errors
     from stackwarden.domain.errors import (
@@ -157,6 +164,7 @@ def create_app(settings: WebSettings | None = None) -> FastAPI:
         meta,
         plan,
         profiles,
+        auth,
         settings as settings_routes,
         stacks,
         system,
@@ -164,6 +172,7 @@ def create_app(settings: WebSettings | None = None) -> FastAPI:
     )
 
     app.include_router(profiles.router, prefix="/api")
+    app.include_router(auth.router, prefix="/api")
     app.include_router(stacks.router, prefix="/api")
     app.include_router(blocks.router, prefix="/api")
     app.include_router(artifacts.router, prefix="/api")

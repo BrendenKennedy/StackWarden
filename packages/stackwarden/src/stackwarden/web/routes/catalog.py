@@ -25,13 +25,6 @@ def _norm_artifact_status(status: str) -> str:
     return mapping.get(status, status)
 
 
-def _norm_job_status(status: str, has_artifact: bool) -> str:
-    if status == "succeeded":
-        # Keep transitional running state until artifact row exists.
-        return "built" if has_artifact else "running"
-    return status
-
-
 def _ts(item: CatalogItemDTO) -> float:
     try:
         return datetime.fromisoformat(item.created_at).timestamp()

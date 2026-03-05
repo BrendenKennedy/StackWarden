@@ -9,8 +9,6 @@ import type {
   VerifyResponse,
   JobSummary,
   JobDetail,
-  CompatibilityFix,
-  RetryWithFixResponse,
   SystemConfig,
   DetectionHints,
   StackCreatePayload,
@@ -27,6 +25,7 @@ import type {
   BlockPresetCatalog,
   TupleCatalog,
   SettingsConfigUpdatePayload,
+  AuthSessionStatus,
 } from './types'
 
 export const profiles = {
@@ -107,13 +106,9 @@ export const jobs = {
 
   get: (id: string) => get<JobDetail>(`/jobs/${id}`),
 
-  getCompatibilityFix: (id: string) =>
-    get<CompatibilityFix>(`/jobs/${id}/compatibility-fix`),
-
   retry: (id: string) => post<{ job_id: string }>(`/jobs/${id}/retry`),
-
-  retryWithFix: (id: string) =>
-    post<RetryWithFixResponse>(`/jobs/${id}/retry-with-fix`),
+  cancel: (id: string) =>
+    post<{ canceled: boolean; job_id: string; detail: string }>(`/jobs/${id}/cancel`),
 
   ensure: (body: {
     profile_id: string
@@ -134,15 +129,17 @@ export const settings = {
   hardwareCatalogs: () => get<HardwareCatalog>('/settings/hardware-catalogs'),
   blockCatalog: () => get<BlockPresetCatalog>('/settings/block-catalog'),
   tupleCatalog: () => get<TupleCatalog>('/settings/tuple-catalog'),
-  updateConfig: (
-    body: SettingsConfigUpdatePayload,
-    adminToken?: string,
-  ) =>
-    post<SystemConfig>(
-      '/settings/config',
-      body,
-      adminToken ? { 'X-StackWarden-Admin-Token': adminToken } : undefined,
-    ),
+  updateConfig: (body: SettingsConfigUpdatePayload) => post<SystemConfig>('/settings/config', body),
+  recycleServices: () => post<{ started: boolean; pid: number; log_file: string }>('/settings/services/recycle'),
+}
+
+export const auth = {
+  status: () => get<AuthSessionStatus>('/auth/status'),
+  setup: (body: { username: string; password: string }) => post<AuthSessionStatus>('/auth/setup', body),
+  login: (body: { username: string; password: string }) => post<AuthSessionStatus>('/auth/login', body),
+  logout: () => post<{ ok: boolean }>('/auth/logout'),
+  changePassword: (body: { current_password: string; new_password: string }) =>
+    post<{ ok: boolean }>('/auth/change-password', body),
 }
 
 export const meta = {

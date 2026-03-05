@@ -103,6 +103,10 @@ export interface BlockDetail extends BlockSummary {
   pip_count: number
   npm_count: number
   apt_count: number
+  requires: Record<string, any>
+  conflicts: string[]
+  incompatible_with: string[]
+  provides: Record<string, any>
 }
 
 export interface ArtifactSummary {
@@ -129,7 +133,7 @@ export interface ArtifactDetail extends ArtifactSummary {
 
 export interface CatalogItem {
   row_id: string
-  source: 'artifact' | 'job'
+  source: 'artifact'
   status: string
   profile_id: string
   stack_id: string
@@ -201,19 +205,6 @@ export interface JobDetail extends JobSummary {
   log_path: string | null
 }
 
-export interface CompatibilityFix {
-  applicable: boolean
-  message: string
-  suggested_overrides: Record<string, string>
-  base_image_hint: string
-}
-
-export interface RetryWithFixResponse {
-  job_id: string
-  applied: boolean
-  message: string
-}
-
 export interface SystemConfig {
   catalog_path: string | null
   log_dir: string | null
@@ -246,6 +237,12 @@ export interface SettingsConfigUpdatePayload {
   remote_catalog_auto_pull?: boolean
   tuple_layer_mode?: string | null
   sync_now?: boolean
+}
+
+export interface AuthSessionStatus {
+  setup_required: boolean
+  authenticated: boolean
+  username?: string | null
 }
 
 export interface DetectionProbe {

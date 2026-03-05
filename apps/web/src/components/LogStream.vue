@@ -23,13 +23,9 @@ import JobBadge from './JobBadge.vue'
 
 const props = defineProps<{ jobId: string }>()
 
-const { lines, status, result, error, reconnect } = useJobStream(toRef(props, 'jobId'))
+const { lines, status, result, error } = useJobStream(toRef(props, 'jobId'))
 const autoScroll = ref(true)
 const logEl = ref<HTMLElement | null>(null)
-
-watch(() => props.jobId, (newId, oldId) => {
-  if (newId && newId !== oldId) reconnect(newId)
-})
 
 watch(lines, async () => {
   if (autoScroll.value && logEl.value) {

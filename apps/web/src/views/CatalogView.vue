@@ -2,11 +2,12 @@
   <div>
     <PageEntityTable
       title="Catalog"
+      title-icon="catalog"
       create-label="Create Build"
       :loading="loading"
       loading-message="Loading catalog items..."
       empty-message="No catalog items yet."
-      :error-message="buildError"
+      :error-message="tableErrorMessage"
       :rows="tableRows"
       :columns="tableColumns"
       route-base="/catalog"
@@ -21,7 +22,7 @@
       :retryable="(row) => row.status === 'failed' && !!row.job_id"
       retry-id-key="job_id"
       :retrying-id="retryingId"
-      @create="showBuild = true"
+      @create="openBuildModal"
       @refresh="fetchItems"
       @delete="deleteCatalogItem"
       @retry="retryCatalogJob"
@@ -90,7 +91,7 @@
           <summary class="catalog-summary">Tuple Decision</summary>
           <pre class="json-viewer catalog-json">{{ JSON.stringify(tupleDecision, null, 2) }}</pre>
         </details>
-        <div v-if="buildError" class="catalog-message catalog-error">{{ buildError }}</div>
+        <div v-if="modalError" class="catalog-message catalog-error">{{ modalError }}</div>
       </div>
     </div>
     </Teleport>
@@ -109,6 +110,7 @@ import {
   jobs as jobsApi,
   profiles as profilesApi,
   stacks as stacksApi,
+  system as systemApi,
 } from '@/api/endpoints'
 import { toUserErrorMessage } from '@/utils/errors'
 import PageEntityTable from '@/components/PageEntityTable.vue'
@@ -126,10 +128,13 @@ const deletingId = ref<string | null>(null)
 const retryingId = ref<string | null>(null)
 const profilesList = ref<ProfileSummary[]>([])
 const stacksList = ref<StackSummary[]>([])
+const defaultProfileId = ref('')
 const buildProfileId = ref('')
 const buildStackId = ref('')
 const startingBuild = ref(false)
-const buildError = ref('')
+const tableError = ref('')
+const rowActionError = ref('')
+const modalError = ref('')
 const compatibilityErrors = ref<string[]>([])
 const compatibilityWarnings = ref<string[]>([])
 const compatibilityInfo = ref<string[]>([])
@@ -144,6 +149,7 @@ const canBuild = computed(() =>
   buildStackId.value !== '' &&
   compatibilityErrors.value.length === 0
 )
+const tableErrorMessage = computed(() => rowActionError.value || tableError.value)
 const tableColumns = [
   { key: 'profile_id', label: 'Profile', width: '145px' },
   { key: 'stack_id', label: 'Stack', width: '145px' },
@@ -173,8 +179,10 @@ async function fetchItems() {
   try {
     const rows = await catalogApi.items({})
     items.value = rows
+    tableError.value = ''
+    rowActionError.value = ''
   } catch (e: unknown) {
-    buildError.value = toUserErrorMessage(e)
+    tableError.value = toUserErrorMessage(e)
   } finally {
     loading.value = false
   }
@@ -184,16 +192,16 @@ async function deleteCatalogItem(rowId: string) {
   const row = items.value.find((item) => item.row_id === rowId)
   if (!row) return
   if (!row.artifact_id) {
-    buildError.value = 'Cannot delete: no artifact to remove.'
+    rowActionError.value = 'Cannot delete: no artifact to remove.'
     return
   }
   deletingId.value = rowId
-  buildError.value = ''
+  rowActionError.value = ''
   try {
     await artifactsApi.remove(row.artifact_id)
     await fetchItems()
   } catch (e: unknown) {
-    buildError.value = toUserErrorMessage(e)
+    rowActionError.value = toUserErrorMessage(e)
   } finally {
     deletingId.value = null
   }
@@ -218,12 +226,12 @@ function closeArtifactModal() {
 async function retryCatalogJob(jobId: string) {
   if (!jobId) return
   retryingId.value = jobId
-  buildError.value = ''
+  rowActionError.value = ''
   try {
     await jobsApi.retry(jobId)
     await fetchItems()
   } catch (e: unknown) {
-    buildError.value = toUserErrorMessage(e)
+    rowActionError.value = toUserErrorMessage(e)
   } finally {
     retryingId.value = null
   }
@@ -231,19 +239,34 @@ async function retryCatalogJob(jobId: string) {
 
 async function loadBuildInputs() {
   try {
-    ;[profilesList.value, stacksList.value] = await Promise.all([
+    const [profiles, stacks, cfg] = await Promise.all([
       profilesApi.list(),
       stacksApi.list(),
+      systemApi.config().catch(() => null),
     ])
+    profilesList.value = profiles
+    stacksList.value = stacks
+    defaultProfileId.value = cfg?.default_profile || ''
+    if (!buildProfileId.value && defaultProfileId.value && profilesList.value.some((p) => p.id === defaultProfileId.value)) {
+      buildProfileId.value = defaultProfileId.value
+    }
   } catch {
     // best-effort
+  }
+}
+
+function openBuildModal() {
+  showBuild.value = true
+  modalError.value = ''
+  if (defaultProfileId.value && profilesList.value.some((p) => p.id === defaultProfileId.value)) {
+    buildProfileId.value = defaultProfileId.value
   }
 }
 
 async function startBuild() {
   if (!canBuild.value) return
   startingBuild.value = true
-  buildError.value = ''
+  modalError.value = ''
   try {
     await jobsApi.ensure({
       profile_id: buildProfileId.value,
@@ -253,7 +276,7 @@ async function startBuild() {
     showBuild.value = false
     await fetchItems()
   } catch (e: unknown) {
-    buildError.value = toUserErrorMessage(e)
+    modalError.value = toUserErrorMessage(e)
   } finally {
     startingBuild.value = false
   }

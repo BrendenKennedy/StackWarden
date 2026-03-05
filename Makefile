@@ -67,6 +67,10 @@ test-py: ## Run Python backend tests
 test-web: ## Run Vue frontend tests
 	npm run test --prefix $(WEB_DIR)
 
+.PHONY: test-stress-e2e
+test-stress-e2e: ## Run CLI+API end-to-end stress tests
+	pytest tests/test_stress_e2e_cli_web.py -q
+
 .PHONY: test-cov
 test-cov: ## Run Python tests with coverage
 	pytest tests/ -q --ignore=tests/test_build_integration.py --cov=stackwarden --cov-report=term-missing

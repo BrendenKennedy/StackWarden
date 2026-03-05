@@ -20,14 +20,22 @@ Bootstrap:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ".[dev,wizard,web]"
 ```
 
 Sanity checks:
 
 ```bash
 stackwarden doctor
-python -m pytest tests/ -v
+make test
+```
+
+If you are actively working on service lifecycle or stress behavior, also run:
+
+```bash
+make services-up
+make services-recycle
+make test-stress-e2e
 ```
 
 ## 2) Mental Model First

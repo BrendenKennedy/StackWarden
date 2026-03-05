@@ -103,23 +103,24 @@ Where enforced:
 
 - Resolver compatibility checks, rule catalogs, and preview endpoints/commands.
 
-## 6) API Security by Token Gate
+## 6) API Security by Session Cookie Gate
 
 Decision:
 
-- Use bearer token auth for API perimeter and admin token for privileged mutation paths.
+- Use a server-side session cookie perimeter with first-run admin setup and explicit auth bootstrap routes.
 
 Why:
 
-- Lightweight operational security aligned to local/single-tenant deployment expectations.
+- Keeps browser UI auth simple while avoiding client-managed bearer token storage.
+- Supports first-run bootstrap (`/api/auth/setup`) without disabling perimeter checks for the rest of the API.
 
 Trade-off:
 
-- Not a full identity/RBAC system; deployments needing multi-tenant policy need additional controls.
+- Still not a full identity/RBAC system; deployments needing multi-tenant policy need additional controls.
 
 Where enforced:
 
-- API middleware and privileged route checks.
+- Session auth middleware and `/api/auth/*` route contract behavior.
 
 ## 7) Modal/Wizard UX with Explicit Write Confirmation
 

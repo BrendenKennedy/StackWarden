@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Response
 
@@ -12,12 +13,14 @@ from stackwarden.application.create_flows import (
     update_profile as app_update_profile,
 )
 from stackwarden.config import (
+    AppConfig,
     get_profile_origin,
-    get_profiles_dir,
     list_profile_ids,
     load_profile,
+    mark_profile_deleted,
 )
 from stackwarden.domain.errors import ProfileNotFoundError
+from stackwarden.web.deps import reset_cached_dependencies
 from stackwarden.web.schemas import (
     ProfileCreateRequest,
     ProfileCreateResponse,
@@ -102,13 +105,25 @@ async def update_profile(profile_id: str, req: ProfileCreateRequest):
 @router.delete("/profiles/{profile_id}")
 async def delete_profile(profile_id: str):
     try:
-        profiles_dir = get_profiles_dir()
-        target = (profiles_dir / f"{profile_id}.yaml").resolve()
-        if not target.is_relative_to(profiles_dir.resolve()):
+        origin = get_profile_origin(profile_id)
+        source_path = str((origin or {}).get("source_path") or "").strip()
+        if not source_path:
+            raise HTTPException(status_code=404, detail=f"Profile not found: {profile_id}")
+        target = Path(source_path).resolve()
+        if target.name != f"{profile_id}.yaml":
             raise HTTPException(status_code=400, detail=f"Invalid profile id: {profile_id}")
         if not target.exists():
             raise HTTPException(status_code=404, detail=f"Profile not found: {profile_id}")
         target.unlink()
+
+        # Keep deleted ids hidden across merged profile roots (local/remote/bundled).
+        mark_profile_deleted(profile_id)
+
+        cfg = AppConfig.load()
+        if cfg.default_profile == profile_id:
+            cfg.default_profile = None
+            cfg.save()
+            reset_cached_dependencies()
         return {"deleted": True, "id": profile_id}
     except HTTPException:
         raise

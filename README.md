@@ -43,7 +43,7 @@ StackWarden is a CLI and web tool that takes the guesswork and tribal knowledge 
 ```bash
 # Install
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ".[dev,wizard,web]"
 
 # Check that your environment is ready
 stackwarden doctor
@@ -73,6 +73,15 @@ Or bring up both at once:
 ```bash
 make services-up
 ```
+
+### Authentication and Credential Recovery
+
+- StackWarden web auth uses a single-admin username/password account with server-side sessions.
+- On first launch (no admin account present), the UI shows the initial setup page to create the admin account.
+- Protected `/api/*` endpoints require an authenticated session, with only `/api/health` and auth bootstrap/login/status endpoints available pre-login.
+- There is no in-app "forgot password" or admin reset path.
+- If credentials are lost, the supported recovery is destructive: reinstall or wipe StackWarden app state, then re-run first-time setup.
+- Destructive recovery removes existing local StackWarden data (including custom catalog/config state and build history/artifact metadata).
 
 ## Where To Go From Here
 
@@ -104,6 +113,7 @@ Depending on what you're trying to do, here's where to look next.
 | [Onboarding Guide](docs/project-report/08-onboarding-guide.md) | First-day setup, mental model, and suggested first contributions |
 | [Repository Layout](docs/repository_layout.md) | Directory structure and file placement rules |
 | [Testing Strategy](docs/project-report/09-testing-and-quality-strategy.md) | How tests are organized and what to write |
+| `make test-stress-e2e` | Repeated CLI+web API end-to-end stress checks for regression discovery |
 | [Design Decisions & ADRs](docs/project-report/07-design-decisions-and-adrs.md) | Why things are the way they are |
 
 ### I need to run this in CI or production

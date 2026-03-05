@@ -18,6 +18,7 @@ from stackwarden.config import (
     load_block,
     load_profile,
     load_stack,
+    unmark_profile_deleted,
 )
 from stackwarden.domain.composition import (
     analyze_recipe_dependency_conflicts,
@@ -314,6 +315,7 @@ def create_profile(req: ProfileCreateRequest) -> Path:
     _assert_id_available(req.id, target_dir, load_profile)
     target = target_dir / f"{req.id}.yaml"
     atomic_write_yaml(payload, target)
+    unmark_profile_deleted(req.id)
     return target
 
 
@@ -345,6 +347,7 @@ def update_profile(profile_id: str, req: ProfileCreateRequest) -> Path:
     if not target.exists():
         raise AppNotFoundError(f"Profile not found: {profile_id}")
     atomic_write_yaml(payload, target)
+    unmark_profile_deleted(profile_id)
     return target
 
 
@@ -505,4 +508,5 @@ def duplicate_profile(profile_id: str, new_id: str, overrides: dict[str, Any]) -
     _assert_id_available(new_id, profiles_dir, load_profile)
     target = profiles_dir / f"{new_id}.yaml"
     atomic_write_yaml(data, target)
+    unmark_profile_deleted(new_id)
     return new_id, data.get("display_name", source.display_name), target

@@ -45,7 +45,7 @@ Representative suites:
 Objectives:
 
 - HTTP contract correctness (status, shape, validation)
-- auth and privileged mutation enforcement
+- session auth enforcement and setup/login/change-password behavior
 - async job and streaming lifecycle integrity
 
 Typical approach:
@@ -59,6 +59,8 @@ Representative suites:
 - `tests/web/test_jobs_plan_verify_artifacts.py`
 - `tests/web/test_entity_api.py`
 - `tests/web/test_settings_catalog.py`
+- `tests/web/test_auth_session.py`
+- `tests/web/test_jobs_stress_edge_cases.py`
 
 ## Web UI Layer
 
@@ -96,6 +98,7 @@ CI should validate:
 - frontend test suite
 - frontend build
 - lint/type checks where configured
+- CLI+web API stress coverage (`make test-stress-e2e`) for regression discovery on repeated runs
 
 When changing cross-layer behavior, include targeted tests in each impacted layer rather than relying on one surface only.
 

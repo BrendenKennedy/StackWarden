@@ -65,7 +65,7 @@ Safety posture includes:
 ## Design Principles by Layer
 
 - CLI: scripted/operator ergonomics, clear risk framing, strict exit behavior.
-- Web API: stable contracts, normalized validation and errors, token-gated mutation.
+- Web API: stable contracts, normalized validation/errors, and session-cookie auth boundaries.
 - Web UI: guided flows, dry-run/confirm patterns, decision visibility.
 - Core domain: deterministic contracts and portable business logic shared by all surfaces.
 

@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 STATE_DIR="$ROOT_DIR/.stackwarden/run"
 LOG_DIR="$ROOT_DIR/.stackwarden/logs"
+WEB_ENV_FILE="$STATE_DIR/web.env"
 
 BACKEND_NAME="stackwarden-web"
 BACKEND_HOST="127.0.0.1"
@@ -160,6 +161,12 @@ start_backend() {
   echo "[start] $BACKEND_NAME"
   (
     cd "$ROOT_DIR"
+    if [[ -f "$WEB_ENV_FILE" ]]; then
+      # shellcheck disable=SC1090
+      set -a
+      source "$WEB_ENV_FILE"
+      set +a
+    fi
     STACKWARDEN_WEB_DEV="${STACKWARDEN_WEB_DEV:-true}" \
     STACKWARDEN_WEB_HOST="$BACKEND_HOST" STACKWARDEN_WEB_PORT="$BACKEND_PORT" \
       nohup stackwarden-web >"$BACKEND_LOGFILE" 2>&1 &

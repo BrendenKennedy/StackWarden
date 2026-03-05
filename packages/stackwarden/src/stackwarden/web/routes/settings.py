@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import hmac
 import logging
+import subprocess
+from pathlib import Path
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, HTTPException
 
 from stackwarden.config import AppConfig
 from stackwarden.domain.block_catalog import load_block_catalog
@@ -28,17 +29,28 @@ router = APIRouter(tags=["settings"])
 log = logging.getLogger(__name__)
 
 
-def _require_admin_token(header_token: str | None, *, context: str = "catalog") -> None:
-    """Require admin token for protected mutations. Context is used in the disabled message."""
-    settings = WebSettings()
-    expected = settings.admin_token
-    if not expected:
-        raise HTTPException(
-            status_code=403,
-            detail=f"{context.capitalize()} mutation disabled: set STACKWARDEN_WEB_ADMIN_TOKEN to enable.",
-        )
-    if not header_token or not hmac.compare_digest(header_token.encode(), expected.encode()):
-        raise HTTPException(status_code=403, detail="Invalid admin token.")
+def _resolve_repo_root() -> Path:
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        if (parent / "Makefile").exists() and (parent / "ops" / "scripts" / "recycle_services.sh").exists():
+            return parent
+    raise RuntimeError("Unable to resolve repository root for service recycle.")
+
+
+def _start_recycle_process(repo_root: Path) -> dict[str, object]:
+    script = repo_root / "ops" / "scripts" / "recycle_services.sh"
+    log_file = repo_root / ".stackwarden" / "logs" / "recycle-from-ui.log"
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    handle = open(log_file, "a", encoding="utf-8")
+    process = subprocess.Popen(
+        [str(script)],
+        cwd=repo_root,
+        stdout=handle,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+    )
+    handle.close()
+    return {"started": True, "pid": process.pid, "log_file": str(log_file)}
 
 
 @router.get("/settings/hardware-catalogs", response_model=HardwareCatalogDTO)
@@ -72,10 +84,8 @@ async def get_tuple_catalog():
 async def upsert_hardware_catalog_item(
     catalog: str,
     body: HardwareCatalogUpsertRequestDTO,
-    x_stackwarden_admin_token: str | None = Header(default=None, alias="X-StackWarden-Admin-Token"),
 ):
     try:
-        _require_admin_token(x_stackwarden_admin_token)
         if body.catalog != catalog:
             raise HTTPException(status_code=400, detail="Catalog path/body mismatch.")
 
@@ -102,10 +112,8 @@ async def upsert_hardware_catalog_item(
 @router.post("/settings/config", response_model=SystemConfigDTO)
 async def update_settings_config(
     body: SettingsConfigUpdateRequestDTO,
-    x_stackwarden_admin_token: str | None = Header(default=None, alias="X-StackWarden-Admin-Token"),
 ):
     try:
-        _require_admin_token(x_stackwarden_admin_token, context="config")
         cfg = AppConfig.load()
 
         if body.default_profile is not None:
@@ -148,4 +156,21 @@ async def update_settings_config(
     except Exception:
         log.exception("Failed to update /settings/config")
         raise
+
+
+@router.post("/settings/services/recycle")
+async def recycle_services():
+    try:
+        settings = WebSettings()
+        if not settings.dev:
+            raise HTTPException(status_code=403, detail="Service recycle endpoint is available in dev mode only.")
+
+        repo_root = _resolve_repo_root()
+        return _start_recycle_process(repo_root)
+    except HTTPException:
+        raise
+    except Exception:
+        log.exception("Failed to start service recycle from settings endpoint")
+        raise
+
 

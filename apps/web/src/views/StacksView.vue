@@ -2,6 +2,7 @@
   <div>
     <PageEntityTable
       title="Stacks"
+      title-icon="stacks"
       create-label="Create New Stack"
       :loading="loading"
       loading-message="Loading stacks..."

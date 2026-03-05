@@ -5,6 +5,7 @@ from __future__ import annotations
 from stackwarden.config import AppConfig, tuple_layer_mode
 from stackwarden.domain.remote_catalog import RemoteCatalogSyncResult
 from stackwarden.paths import get_catalog_path, get_logs_root
+from stackwarden.web.deps import get_auth_store
 from stackwarden.web.schemas import SystemConfigDTO
 from stackwarden.web.settings import WebSettings
 
@@ -32,7 +33,7 @@ def config_to_dto(
         remote_catalog_last_sync_status=sync_result.status if sync_result else None,
         remote_catalog_last_sync_detail=sync_result.detail if sync_result else None,
         remote_catalog_last_sync_commit=sync_result.commit if sync_result else None,
-        auth_enabled=settings.token is not None,
+        auth_enabled=get_auth_store().has_admin(),
         blocks_first_enabled=settings.blocks_first_enabled,
         tuple_layer_mode=tuple_layer_mode(),
     )

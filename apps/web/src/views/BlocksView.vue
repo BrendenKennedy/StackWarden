@@ -2,6 +2,7 @@
   <div>
     <PageEntityTable
       title="Blocks"
+      title-icon="blocks"
       create-label="Create New Block"
       :loading="loading"
       loading-message="Loading blocks..."
