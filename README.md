@@ -1,116 +1,121 @@
 # StackWarden
 
-**Deterministic, hardware-aware container builds for ML inference.**
+**Stop wasting days getting your ML models to run on someone else's machine.**
 
 ---
 
-## The Problem
+## Sound Familiar?
 
-You have a diffusion model that runs perfectly on your DGX workstation. Now ship it to three other teams -- one on A100s with CUDA 12.4, one on L40S with CUDA 12.6, and one on a CPU-only staging box. Each team spends a day wrestling with base image versions, driver mismatches, and pip dependency conflicts. Someone pins `torch==2.3.0` to fix one host and silently breaks another. A month later, the base image gets a silent upstream update and nobody notices until inference latency spikes in production.
+Your team just spent weeks training a model. It runs great on your workstation. Everyone's excited. Then you hand it off.
 
-Every small code or dependency tweak often triggers another slow full-image rebuild, turning iteration speed into a bottleneck. There is no audit trail, no way to prove two builds are identical, and no single command to answer "what changed?"
+The first team tries to spin it up on their hardware. It crashes on import. Wrong CUDA version. They spend a day digging through forums, swapping base images, and re-installing packages until something works.
 
-## How StackWarden Fixes This
+The second team picks up your "fixed" container. It won't even start -- turns out the dependency someone pinned to fix the first machine quietly broke compatibility with theirs. Another day gone.
 
-StackWarden is a CLI and web tool that turns the problem into a deterministic pipeline:
+A month goes by. Everything seems stable. Then inference starts crawling in production. Nobody changed any code. Eventually someone discovers that an upstream base image got a silent update that nobody knew about. There was no alert, no log, no way to tell what was different.
 
-- **Profiles describe hosts, not wishes.** A profile captures what hardware you actually have -- GPU family, CUDA version, driver constraints, container runtime -- so the resolver can make safe decisions instead of guessing.
-- **Blocks express intent, not implementation.** Select composable blocks (`fastapi`, `vllm`, `triton`) to say *what* your application needs. StackWarden resolves the compatible dependency set for each target host automatically.
-- **Layered overlay builds keep rebuilds fast.** Overlay strategy reuses base image layers and copies only declared `files.copy` inputs into an isolated build context, so small source changes avoid expensive full rebuilds.
-- **Every build gets a fingerprint.** A SHA-256 hash of all inputs (profile, stack, base image digest, every dependency version, template, builder version) produces a deterministic tag. Same inputs = same tag, always.
-- **Drift is detected, not discovered in production.** When an upstream base image changes, a template is modified, or a schema version bumps, StackWarden marks the old artifact `stale` and triggers a rebuild -- or fails hard in CI with `--immutable`.
-- **Full provenance from plan to artifact.** Every built image carries OCI labels, a resolved manifest (exact `pip freeze`, `dpkg-query`, `npm ls`), and optional SBOM export. Reproduce any past build with `stackwarden repro`.
+Now your team lead is asking a simple question that nobody can answer: *"What changed between the build that worked and the one that doesn't?"*
+
+And through all of this, every time someone tweaks a single line of code or bumps one dependency, the entire container rebuilds from scratch. Twenty minutes of waiting, every single time.
+
+This is the cycle that StackWarden breaks.
+
+## What StackWarden Does For You
+
+StackWarden is a CLI and web tool that takes the guesswork and tribal knowledge out of packaging ML applications into containers.
+
+- **Describe your hardware once, deploy everywhere.** Tell StackWarden what GPUs, drivers, and runtimes each team actually has. It figures out the right set of compatible dependencies for each target -- no more guessing, no more "works on my machine."
+
+- **Say what your app needs, not how to wire it up.** Pick the pieces your application requires -- a serving framework, an inference engine, a set of utilities -- and StackWarden assembles a container that fits. You describe the *what*; it handles the *how*.
+
+- **Small changes rebuild in seconds, not minutes.** Tweak a source file or update a config and only the affected layer rebuilds. No more waiting 20 minutes because you changed one line of Python.
+
+- **Every build gets a fingerprint.** Same inputs always produce the same tag. If two people build from the same configuration, they get identical results. No surprises, no "it worked yesterday."
+
+- **Catch upstream changes before your users do.** When a base image updates, a template drifts, or a dependency shifts, StackWarden flags it immediately. In CI, you can make it fail hard so nothing sneaks into production unnoticed.
+
+- **Reproduce any past build with one command.** Full traceability from the plan that was approved to the artifact that shipped. Months later, you can recreate exactly what ran in production -- no archaeology required.
 
 ## Quick Start
 
-**Prerequisites:** Docker with Buildx. For GPU profiles: NVIDIA Container Toolkit. For SBOM: Docker Desktop (`docker sbom`) or [Syft](https://github.com/anchore/syft). See [docs/reference.md#prerequisites](docs/reference.md#prerequisites).
+**You'll need:** Docker with Buildx installed. For GPU targets, the NVIDIA Container Toolkit. See the [prerequisites guide](docs/reference.md#prerequisites) for details.
 
 ```bash
 # Install
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 
-# Verify your environment
+# Check that your environment is ready
 stackwarden doctor
 
-# See what's available
+# Browse available profiles and stacks
 stackwarden list profiles
 stackwarden list stacks
 
-# Plan a build (dry run)
+# Preview a build without running it
 stackwarden plan --profile dgx_spark --stack diffusion_fastapi
 
 # Build the image
 stackwarden ensure --profile dgx_spark --stack diffusion_fastapi
 ```
 
-## Documentation
-
-| Topic | Link |
-|-------|------|
-| **Full doc index** | [docs/README.md](docs/README.md) |
-| **Prerequisites** (Docker, Buildx, NVIDIA, SBOM tools) | [docs/reference.md#prerequisites](docs/reference.md#prerequisites) |
-| **User reference** (profiles, stacks, blocks, drift, variants, registry policies, troubleshooting) | [docs/reference.md](docs/reference.md) |
-| **Layered build performance** (fast rebuild guidance) | [docs/reference.md#build-performance-layered-overlay-strategy](docs/reference.md#build-performance-layered-overlay-strategy) |
-| **Composable blocks and wizards** | [docs/cli_wizard_usage.md](docs/cli_wizard_usage.md) |
-| **Hardware detection matrix** | [docs/hardware_detection_matrix.md](docs/hardware_detection_matrix.md) |
-| **System architecture** | [docs/project-report/02-system-architecture.md](docs/project-report/02-system-architecture.md) |
-| **Architecture deep-dive** (full report) | [docs/project-report/README.md](docs/project-report/README.md) |
-| **Design philosophy and principles** | [docs/project-report/01-philosophy-and-principles.md](docs/project-report/01-philosophy-and-principles.md) |
-| **Intent-first design ADR** | [docs/adr/intent-first-contract.md](docs/adr/intent-first-contract.md) |
-| **Web UI architecture** | [docs/project-report/05-web-ui-architecture.md](docs/project-report/05-web-ui-architecture.md) |
-| **Glossary and concepts** | [docs/project-report/10-glossary-and-concepts.md](docs/project-report/10-glossary-and-concepts.md) |
-| **Onboarding guide** | [docs/project-report/08-onboarding-guide.md](docs/project-report/08-onboarding-guide.md) |
-| **Example plans** | [docs/examples/example_plans.md](docs/examples/example_plans.md) |
-| **Repository layout** | [docs/repository_layout.md](docs/repository_layout.md) |
-
-## Project Structure
-
-```
-packages/stackwarden/   Python package (CLI, domain, resolvers, builders, catalog, web API)
-apps/web/               Vue frontend
-services/               ML API services (agentic RAG, ASR, diffusion, etc.)
-specs/                  Authored profiles, stacks, blocks, rules, configs, and templates (YAML)
-docs/                   Architecture, contributor documentation, and examples
-tests/                  Backend and contract tests
-ops/                    Operational scripts and systemd units
-```
-
-For full placement rules, see [docs/repository_layout.md](docs/repository_layout.md).
-
 ## Web UI
 
-StackWarden includes a browser-based UI for managing profiles, stacks, blocks, and build artifacts. Start both the backend API and the Vue dev server:
+StackWarden also includes a browser-based interface for managing profiles, stacks, blocks, and build artifacts.
 
 ```bash
 make dev-api    # Backend API on http://127.0.0.1:8765
 make dev-web    # Vue dev server on http://localhost:5173
 ```
 
-Or bring up both together via the service scripts:
+Or bring up both at once:
 
 ```bash
 make services-up
 ```
 
-## Development
+## Where To Go From Here
 
-A root `Makefile` provides common tasks. Run `make help` to list all targets.
+Depending on what you're trying to do, here's where to look next.
 
-```bash
-make install    # Install Python (editable) + npm dependencies
-make test       # Run all tests (Python + Vue)
-make lint       # Lint Python source with ruff
-make format     # Format Python source with ruff
-make typecheck  # Run mypy
-make build      # Build Vue frontend for production
-make ci         # Run the full CI pipeline locally (lint + test + build)
-make clean      # Remove build artifacts and caches
-```
+### I just want to use it
 
-## Contributing
+| Resource | What you'll find |
+|----------|-----------------|
+| [Prerequisites](docs/reference.md#prerequisites) | Required and optional software to get started |
+| [User Reference](docs/reference.md) | Profiles, stacks, blocks, drift detection, variants, and troubleshooting |
+| [CLI Wizard Walkthrough](docs/cli_wizard_usage.md) | Interactive commands for creating profiles, blocks, and stacks |
+| [Example Build Plans](docs/examples/example_plans.md) | Sample `stackwarden plan` outputs for common setups |
+| [Hardware Detection Matrix](docs/hardware_detection_matrix.md) | How StackWarden detects your hardware and what it looks for |
 
-Start with the [onboarding guide](docs/project-report/08-onboarding-guide.md) for environment setup, a mental model walkthrough, and suggested first contributions. The [docs index](docs/README.md) has a complete map of all documentation.
+### I want to understand how it works under the hood
+
+| Resource | What you'll find |
+|----------|-----------------|
+| [System Architecture](docs/project-report/02-system-architecture.md) | High-level overview of components and data flow |
+| [Design Philosophy](docs/project-report/01-philosophy-and-principles.md) | The principles behind StackWarden's design |
+| [Full Architecture Deep-Dive](docs/project-report/README.md) | 10-chapter report covering every layer in detail |
+| [Glossary](docs/project-report/10-glossary-and-concepts.md) | Definitions of StackWarden-specific terms |
+
+### I want to contribute
+
+| Resource | What you'll find |
+|----------|-----------------|
+| [Onboarding Guide](docs/project-report/08-onboarding-guide.md) | First-day setup, mental model, and suggested first contributions |
+| [Repository Layout](docs/repository_layout.md) | Directory structure and file placement rules |
+| [Testing Strategy](docs/project-report/09-testing-and-quality-strategy.md) | How tests are organized and what to write |
+| [Design Decisions & ADRs](docs/project-report/07-design-decisions-and-adrs.md) | Why things are the way they are |
+
+### I need to run this in CI or production
+
+| Resource | What you'll find |
+|----------|-----------------|
+| [Prerequisites](docs/reference.md#prerequisites) | Environment requirements for headless and CI setups |
+| [Drift Detection](docs/reference.md#drift-detection) | How drift is caught and how `--immutable` mode works |
+| [Registry Policies](docs/reference.md#registry-policies) | Configuring trusted registries with allow/deny lists |
+| [Build Performance](docs/reference.md#build-performance-layered-overlay-strategy) | Getting the fastest possible incremental rebuilds |
+
+For the complete doc map, see the [documentation index](docs/README.md).
 
 ## License
 
