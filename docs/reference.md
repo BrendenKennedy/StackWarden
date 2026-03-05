@@ -225,6 +225,38 @@ Control apt pin policy via `apt_install_mode`:
 
 `apt_constraints` entries are appended to package names (e.g. `curl: "=8.5.0-1ubuntu1"`).
 
+## Build Performance (Layered Overlay Strategy)
+
+StackWarden is designed for fast incremental rebuilds when you use `build_strategy: overlay`.
+
+### How layering stays fast
+
+- Overlay builds start from a resolved base image and add only your declared layers.
+- Build context is isolated and includes only declared `files.copy` sources (not the full repo), which reduces context upload and cache invalidation.
+- Dependency policy modes (`pip_install_mode`, `npm_install_mode`, `apt_install_mode`) let you keep installs deterministic and cache-friendly.
+- Lockfile-based npm installs (`lock_prefer` / `lock_only`) and wheelhouse modes can reduce network and dependency resolution overhead during rebuilds.
+
+### Practical optimization checklist
+
+- Keep `files.copy` narrow. Copy only the directories/files required by the stack.
+- Put frequently changing app code in separate copied paths from rarely changing dependency descriptors.
+- Prefer lockfiles and pinned constraints for stable layer cache reuse.
+- Use `stackwarden plan` first to validate intended steps before running full builds.
+- Use `stackwarden ensure --immutable` in CI to fail fast on drift instead of silently rebuilding unexpectedly.
+
+### Example: cache-friendly stack snippet
+
+```yaml
+kind: stack_recipe
+schema_version: 1
+id: my_service_fast
+build_strategy: overlay
+files:
+  copy:
+    - { src: "services/my_service/", dst: "/app" }
+    - { src: "apps/web/package-lock.json", dst: "/app/package-lock.json" }
+```
+
 ## Drift Detection
 
 An artifact is marked stale if any of these conditions are true:

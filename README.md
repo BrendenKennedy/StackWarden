@@ -16,6 +16,7 @@ StackWarden is a CLI and web tool that turns the problem into a deterministic pi
 
 - **Profiles describe hosts, not wishes.** A profile captures what hardware you actually have -- GPU family, CUDA version, driver constraints, container runtime -- so the resolver can make safe decisions instead of guessing.
 - **Blocks express intent, not implementation.** Select composable blocks (`fastapi`, `vllm`, `triton`) to say *what* your application needs. StackWarden resolves the compatible dependency set for each target host automatically.
+- **Layered overlay builds keep rebuilds fast.** Overlay strategy reuses base image layers and copies only declared `files.copy` inputs into an isolated build context, so small source changes avoid expensive full rebuilds.
 - **Every build gets a fingerprint.** A SHA-256 hash of all inputs (profile, stack, base image digest, every dependency version, template, builder version) produces a deterministic tag. Same inputs = same tag, always.
 - **Drift is detected, not discovered in production.** When an upstream base image changes, a template is modified, or a schema version bumps, StackWarden marks the old artifact `stale` and triggers a rebuild -- or fails hard in CI with `--immutable`.
 - **Full provenance from plan to artifact.** Every built image carries OCI labels, a resolved manifest (exact `pip freeze`, `dpkg-query`, `npm ls`), and optional SBOM export. Reproduce any past build with `stackwarden repro`.
@@ -50,6 +51,7 @@ stackwarden ensure --profile dgx_spark --stack diffusion_fastapi
 | **Full doc index** | [docs/README.md](docs/README.md) |
 | **Prerequisites** (Docker, Buildx, NVIDIA, SBOM tools) | [docs/reference.md#prerequisites](docs/reference.md#prerequisites) |
 | **User reference** (profiles, stacks, blocks, drift, variants, registry policies, troubleshooting) | [docs/reference.md](docs/reference.md) |
+| **Layered build performance** (fast rebuild guidance) | [docs/reference.md#build-performance-layered-overlay-strategy](docs/reference.md#build-performance-layered-overlay-strategy) |
 | **Composable blocks and wizards** | [docs/cli_wizard_usage.md](docs/cli_wizard_usage.md) |
 | **Hardware detection matrix** | [docs/hardware_detection_matrix.md](docs/hardware_detection_matrix.md) |
 | **System architecture** | [docs/project-report/02-system-architecture.md](docs/project-report/02-system-architecture.md) |

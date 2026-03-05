@@ -7,6 +7,7 @@ Complete map of all StackWarden documentation. See also the [root README](../REA
 | Document | Description |
 |----------|-------------|
 | [reference.md](reference.md) | Full user reference -- profiles, stacks, blocks, drift detection, variants, registry policies, SBOM, fingerprinting, troubleshooting, and deprecations |
+| [reference.md#build-performance-layered-overlay-strategy](reference.md#build-performance-layered-overlay-strategy) | Layered overlay build performance guidance for faster incremental rebuilds |
 | [cli_wizard_usage.md](cli_wizard_usage.md) | CLI wizard commands and flags for creating profiles, blocks, and stacks interactively |
 | [hardware_detection_matrix.md](hardware_detection_matrix.md) | How host hardware facts are detected, which fields are covered, and the catalog reconciliation process |
 | [examples/example_plans.md](examples/example_plans.md) | Sample `stackwarden plan` outputs for common profile/stack combinations |
