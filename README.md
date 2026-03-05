@@ -8,7 +8,7 @@
 
 You have a diffusion model that runs perfectly on your DGX workstation. Now ship it to three other teams -- one on A100s with CUDA 12.4, one on L40S with CUDA 12.6, and one on a CPU-only staging box. Each team spends a day wrestling with base image versions, driver mismatches, and pip dependency conflicts. Someone pins `torch==2.3.0` to fix one host and silently breaks another. A month later, the base image gets a silent upstream update and nobody notices until inference latency spikes in production.
 
-There is no audit trail, no way to prove two builds are identical, and no single command to answer "what changed?"
+Every small code or dependency tweak often triggers another slow full-image rebuild, turning iteration speed into a bottleneck. There is no audit trail, no way to prove two builds are identical, and no single command to answer "what changed?"
 
 ## How StackWarden Fixes This
 
