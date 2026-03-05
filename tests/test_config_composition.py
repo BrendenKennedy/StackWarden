@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import yaml
 
-from stacksmith.config import load_block, load_stack
-from stacksmith.domain.errors import BlockNotFoundError, StacksmithError
+from stackwarden.config import load_block, load_stack
+from stackwarden.domain.errors import BlockNotFoundError, StackWardenError
 
 
 def _write_yaml(path, data) -> None:
@@ -14,7 +14,7 @@ def _write_yaml(path, data) -> None:
 
 
 def test_load_stack_legacy_without_kind(monkeypatch, tmp_path):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     _write_yaml(
         tmp_path / "stacks" / "legacy.yaml",
         {
@@ -36,7 +36,7 @@ def test_load_stack_legacy_without_kind(monkeypatch, tmp_path):
 
 
 def test_load_stack_recipe_composes(monkeypatch, tmp_path):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     _write_yaml(
         tmp_path / "blocks" / "runtime.yaml",
         {
@@ -70,7 +70,7 @@ def test_load_stack_recipe_composes(monkeypatch, tmp_path):
 
 
 def test_load_stack_unknown_kind_fails(monkeypatch, tmp_path):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     _write_yaml(
         tmp_path / "stacks" / "bad_kind.yaml",
         {
@@ -82,13 +82,13 @@ def test_load_stack_unknown_kind_fails(monkeypatch, tmp_path):
 
     try:
         load_stack("bad_kind")
-        assert False, "expected StacksmithError"
-    except StacksmithError as exc:
+        assert False, "expected StackWardenError"
+    except StackWardenError as exc:
         assert "unknown kind" in str(exc)
 
 
 def test_load_block_requires_kind(monkeypatch, tmp_path):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     _write_yaml(
         tmp_path / "blocks" / "bad_block.yaml",
         {
@@ -99,13 +99,13 @@ def test_load_block_requires_kind(monkeypatch, tmp_path):
 
     try:
         load_block("bad_block")
-        assert False, "expected StacksmithError"
-    except StacksmithError as exc:
+        assert False, "expected StackWardenError"
+    except StackWardenError as exc:
         assert "missing kind" in str(exc)
 
 
 def test_load_block_not_found(monkeypatch, tmp_path):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     try:
         load_block("missing")
         assert False, "expected BlockNotFoundError"

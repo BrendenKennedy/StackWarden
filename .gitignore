@@ -21,6 +21,7 @@ generated/*
 !generated/.gitkeep
 
 # Local/runtime data
+.stackwarden/
 .stacksmith/
 *.db
 *.log

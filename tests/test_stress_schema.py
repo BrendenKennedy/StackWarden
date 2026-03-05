@@ -13,8 +13,8 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from stacksmith.config import load_profile, load_stack, load_block
-from stacksmith.domain.errors import StacksmithError
+from stackwarden.config import load_profile, load_stack, load_block
+from stackwarden.domain.errors import StackWardenError
 
 
 class TestMalformedSpecs:
@@ -23,7 +23,7 @@ class TestMalformedSpecs:
     def test_load_stack_malformed_yaml(self, tmp_path):
         (tmp_path / "stacks").mkdir(parents=True)
         (tmp_path / "stacks" / "bad.yaml").write_text("not: valid: yaml: [")
-        with patch.dict("os.environ", {"STACKSMITH_DATA_DIR": str(tmp_path)}):
+        with patch.dict("os.environ", {"STACKWARDEN_DATA_DIR": str(tmp_path)}):
             with pytest.raises(Exception):  # yaml.YAMLError or similar
                 load_stack("bad")
 
@@ -32,8 +32,8 @@ class TestMalformedSpecs:
         (tmp_path / "stacks" / "minimal.yaml").write_text(
             yaml.safe_dump({"id": "minimal"})  # Missing many required fields
         )
-        with patch.dict("os.environ", {"STACKSMITH_DATA_DIR": str(tmp_path)}):
-            with pytest.raises((StacksmithError, Exception)):
+        with patch.dict("os.environ", {"STACKWARDEN_DATA_DIR": str(tmp_path)}):
+            with pytest.raises((StackWardenError, Exception)):
                 load_stack("minimal")
 
 
@@ -43,20 +43,20 @@ class TestPathTraversal:
     def test_load_profile_rejects_traversal(self, tmp_path):
         (tmp_path / "profiles").mkdir(parents=True)
         (tmp_path / "profiles" / "p1.yaml").write_text("id: p1\ndisplay_name: P1\narch: amd64")
-        with patch.dict("os.environ", {"STACKSMITH_DATA_DIR": str(tmp_path)}):
-            with pytest.raises((StacksmithError, FileNotFoundError)):
+        with patch.dict("os.environ", {"STACKWARDEN_DATA_DIR": str(tmp_path)}):
+            with pytest.raises((StackWardenError, FileNotFoundError)):
                 load_profile("../../../etc/passwd")
 
     def test_load_stack_rejects_traversal(self, tmp_path):
         (tmp_path / "stacks").mkdir(parents=True)
-        with patch.dict("os.environ", {"STACKSMITH_DATA_DIR": str(tmp_path)}):
-            with pytest.raises((StacksmithError, FileNotFoundError)):
+        with patch.dict("os.environ", {"STACKWARDEN_DATA_DIR": str(tmp_path)}):
+            with pytest.raises((StackWardenError, FileNotFoundError)):
                 load_stack("../../etc/passwd")
 
     def test_load_block_rejects_traversal(self, tmp_path):
         (tmp_path / "blocks").mkdir(parents=True)
-        with patch.dict("os.environ", {"STACKSMITH_DATA_DIR": str(tmp_path)}):
-            with pytest.raises((StacksmithError, FileNotFoundError)):
+        with patch.dict("os.environ", {"STACKWARDEN_DATA_DIR": str(tmp_path)}):
+            with pytest.raises((StackWardenError, FileNotFoundError)):
                 load_block("../../../etc/passwd")
 
 
@@ -93,7 +93,7 @@ class TestEmptySpecs:
                 "entrypoint": {"cmd": ["python", "-V"]},
             })
         )
-        with patch.dict("os.environ", {"STACKSMITH_DATA_DIR": str(tmp_path)}):
+        with patch.dict("os.environ", {"STACKWARDEN_DATA_DIR": str(tmp_path)}):
             p = load_profile("p1")
             s = load_stack("s1")
             assert p.id == "p1"

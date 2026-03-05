@@ -25,7 +25,7 @@
               {{ detectingHints ? 'Detecting...' : 'Detect & Autofill Hardware' }}
             </button>
             <p class="help">
-              Detection pre-fills fields from the Stacksmith server host. You can still edit any value manually.
+              Detection pre-fills fields from the StackWarden server host. You can still edit any value manually.
             </p>
           </div>
           <div v-if="dependencyIssues.length > 0" class="wizard-warning">

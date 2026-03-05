@@ -4,11 +4,11 @@ import textwrap
 
 import pytest
 
-from stacksmith.domain.block_catalog import default_block_catalog, load_block_catalog
+from stackwarden.domain.block_catalog import default_block_catalog, load_block_catalog
 
 
 def test_default_block_catalog_has_large_seed_set(tmp_path, monkeypatch):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     catalog = default_block_catalog()
     assert len(catalog.presets) >= 80
     assert len(catalog.presets) < 150
@@ -28,7 +28,7 @@ def test_default_block_catalog_has_large_seed_set(tmp_path, monkeypatch):
 
 
 def test_load_block_catalog_uses_defaults_when_override_is_missing(tmp_path, monkeypatch):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     loaded = load_block_catalog()
     assert len(loaded.presets) >= 80
     ids = {p.id for p in loaded.presets}

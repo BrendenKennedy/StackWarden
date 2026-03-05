@@ -21,10 +21,10 @@ def data_dir(tmp_path):
 def client(data_dir):
     with patch.dict(
         os.environ,
-        {"STACKSMITH_DATA_DIR": str(data_dir), "STACKSMITH_WEB_DEV": "true"},
+        {"STACKWARDEN_DATA_DIR": str(data_dir), "STACKWARDEN_WEB_DEV": "true"},
     ):
-        from stacksmith.web.app import create_app
-        from stacksmith.web.settings import WebSettings
+        from stackwarden.web.app import create_app
+        from stackwarden.web.settings import WebSettings
 
         app = create_app(WebSettings(token=None, dev=True))
         yield TestClient(app)

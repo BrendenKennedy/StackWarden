@@ -1,12 +1,12 @@
-# Stacksmith
+# StackWarden
 
 **Hardware-aware ML container build manager.**
 
-Stacksmith is a CLI tool that resolves, builds/pulls, tags, and catalogs optimized inference container images for multiple hardware profiles. It produces deterministic, reproducible container builds with full provenance tracking.
+StackWarden is a CLI tool that resolves, builds/pulls, tags, and catalogs optimized inference container images for multiple hardware profiles. It produces deterministic, reproducible container builds with full provenance tracking.
 
 ## Architecture-First Overview
 
-Stacksmith is a deterministic build planner/executor for ML containers. The core behavior is:
+StackWarden is a deterministic build planner/executor for ML containers. The core behavior is:
 
 - Users express desired application behavior through **stack blocks**.
 - Profiles capture **host facts + restrictions** (not feature wishes).
@@ -47,14 +47,14 @@ catalog --> verify["Inspect/verify/drift checks"]
 
 ### Where Major Pieces Live
 
-- `packages/stacksmith/src/stacksmith/domain/`: canonical models, enums, hashing/fingerprinting, errors.
-- `packages/stacksmith/src/stacksmith/resolvers/`: compatibility, rules, scoring, resolver decision logic.
-- `packages/stacksmith/src/stacksmith/builders/` + `packages/stacksmith/src/stacksmith/runtime/`: plan execution and runtime integrations.
-- `packages/stacksmith/src/stacksmith/catalog/`: SQLite models/store/migrations and lifecycle queries.
-- `packages/stacksmith/src/stacksmith/web/routes/`: API contract surface (`create`, `compatibility`, `plan`, `ensure`, `settings`, etc).
+- `packages/stackwarden/src/stackwarden/domain/`: canonical models, enums, hashing/fingerprinting, errors.
+- `packages/stackwarden/src/stackwarden/resolvers/`: compatibility, rules, scoring, resolver decision logic.
+- `packages/stackwarden/src/stackwarden/builders/` + `packages/stackwarden/src/stackwarden/runtime/`: plan execution and runtime integrations.
+- `packages/stackwarden/src/stackwarden/catalog/`: SQLite models/store/migrations and lifecycle queries.
+- `packages/stackwarden/src/stackwarden/web/routes/`: API contract surface (`create`, `compatibility`, `plan`, `ensure`, `settings`, etc).
 - `apps/web/src/views/`: user-facing create/build/catalog workflows.
 
-### What Stacksmith Is Not
+### What StackWarden Is Not
 
 - Not a workload orchestrator (no scheduler/k8s deployment controller).
 - Not a general dependency SAT solver.
@@ -79,58 +79,58 @@ pip install -e ".[dev]"
 ### Check your environment
 
 ```bash
-stacksmith doctor
+stackwarden doctor
 ```
 
 ### List available profiles and stacks
 
 ```bash
-stacksmith list profiles
-stacksmith list stacks
-stacksmith list blocks
+stackwarden list profiles
+stackwarden list stacks
+stackwarden list blocks
 ```
 
 ### Generate a plan
 
 ```bash
-stacksmith plan --profile dgx_spark --stack diffusion_fastapi
+stackwarden plan --profile dgx_spark --stack diffusion_fastapi
 ```
 
 Add `--json` for machine-readable output:
 
 ```bash
-stacksmith plan --profile dgx_spark --stack diffusion_fastapi --json
+stackwarden plan --profile dgx_spark --stack diffusion_fastapi --json
 ```
 
 ### Build/pull the image
 
 ```bash
-stacksmith ensure --profile dgx_spark --stack diffusion_fastapi
+stackwarden ensure --profile dgx_spark --stack diffusion_fastapi
 ```
 
 Force rebuild:
 
 ```bash
-stacksmith ensure --profile dgx_spark --stack diffusion_fastapi --rebuild
+stackwarden ensure --profile dgx_spark --stack diffusion_fastapi --rebuild
 ```
 
 ### Inspect an image
 
 ```bash
-stacksmith inspect local/stacksmith:diffusion_fastapi-dgx_spark-cuda12.5-python_api-fastapi-<hash>
+stackwarden inspect local/stackwarden:diffusion_fastapi-dgx_spark-cuda12.5-python_api-fastapi-<hash>
 ```
 
 ### Search the catalog
 
 ```bash
-stacksmith catalog search --profile dgx_spark
-stacksmith catalog search --stack diffusion_fastapi --status built
+stackwarden catalog search --profile dgx_spark
+stackwarden catalog search --stack diffusion_fastapi --status built
 ```
 
 ### Prune failed/stale artifacts
 
 ```bash
-stacksmith catalog prune
+stackwarden catalog prune
 ```
 
 ## Core Architecture Map
@@ -139,44 +139,44 @@ This section is the high-level oversight view for engineering focus.
 
 ### 1) Contracts and creation
 
-- `packages/stacksmith/src/stacksmith/web/schemas.py`: API DTO contracts (create/update/preview/system).
-- `packages/stacksmith/src/stacksmith/web/routes/create.py`: create + dry-run + compose endpoints, normalization, and metric emission.
-- `packages/stacksmith/src/stacksmith/web/routes/meta.py`: create-contract metadata (`/api/meta/create-contracts`) and schema-version guidance.
+- `packages/stackwarden/src/stackwarden/web/schemas.py`: API DTO contracts (create/update/preview/system).
+- `packages/stackwarden/src/stackwarden/web/routes/create.py`: create + dry-run + compose endpoints, normalization, and metric emission.
+- `packages/stackwarden/src/stackwarden/web/routes/meta.py`: create-contract metadata (`/api/meta/create-contracts`) and schema-version guidance.
 
 Focus area: keep contract semantics stable while evolving behavior behind versioned metadata.
 
 ### 2) Host detection and profile modeling
 
-- `packages/stacksmith/src/stacksmith/web/services/host_detection.py`: server-host probing and confidence annotations.
-- `packages/stacksmith/src/stacksmith/domain/models.py`: profile shape (facts, restrictions, and derived capability metadata).
-- `packages/stacksmith/src/stacksmith/config.py`: profile loading and validation boundary.
+- `packages/stackwarden/src/stackwarden/web/services/host_detection.py`: server-host probing and confidence annotations.
+- `packages/stackwarden/src/stackwarden/domain/models.py`: profile shape (facts, restrictions, and derived capability metadata).
+- `packages/stackwarden/src/stackwarden/config.py`: profile loading and validation boundary.
 
 Focus area: profiles should remain host/restriction descriptors, not software-intent declarations.
 
 ### 3) Stack/block composition and intent
 
-- `packages/stacksmith/src/stacksmith/domain/composition.py`: stack_recipe + ordered blocks -> concrete stack merge.
-- `packages/stacksmith/src/stacksmith/config.py`: `load_stack()` composes recipe stacks for runtime usage.
-- `packages/stacksmith/src/stacksmith/web/routes/stacks.py`: stack API access and raw spec retrieval.
+- `packages/stackwarden/src/stackwarden/domain/composition.py`: stack_recipe + ordered blocks -> concrete stack merge.
+- `packages/stackwarden/src/stackwarden/config.py`: `load_stack()` composes recipe stacks for runtime usage.
+- `packages/stackwarden/src/stackwarden/web/routes/stacks.py`: stack API access and raw spec retrieval.
 
 Focus area: preserve authored recipe intent while still supporting resolved/composed preview.
 
 ### 4) Compatibility and resolver
 
-- `packages/stacksmith/src/stacksmith/resolvers/compatibility.py`: structured compatibility evaluation + issue taxonomy + decision trace.
-- `packages/stacksmith/src/stacksmith/resolvers/rules.py`: cross-field checks and compatibility guards.
-- `packages/stacksmith/src/stacksmith/resolvers/rule_catalog.py` + `specs/rules/compatibility_rules.yaml`: catalog-driven rule system.
-- `packages/stacksmith/src/stacksmith/resolvers/scoring.py` + `packages/stacksmith/src/stacksmith/resolvers/base_catalog.py`: base candidate selection logic.
-- `packages/stacksmith/src/stacksmith/resolvers/resolver.py`: pure plan resolution and rationale assembly.
+- `packages/stackwarden/src/stackwarden/resolvers/compatibility.py`: structured compatibility evaluation + issue taxonomy + decision trace.
+- `packages/stackwarden/src/stackwarden/resolvers/rules.py`: cross-field checks and compatibility guards.
+- `packages/stackwarden/src/stackwarden/resolvers/rule_catalog.py` + `specs/rules/compatibility_rules.yaml`: catalog-driven rule system.
+- `packages/stackwarden/src/stackwarden/resolvers/scoring.py` + `packages/stackwarden/src/stackwarden/resolvers/base_catalog.py`: base candidate selection logic.
+- `packages/stackwarden/src/stackwarden/resolvers/resolver.py`: pure plan resolution and rationale assembly.
 
 Focus area: continue moving behavior from ad hoc checks to structured rule/catalog evaluation.
 
 ### 5) Build execution and artifact lifecycle
 
-- `packages/stacksmith/src/stacksmith/builders/`: overlay/pull execution strategies.
-- `packages/stacksmith/src/stacksmith/runtime/`: Docker/buildx interactions, manifest and SBOM capture.
-- `packages/stacksmith/src/stacksmith/catalog/store.py`: artifact persistence and query surface.
-- `packages/stacksmith/src/stacksmith/catalog/migrations.py`: schema evolution safety.
+- `packages/stackwarden/src/stackwarden/builders/`: overlay/pull execution strategies.
+- `packages/stackwarden/src/stackwarden/runtime/`: Docker/buildx interactions, manifest and SBOM capture.
+- `packages/stackwarden/src/stackwarden/catalog/store.py`: artifact persistence and query surface.
+- `packages/stackwarden/src/stackwarden/catalog/migrations.py`: schema evolution safety.
 
 Focus area: execution remains deterministic and auditable; lifecycle transitions stay explicit.
 
@@ -203,7 +203,7 @@ Profiles are not the primary place to declare desired software functionality. Th
 
 Open `Create Profile` and click **Guided Setup** to launch the modal wizard.
 
-- The wizard runs host detection against the **Stacksmith server host** (not the browser machine).
+- The wizard runs host detection against the **StackWarden server host** (not the browser machine).
 - Detection is best-effort and always overrideable before writing.
 - Detection now follows a chain-first flow: bootstrap invariants, execution-context discovery, OS-family/capability-gated probes, then catalog reconciliation and quality scoring.
 - Required fields are marked in the create flows and validated before write.
@@ -217,7 +217,7 @@ API equivalents:
 - `GET /api/meta/create-contracts` for required-field and constraint metadata.
 
 Hardware detection coverage details and investigation checklist live in `docs/hardware_detection_matrix.md`.
-Probe modularity and extension points are implemented in `packages/stacksmith/src/stacksmith/web/services/host_detection.py` (orchestrator) and `packages/stacksmith/src/stacksmith/web/services/host_detection_probes.py` (probe registry + probe implementations).
+Probe modularity and extension points are implemented in `packages/stackwarden/src/stackwarden/web/services/host_detection.py` (orchestrator) and `packages/stackwarden/src/stackwarden/web/services/host_detection_probes.py` (probe registry + probe implementations).
 
 Create a YAML file in `specs/profiles/`:
 
@@ -249,7 +249,7 @@ defaults:
   workdir: "/workspace"
 ```
 
-Then verify: `stacksmith list profiles` should show it.
+Then verify: `stackwarden list profiles` should show it.
 
 ## Adding Stacks
 
@@ -317,8 +317,8 @@ components:
 Inspect or render a resolved stack:
 
 ```bash
-stacksmith inspect-block --id fastapi
-stacksmith compose --stack llm_fastapi_blocks --json
+stackwarden inspect-block --id fastapi
+stackwarden compose --stack llm_fastapi_blocks --json
 ```
 
 ### Web UI/API for Blocks and Recipes
@@ -392,7 +392,7 @@ This supports a follow-up UX step where users can explicitly choose which depend
 
 ### Architecture-aware tuple layer
 
-Stacksmith now includes a tuple decision layer that resolves hardware/runtime facts into a supported implementation path:
+StackWarden now includes a tuple decision layer that resolves hardware/runtime facts into a supported implementation path:
 
 - Input facts: `arch`, `os_family_id`, `os_version_id`, `container_runtime`, `gpu_vendor_id`, optional `gpu_family_id` and CUDA/driver windows.
 - Source of truth: `specs/rules/tuple_catalog.yaml`.
@@ -400,18 +400,18 @@ Stacksmith now includes a tuple decision layer that resolves hardware/runtime fa
 
 Rollout control:
 
-- Set `STACKSMITH_TUPLE_LAYER_MODE` to one of `off`, `shadow`, `warn`, `enforce`.
+- Set `STACKWARDEN_TUPLE_LAYER_MODE` to one of `off`, `shadow`, `warn`, `enforce`.
 - Default is `enforce`.
 - Recommended rollout: `shadow` (parity telemetry) -> `warn` (operator visibility) -> `enforce` (hard gate).
 
 Tuple provenance:
 
-- Resolver writes `stacksmith.tuple_id`, `stacksmith.tuple_status`, and `stacksmith.tuple_mode` labels.
+- Resolver writes `stackwarden.tuple_id`, `stackwarden.tuple_status`, and `stackwarden.tuple_mode` labels.
 - Manifest capture persists these fields for repro and verification workflows.
 
 ### Python wheelhouse install modes
 
-For architecture-sensitive Python packages (for example `flash-attn`), Stacksmith supports explicit pip source policy at stack/block level:
+For architecture-sensitive Python packages (for example `flash-attn`), StackWarden supports explicit pip source policy at stack/block level:
 
 - `index` (default): install from standard pip indexes.
 - `wheelhouse_prefer`: install using `--find-links <path>` with index fallback.
@@ -427,7 +427,7 @@ Operational guidance:
 
 ### npm lock install modes
 
-Stacksmith can enforce npm lockfile policy at stack/block level via `npm_install_mode`:
+StackWarden can enforce npm lockfile policy at stack/block level via `npm_install_mode`:
 
 - `spec` (default): install from declared `components.npm` dependencies.
 - `lock_prefer`: if a copied lockfile exists (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`), install from lockfile; otherwise fall back to declared deps.
@@ -437,7 +437,7 @@ For lock modes, include the lockfile in `files.copy` so it exists in the build c
 
 ### apt pin install modes
 
-Stacksmith can enforce apt version pin policy via `apt_install_mode`:
+StackWarden can enforce apt version pin policy via `apt_install_mode`:
 
 - `repo` (default): install from repository metadata; optional `apt_constraints` are applied when provided.
 - `pin_prefer`: same behavior as `repo`, but explicitly documents intent to pin where possible.
@@ -447,20 +447,20 @@ Stacksmith can enforce apt version pin policy via `apt_install_mode`:
 
 ## Drift Detection
 
-Stacksmith detects **drift** when a previously built image no longer matches the current plan. An artifact is marked stale if any of these conditions are true:
+StackWarden detects **drift** when a previously built image no longer matches the current plan. An artifact is marked stale if any of these conditions are true:
 
 1. **Fingerprint mismatch** -- the embedded fingerprint label differs from the expected value.
 2. **Base digest changed** -- the upstream base image has been updated.
 3. **Template hash changed** -- the Dockerfile template was modified.
 4. **Stack schema version changed** -- the stack spec schema was bumped.
 5. **Profile schema version changed** -- the profile schema was bumped.
-6. **Builder version changed** -- the Stacksmith version used to build differs from the current version.
+6. **Builder version changed** -- the StackWarden version used to build differs from the current version.
 
 When drift is detected during `ensure`, the old artifact is marked `stale` with a specific reason, and a rebuild is triggered. Use `--immutable` to fail instead of rebuilding (important for CI).
 
 ```bash
-stacksmith ensure -p dgx_spark -s llm_vllm --immutable
-stacksmith catalog stale
+stackwarden ensure -p dgx_spark -s llm_vllm --immutable
+stackwarden catalog stale
 ```
 
 ## Artifact Lifecycle
@@ -470,10 +470,10 @@ Artifacts pass through these statuses: `planned` -> `building` -> `built` (or `f
 Pruning:
 
 ```bash
-stacksmith prune --stale         # Remove stale artifacts + images
-stacksmith prune --failed        # Remove failed artifacts
-stacksmith prune --all-unused    # Remove all non-newest artifacts
-stacksmith prune --all-unused --force  # Include newest stable
+stackwarden prune --stale         # Remove stale artifacts + images
+stackwarden prune --failed        # Remove failed artifacts
+stackwarden prune --all-unused    # Remove all non-newest artifacts
+stackwarden prune --all-unused --force  # Include newest stable
 ```
 
 The newest `built` artifact per (profile, stack, variant) is **protected** from pruning unless `--force` is used.
@@ -481,12 +481,12 @@ The newest `built` artifact per (profile, stack, variant) is **protected** from 
 Disk usage reporting:
 
 ```bash
-stacksmith catalog disk-usage
+stackwarden catalog disk-usage
 ```
 
 ## Manifest & Reproducible Builds
 
-After every successful build, Stacksmith captures a **resolved manifest** containing the exact installed versions:
+After every successful build, StackWarden captures a **resolved manifest** containing the exact installed versions:
 
 - `pip freeze` output (pinned versions)
 - `dpkg-query` package list (Debian-based images)
@@ -498,13 +498,13 @@ After every successful build, Stacksmith captures a **resolved manifest** contai
 View a manifest:
 
 ```bash
-stacksmith manifest <tag>
+stackwarden manifest <tag>
 ```
 
 Reproduce a build from its manifest with pinned dependencies:
 
 ```bash
-stacksmith repro <artifact-id>
+stackwarden repro <artifact-id>
 ```
 
 The repro command creates a synthetic stack spec with exact versions, producing a **distinct fingerprint** to avoid tag collision with the original.
@@ -514,11 +514,11 @@ The repro command creates a synthetic stack spec with exact versions, producing 
 Optionally export a Software Bill of Materials:
 
 ```bash
-stacksmith sbom <tag> --format spdx-json
-stacksmith sbom <tag> --format cyclonedx-json
+stackwarden sbom <tag> --format spdx-json
+stackwarden sbom <tag> --format cyclonedx-json
 ```
 
-Stacksmith tries `docker sbom` first, then falls back to [Syft](https://github.com/anchore/syft). SBOM generation is auxiliary -- failures never affect artifact status.
+StackWarden tries `docker sbom` first, then falls back to [Syft](https://github.com/anchore/syft). SBOM generation is auxiliary -- failures never affect artifact status.
 
 ## Variant System
 
@@ -538,14 +538,14 @@ variants:
 Build with variant overrides:
 
 ```bash
-stacksmith ensure -p dgx_spark -s llm_vllm --var xformers=true --var precision=fp16
+stackwarden ensure -p dgx_spark -s llm_vllm --var xformers=true --var precision=fp16
 ```
 
 Variant values are included in the fingerprint (sorted, stringified), so different variant combinations produce different tags. Unknown variant keys are rejected.
 
 ## Registry Policies
 
-Configure trusted registries in `~/.config/stacksmith/config.yaml`:
+Configure trusted registries in `~/.config/stackwarden/config.yaml`:
 
 ```yaml
 registry:
@@ -558,11 +558,11 @@ registry:
 
 The resolver validates base image candidates against this policy. Denied registries are rejected. If an allow list is configured, only listed registries are permitted.
 
-If a base image is referenced without a digest, Stacksmith warns that the build may not be reproducible.
+If a base image is referenced without a digest, StackWarden warns that the build may not be reproducible.
 
 ## How Fingerprinting Works
 
-Stacksmith generates a deterministic SHA-256 fingerprint from:
+StackWarden generates a deterministic SHA-256 fingerprint from:
 
 - Profile ID, architecture, CUDA variant
 - Base image name and digest
@@ -575,13 +575,13 @@ Stacksmith generates a deterministic SHA-256 fingerprint from:
 - Ports (sorted)
 - Copy items (sorted by source path)
 - Dockerfile template hash and template version
-- Builder version (`stacksmith.__version__`)
+- Builder version (`stackwarden.__version__`)
 - Variant overrides (sorted keys, stringified values)
 
 The image tag encodes this fingerprint:
 
 ```
-local/stacksmith:{stack}-{profile}-{cuda}-{serve}-{api}-{first_12_chars_of_hash}
+local/stackwarden:{stack}-{profile}-{cuda}-{serve}-{api}-{first_12_chars_of_hash}
 ```
 
 Same inputs always produce the same tag. If any input changes, the tag changes and a rebuild is triggered.
@@ -590,7 +590,7 @@ Additionally, every image gets OCI labels embedding the full fingerprint, profil
 
 ## How to Interpret License Warnings
 
-Stacksmith includes a best-effort SPDX license mapping in `licenses/spdx_map.yaml`.
+StackWarden includes a best-effort SPDX license mapping in `licenses/spdx_map.yaml`.
 
 Severity levels:
 - **ok**: Permissive license (MIT, Apache-2.0, BSD). No action needed.
@@ -601,7 +601,7 @@ Severity levels:
 
 ## Troubleshooting
 
-Run `stacksmith doctor` to diagnose issues:
+Run `stackwarden doctor` to diagnose issues:
 
 - **Docker daemon not reachable**: Start Docker or check socket permissions.
 - **Buildx not available**: Install Docker Buildx plugin.
@@ -617,10 +617,10 @@ Run `stacksmith doctor` to diagnose issues:
 python -m pytest tests/ -v
 
 # Run linter
-ruff check packages/stacksmith/src/stacksmith tests/
+ruff check packages/stackwarden/src/stackwarden tests/
 
 # Run type checker
-mypy packages/stacksmith/src/stacksmith
+mypy packages/stackwarden/src/stackwarden
 ```
 
 If frontend unit-test tooling is not configured in your environment, use this manual verification checklist:
@@ -632,7 +632,7 @@ If frontend unit-test tooling is not configured in your environment, use this ma
 
 ## Deprecation Policy
 
-Stacksmith follows a two-step deprecation process for user-facing commands and endpoints:
+StackWarden follows a two-step deprecation process for user-facing commands and endpoints:
 
 1. **Deprecation window (at least one release):**
    - Old surfaces remain functional.
@@ -643,17 +643,17 @@ Stacksmith follows a two-step deprecation process for user-facing commands and e
 
 Current deprecations:
 
-- `stacksmith profiles list` -> `stacksmith list profiles`
-- `stacksmith stacks list` -> `stacksmith list stacks`
-- `stacksmith blocks list` -> `stacksmith list blocks`
-- `stacksmith catalog build` -> `stacksmith ensure`
+- `stackwarden profiles list` -> `stackwarden list profiles`
+- `stackwarden stacks list` -> `stackwarden list stacks`
+- `stackwarden blocks list` -> `stackwarden list blocks`
+- `stackwarden catalog build` -> `stackwarden ensure`
 - `POST /api/system/detection-hints/remote` -> use `GET /api/system/detection-hints` on the server host
 
 ## Project Structure
 
 ```
-stacksmith/
-  packages/stacksmith/src/stacksmith/  # Python package
+stackwarden/
+  packages/stackwarden/src/stackwarden/  # Python package
     cli.py                             # Typer CLI application
     config.py                          # YAML loaders and app config
     logging.py                         # Rich console + file logging
@@ -682,7 +682,7 @@ stacksmith/
 
 ## Repository Layout Boundaries
 
-- `packages/stacksmith/src/stacksmith` is the only canonical Python source root.
+- `packages/stackwarden/src/stackwarden` is the only canonical Python source root.
 - `apps` contains user-facing runtime surfaces (`api`, `web`, and optional thin `cli` surface wrappers/docs).
 - `specs` contains authored profile/stack/block/rule/template data.
 - `generated` is reserved for generated or derived artifacts, not canonical authored specs.
@@ -697,11 +697,11 @@ For full placement rules and rationale, see `docs/repository_layout.md`.
 ## Keeping the Workspace Clean
 
 - Generated and local-only artifacts are intentionally ignored (virtualenvs, caches, node modules, logs, local runtime state, generated outputs).
-- Primary noisy paths are `apps/web/node_modules`, `build`, `dist`, `generated`, and `.stacksmith`.
+- Primary noisy paths are `apps/web/node_modules`, `build`, `dist`, `generated`, and `.stackwarden`.
 - If local clutter accumulates, it is safe to remove generated artifacts and reinstall:
 
 ```bash
-rm -rf build dist generated/* apps/web/node_modules .stacksmith
+rm -rf build dist generated/* apps/web/node_modules .stackwarden
 pip install -e ".[dev]"
 cd apps/web && npm ci
 ```

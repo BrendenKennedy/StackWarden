@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from stacksmith.domain.hashing import canonicalize, fingerprint, generate_tag
-from stacksmith.domain.models import (
+from stackwarden.domain.hashing import canonicalize, fingerprint, generate_tag
+from stackwarden.domain.models import (
     BaseCandidate,
     CudaSpec,
     GpuSpec,
@@ -112,10 +112,10 @@ class TestRebuildIdempotence:
         """Plan executor prunes by fingerprint before insert to avoid unique constraint."""
         from unittest.mock import MagicMock, patch
 
-        from stacksmith.builders.plan_executor import _do_execute
-        from stacksmith.catalog.store import CatalogStore
-        from stacksmith.domain.enums import ArtifactStatus
-        from stacksmith.domain.models import Plan, PlanArtifact, PlanDecision
+        from stackwarden.builders.plan_executor import _do_execute
+        from stackwarden.catalog.store import CatalogStore
+        from stackwarden.domain.enums import ArtifactStatus
+        from stackwarden.domain.models import Plan, PlanArtifact, PlanDecision
 
         plan = Plan(
             plan_id="x",
@@ -124,16 +124,16 @@ class TestRebuildIdempotence:
             decision=PlanDecision(base_image="base:latest", base_digest="sha256:aaa", builder="overlay"),
             steps=[],
             artifact=PlanArtifact(
-                tag="local/stacksmith:test",
+                tag="local/stackwarden:test",
                 fingerprint="fp123",
-                labels={"stacksmith.variants": "{}", "stacksmith.schema_version": "1"},
+                labels={"stackwarden.variants": "{}", "stackwarden.schema_version": "1"},
             ),
         )
         profile = _profile(id="p1")
         stack = _stack(id="s1")
         catalog = CatalogStore(db_path=tmp_path / "stress.db")
         # Ensure profile/stack rows exist
-        from stacksmith.catalog.models import ProfileRow, StackRow
+        from stackwarden.catalog.models import ProfileRow, StackRow
         with catalog._session() as s:
             if not s.get(ProfileRow, "p1"):
                 s.add(ProfileRow(id="p1", display_name="P1", arch="amd64", cuda_variant="none", data_json="{}"))
@@ -151,8 +151,8 @@ class TestRebuildIdempotence:
         builder.execute.return_value = MagicMock(tag=plan.artifact.tag, image_id="x", digest="y")
         mock_registry = {"overlay": builder}
 
-        with patch("stacksmith.builders.plan_executor.BUILDER_REGISTRY", mock_registry), \
-             patch("stacksmith.builders.plan_executor._run_hooks"):
+        with patch("stackwarden.builders.plan_executor.BUILDER_REGISTRY", mock_registry), \
+             patch("stackwarden.builders.plan_executor._run_hooks"):
             # First build
             rec1 = _do_execute(plan, profile, stack, docker, catalog, rebuild=True)
             assert rec1.status == ArtifactStatus.BUILT

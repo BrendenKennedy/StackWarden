@@ -1,6 +1,6 @@
 # Hardware Detection Fact Matrix
 
-This document tracks local-host hardware facts used by Stacksmith profile creation.
+This document tracks local-host hardware facts used by StackWarden profile creation.
 It is intended as the source-of-truth checklist for detection coverage, normalization, and confidence semantics.
 
 ## Detection Chain
@@ -102,7 +102,7 @@ Unresolved values are emitted as `unmatched_suggestions` with `{catalog, raw_val
 
 ## Investigation Acceptance Checklist
 
-- `stacksmith profiles detect --json` returns deterministic field names and confidence keys.
+- `stackwarden profiles detect --json` returns deterministic field names and confidence keys.
 - `/api/system/detection-hints` and CLI detection expose the same hardware facts.
 - Probe list includes explicit branch/gate diagnostics (`bootstrap_invariants`, `execution_context`, `os_router`).
 - `resolved_ids` contains canonical IDs when catalog mappings exist.

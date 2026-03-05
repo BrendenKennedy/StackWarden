@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typer.testing import CliRunner
 
-from stacksmith.cli import app
+from stackwarden.cli import app
 
 
 class _Rec:
@@ -34,7 +34,7 @@ class _Catalog:
 
 def test_status_and_prune_json(monkeypatch):
     runner = CliRunner()
-    monkeypatch.setattr("stacksmith.cli._get_catalog", lambda: _Catalog())
+    monkeypatch.setattr("stackwarden.cli._get_catalog", lambda: _Catalog())
     status = runner.invoke(app, ["status", "--json"])
     assert status.exit_code == 0, status.output
     assert '"total": 3' in status.output

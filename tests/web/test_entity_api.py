@@ -9,8 +9,8 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from stacksmith.domain.enums import ArtifactStatus
-from stacksmith.domain.models import ArtifactRecord
+from stackwarden.domain.enums import ArtifactStatus
+from stackwarden.domain.models import ArtifactRecord
 
 
 @pytest.fixture()
@@ -104,14 +104,14 @@ def _block_payload(id_: str = "entity-block") -> dict:
 def client(data_dir):
     with patch.dict(
         os.environ,
-        {"STACKSMITH_DATA_DIR": str(data_dir), "STACKSMITH_WEB_DEV": "true"},
+        {"STACKWARDEN_DATA_DIR": str(data_dir), "STACKWARDEN_WEB_DEV": "true"},
     ):
-        from stacksmith.catalog.store import CatalogStore
-        from stacksmith.web.app import create_app
-        from stacksmith.web.deps import get_catalog, get_job_manager
-        from stacksmith.web.jobs.manager import JobManager
-        from stacksmith.web.jobs.store import JobStore
-        from stacksmith.web.settings import WebSettings
+        from stackwarden.catalog.store import CatalogStore
+        from stackwarden.web.app import create_app
+        from stackwarden.web.deps import get_catalog, get_job_manager
+        from stackwarden.web.jobs.manager import JobManager
+        from stackwarden.web.jobs.store import JobStore
+        from stackwarden.web.settings import WebSettings
 
         catalog = CatalogStore(db_path=data_dir / "catalog.sqlite3")
         manager = JobManager(store=JobStore(db_path=data_dir / "catalog.sqlite3"))
@@ -210,7 +210,7 @@ def test_catalog_items_lifecycle_mapping(client):
         id="art123",
         profile_id="p1",
         stack_id="s1",
-        tag="local/stacksmith:test",
+        tag="local/stackwarden:test",
         fingerprint="fp123",
         base_image="python:3.12",
         build_strategy="overlay",
@@ -236,7 +236,7 @@ def test_catalog_items_pagination_applies_after_merge(client):
                 id=f"art-{idx}",
                 profile_id="p",
                 stack_id="s",
-                tag=f"local/stacksmith:{idx}",
+                tag=f"local/stackwarden:{idx}",
                 fingerprint=f"fp-{idx}",
                 base_image="python:3.12",
                 build_strategy="overlay",

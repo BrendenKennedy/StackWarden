@@ -8,12 +8,12 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from stacksmith.runtime.sbom import export_sbom, SbomUnavailableError
+from stackwarden.runtime.sbom import export_sbom, SbomUnavailableError
 
 
 @pytest.fixture
 def tmp_artifacts(tmp_path):
-    with patch("stacksmith.runtime.sbom.manifest_dir", return_value=tmp_path):
+    with patch("stackwarden.runtime.sbom.manifest_dir", return_value=tmp_path):
         yield tmp_path
 
 
@@ -60,7 +60,7 @@ class TestExportSbom:
 
     def test_sbom_failure_does_not_mark_artifact_failed(self, tmp_artifacts):
         """SBOM is auxiliary — callers should catch exceptions gracefully."""
-        from stacksmith.runtime.sbom import SbomUnavailableError
+        from stackwarden.runtime.sbom import SbomUnavailableError
 
         fail = MagicMock()
         fail.returncode = 1

@@ -2,7 +2,7 @@
 
 ## Why This Matters
 
-Stacksmith intentionally separates concerns so multiple surfaces (CLI and API/UI) can drive the same core behavior without semantic drift. Understanding handoffs between layers is critical for safe changes.
+StackWarden intentionally separates concerns so multiple surfaces (CLI and API/UI) can drive the same core behavior without semantic drift. Understanding handoffs between layers is critical for safe changes.
 
 ## Layer Interaction Model
 
@@ -43,7 +43,7 @@ Responsibilities by layer:
 
 ## Shared Ensure Path
 
-A key architectural anchor is the shared ensure pipeline in `packages/stacksmith/src/stacksmith/domain/ensure.py`, used by:
+A key architectural anchor is the shared ensure pipeline in `packages/stackwarden/src/stackwarden/domain/ensure.py`, used by:
 
 - CLI `ensure` path
 - API job runners for web-triggered ensure operations
@@ -55,11 +55,11 @@ This preserves behavior parity for build/pull and lifecycle transitions across s
 ## Input Contracts
 
 - CLI arguments and options are validated at command entry and mapped to core inputs.
-- API payloads use Pydantic DTO contracts (`packages/stacksmith/src/stacksmith/web/schemas.py`) and normalized error response formats.
+- API payloads use Pydantic DTO contracts (`packages/stackwarden/src/stackwarden/web/schemas.py`) and normalized error response formats.
 
 ## Persistence Contracts
 
-- Catalog store (`packages/stacksmith/src/stacksmith/catalog/store.py`) is the persistent artifact source of truth.
+- Catalog store (`packages/stackwarden/src/stackwarden/catalog/store.py`) is the persistent artifact source of truth.
 - Web job store tracks asynchronous API job metadata and status for UI consumption.
 
 ## Output Contracts
@@ -87,10 +87,10 @@ This preserves behavior parity for build/pull and lifecycle transitions across s
 
 ## Key Files to Read Next
 
-- `packages/stacksmith/src/stacksmith/domain/ensure.py`
-- `packages/stacksmith/src/stacksmith/application/create_flows.py`
-- `packages/stacksmith/src/stacksmith/web/routes/jobs.py`
-- `packages/stacksmith/src/stacksmith/catalog/store.py`
+- `packages/stackwarden/src/stackwarden/domain/ensure.py`
+- `packages/stackwarden/src/stackwarden/application/create_flows.py`
+- `packages/stackwarden/src/stackwarden/web/routes/jobs.py`
+- `packages/stackwarden/src/stackwarden/catalog/store.py`
 - `apps/web/src/api/endpoints.ts`
 
 ## Common Modification Scenarios

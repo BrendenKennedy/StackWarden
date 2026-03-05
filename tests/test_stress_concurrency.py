@@ -13,10 +13,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from stacksmith.domain.enums import ArtifactStatus
-from stacksmith.domain.errors import CancellationRequestedError
-from stacksmith.domain.locking import acquire_lock
-from stacksmith.domain.models import (
+from stackwarden.domain.enums import ArtifactStatus
+from stackwarden.domain.errors import CancellationRequestedError
+from stackwarden.domain.locking import acquire_lock
+from stackwarden.domain.models import (
     BaseCandidate,
     CudaSpec,
     GpuSpec,
@@ -60,8 +60,8 @@ class TestLockSerialization:
 
     def test_acquire_lock_serializes_concurrent_calls(self, tmp_path):
         """Two threads acquiring the same lock block each other."""
-        from stacksmith.paths import get_locks_root
-        with patch("stacksmith.domain.locking.get_locks_root", return_value=tmp_path / "locks"):
+        from stackwarden.paths import get_locks_root
+        with patch("stackwarden.domain.locking.get_locks_root", return_value=tmp_path / "locks"):
             order: list[str] = []
             lock = threading.Lock()
 
@@ -100,8 +100,8 @@ class TestLockSerialization:
 
     def test_different_targets_do_not_block(self, tmp_path):
         """Different profile+stack can run in parallel (different lock keys)."""
-        from stacksmith.paths import get_locks_root
-        with patch("stacksmith.domain.locking.get_locks_root", return_value=tmp_path / "locks"):
+        from stackwarden.paths import get_locks_root
+        with patch("stackwarden.domain.locking.get_locks_root", return_value=tmp_path / "locks"):
             done: set[str] = set()
             lock = threading.Lock()
 
@@ -122,32 +122,32 @@ class TestCancelMidBuild:
 
     def test_cancel_before_builder_raises(self):
         """should_cancel returning True before builder.execute raises."""
-        from stacksmith.domain.ensure import ensure_internal
-        from stacksmith.config import AppConfig
-        from stacksmith.catalog.store import CatalogStore
+        from stackwarden.domain.ensure import ensure_internal
+        from stackwarden.config import AppConfig
+        from stackwarden.catalog.store import CatalogStore
 
         cfg = MagicMock()
         cfg.remote_catalog_enabled = False
-        cfg.catalog_path = "/tmp/stacksmith_stress_catalog.db"
+        cfg.catalog_path = "/tmp/stackwarden_stress_catalog.db"
         cfg.registry = MagicMock()
         cfg.registry.allow = ["docker.io"]
         cfg.registry.deny = []
 
-        with patch("stacksmith.config.AppConfig.load", return_value=cfg), \
-             patch("stacksmith.config.load_profile", return_value=_profile()), \
-             patch("stacksmith.config.load_stack", return_value=_stack()), \
-             patch("stacksmith.config.load_block", return_value=None), \
-             patch("stacksmith.domain.remote_catalog.sync_remote_catalog", side_effect=lambda _: None), \
-             patch("stacksmith.resolvers.resolver.resolve") as mock_resolve, \
-             patch("stacksmith.domain.registry_policy.assert_registry_allowed"), \
-             patch("stacksmith.domain.ensure.DockerClient") as mock_docker_cls, \
-             patch("stacksmith.domain.ensure.CatalogStore") as mock_cat_cls:
+        with patch("stackwarden.config.AppConfig.load", return_value=cfg), \
+             patch("stackwarden.config.load_profile", return_value=_profile()), \
+             patch("stackwarden.config.load_stack", return_value=_stack()), \
+             patch("stackwarden.config.load_block", return_value=None), \
+             patch("stackwarden.domain.remote_catalog.sync_remote_catalog", side_effect=lambda _: None), \
+             patch("stackwarden.resolvers.resolver.resolve") as mock_resolve, \
+             patch("stackwarden.domain.registry_policy.assert_registry_allowed"), \
+             patch("stackwarden.domain.ensure.DockerClient") as mock_docker_cls, \
+             patch("stackwarden.domain.ensure.CatalogStore") as mock_cat_cls:
 
             plan = MagicMock()
             plan.profile_id = "stress_p"
             plan.stack_id = "stress_s"
             plan.artifact = MagicMock()
-            plan.artifact.labels = {"stacksmith.variants": "{}"}
+            plan.artifact.labels = {"stackwarden.variants": "{}"}
             plan.decision = MagicMock()
             plan.decision.base_image = "docker.io/library/python:3.12-slim"
             mock_resolve.return_value = plan
@@ -171,13 +171,13 @@ class TestCancelMidBuild:
                 cancel_count[0] += 1
                 return cancel_count[0] >= 2  # Cancel on second call (during execute_plan)
 
-            with patch("stacksmith.builders.plan_executor.execute_plan") as mock_exec:
+            with patch("stackwarden.builders.plan_executor.execute_plan") as mock_exec:
                 def fail_on_cancel(*args, **kwargs):
                     if kwargs.get("should_cancel") and kwargs["should_cancel"]():
                         raise CancellationRequestedError("Canceled")
                     rec = MagicMock()
                     rec.status = ArtifactStatus.BUILT
-                    rec.tag = "local/stacksmith:test"
+                    rec.tag = "local/stackwarden:test"
                     return rec
                 mock_exec.side_effect = fail_on_cancel
 
@@ -190,9 +190,9 @@ class TestPruneDuringBuild:
 
     def test_prune_stale_does_not_remove_building(self, tmp_path):
         """prune_by_status(STALE) should not touch BUILDING artifacts."""
-        from stacksmith.catalog.store import CatalogStore
-        from stacksmith.domain.models import ArtifactRecord
-        from stacksmith.catalog.models import ProfileRow, StackRow
+        from stackwarden.catalog.store import CatalogStore
+        from stackwarden.domain.models import ArtifactRecord
+        from stackwarden.catalog.models import ProfileRow, StackRow
 
         catalog = CatalogStore(db_path=tmp_path / "stress.db")
         with catalog._session() as s:

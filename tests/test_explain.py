@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from stacksmith.domain.models import (
+from stackwarden.domain.models import (
     BaseCandidate,
     CudaSpec,
     DecisionRationale,
@@ -16,8 +16,8 @@ from stacksmith.domain.models import (
     StackEntrypoint,
     StackSpec,
 )
-from stacksmith.resolvers.resolver import resolve
-from stacksmith.resolvers.scoring import score_candidate_detailed, select_base_detailed
+from stackwarden.resolvers.resolver import resolve
+from stackwarden.resolvers.scoring import score_candidate_detailed, select_base_detailed
 
 
 def _profile(**kw) -> Profile:

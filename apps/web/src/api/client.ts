@@ -20,7 +20,7 @@ function getHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   }
-  const token = localStorage.getItem('stacksmith_token')
+  const token = localStorage.getItem('stackwarden_token')
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   }
@@ -80,7 +80,7 @@ function networkDetail(path: string, reason: unknown): string {
   if (message.toLowerCase().includes('timeout')) {
     return `Request timed out while calling ${path}. Backend may be unavailable.`
   }
-  return `Backend unreachable while calling ${path}. Ensure stacksmith-web is running on 127.0.0.1:8765.`
+  return `Backend unreachable while calling ${path}. Ensure stackwarden-web is running on 127.0.0.1:8765.`
 }
 
 async function safeFetch(input: string, init: RequestInit, path: string): Promise<Response> {

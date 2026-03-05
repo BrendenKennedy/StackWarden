@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from stacksmith.runtime import buildx
+from stackwarden.runtime import buildx
 
 
 class _FakeStdout:
@@ -45,12 +45,12 @@ def test_build_includes_extra_flags(monkeypatch):
         calls.append(list(cmd))
         return _FakeProcess(["ok\n"], returncode=0)
 
-    monkeypatch.setattr("stacksmith.runtime.buildx.subprocess.Popen", _fake_popen)
+    monkeypatch.setattr("stackwarden.runtime.buildx.subprocess.Popen", _fake_popen)
 
     buildx.build(
         context_dir=".",
         tags=["local/test:1"],
-        build_args={"STACKSMITH_BUILD_JOBS": "4"},
+        build_args={"STACKWARDEN_BUILD_JOBS": "4"},
         extra_flags=["--progress=plain"],
     )
     assert calls
@@ -67,13 +67,13 @@ def test_build_retries_when_oom(monkeypatch):
             return _FakeProcess(["killed: out of memory\n"], returncode=1)
         return _FakeProcess(["ok\n"], returncode=0)
 
-    monkeypatch.setattr("stacksmith.runtime.buildx.subprocess.Popen", _fake_popen)
+    monkeypatch.setattr("stackwarden.runtime.buildx.subprocess.Popen", _fake_popen)
 
     buildx.build(
         context_dir=".",
         tags=["local/test:1"],
-        build_args={"STACKSMITH_BUILD_JOBS": "8"},
+        build_args={"STACKWARDEN_BUILD_JOBS": "8"},
     )
     assert len(calls) == 2
-    assert any("STACKSMITH_BUILD_JOBS=8" in token for token in calls[0])
-    assert any("STACKSMITH_BUILD_JOBS=4" in token for token in calls[1])
+    assert any("STACKWARDEN_BUILD_JOBS=8" in token for token in calls[0])
+    assert any("STACKWARDEN_BUILD_JOBS=4" in token for token in calls[1])

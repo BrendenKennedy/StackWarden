@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from stacksmith.domain.models import (
+from stackwarden.domain.models import (
     BaseCandidate,
     CudaSpec,
     GpuSpec,
@@ -14,7 +14,7 @@ from stacksmith.domain.models import (
     StackSpec,
     VariantDef,
 )
-from stacksmith.ui.wizard import (
+from stackwarden.ui.wizard import (
     WizardFlags,
     WizardResult,
     WizardSelection,
@@ -30,7 +30,7 @@ from stacksmith.ui.wizard import (
 
 @pytest.fixture(autouse=True)
 def _disable_tuple_layer(monkeypatch):
-    monkeypatch.setenv("STACKSMITH_TUPLE_LAYER_MODE", "off")
+    monkeypatch.setenv("STACKWARDEN_TUPLE_LAYER_MODE", "off")
 
 
 def _make_profile(pid: str = "test_profile") -> Profile:
@@ -79,7 +79,7 @@ class TestWizardResultSchema:
             plan_summary={"base_image": "nvcr.io/nvidia/pytorch:24.06-py3"},
             warnings=["mutable base tag"],
             digest_status="unknown_until_pull",
-            command="stacksmith ensure --profile x86_cuda --stack llm_vllm",
+            command="stackwarden ensure --profile x86_cuda --stack llm_vllm",
             executed=False,
             tag=None,
         )
@@ -91,20 +91,20 @@ class TestWizardResultSchema:
         assert data["selection"]["flags"]["immutable"] is True
         assert data["warnings"] == ["mutable base tag"]
         assert data["digest_status"] == "unknown_until_pull"
-        assert data["command"].startswith("stacksmith ensure")
+        assert data["command"].startswith("stackwarden ensure")
         assert data["executed"] is False
         assert data["tag"] is None
 
     def test_executed_result_has_tag(self):
         result = WizardResult(
             selection=WizardSelection(profile_id="p", stack_id="s"),
-            command="stacksmith ensure --profile p --stack s",
+            command="stackwarden ensure --profile p --stack s",
             executed=True,
-            tag="stacksmith:p_s_abc123",
+            tag="stackwarden:p_s_abc123",
         )
         data = json.loads(result.model_dump_json())
         assert data["executed"] is True
-        assert data["tag"] == "stacksmith:p_s_abc123"
+        assert data["tag"] == "stackwarden:p_s_abc123"
 
     def test_all_fields_present(self):
         result = WizardResult(
@@ -126,7 +126,7 @@ class TestWizardResultSchema:
 
 class TestRenderPlanJson:
     def test_contains_expected_keys(self):
-        from stacksmith.resolvers.resolver import resolve
+        from stackwarden.resolvers.resolver import resolve
 
         profile = _make_profile()
         stack = _make_stack()
@@ -142,7 +142,7 @@ class TestRenderPlanJson:
             assert key in data, f"Missing key: {key}"
 
     def test_digest_status_unknown_when_no_digest(self):
-        from stacksmith.resolvers.resolver import resolve
+        from stackwarden.resolvers.resolver import resolve
 
         profile = _make_profile()
         stack = _make_stack()
@@ -152,7 +152,7 @@ class TestRenderPlanJson:
         assert data["digest_status"] == "unknown_until_pull"
 
     def test_digest_status_known_when_digest_present(self):
-        from stacksmith.resolvers.resolver import resolve
+        from stackwarden.resolvers.resolver import resolve
 
         profile = _make_profile()
         stack = _make_stack()
@@ -162,7 +162,7 @@ class TestRenderPlanJson:
         assert data["digest_status"] == "known"
 
     def test_variants_in_output(self):
-        from stacksmith.resolvers.resolver import resolve
+        from stackwarden.resolvers.resolver import resolve
 
         profile = _make_profile()
         stack = _make_stack()

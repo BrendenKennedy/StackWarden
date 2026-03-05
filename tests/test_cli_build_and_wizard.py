@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typer.testing import CliRunner
 
-from stacksmith.cli import app
+from stackwarden.cli import app
 
 
 class _Sel:
@@ -14,7 +14,7 @@ class _Sel:
 
 class _WizResult:
     selection = _Sel()
-    command = "stacksmith ensure --profile p1 --stack s1"
+    command = "stackwarden ensure --profile p1 --stack s1"
     executed = False
     tag = None
 
@@ -24,9 +24,9 @@ class _WizResult:
 
 def test_wizard_defaults_json(monkeypatch):
     runner = CliRunner()
-    monkeypatch.setattr("stacksmith.ui.wizard.run_wizard", lambda **_: _WizResult())
+    monkeypatch.setattr("stackwarden.ui.wizard.run_wizard", lambda **_: _WizResult())
     monkeypatch.setattr(
-        "stacksmith.config.AppConfig.load",
+        "stackwarden.config.AppConfig.load",
         lambda: type("C", (), {"default_profile": None, "log_dir": None})(),
     )
     out = runner.invoke(app, ["wizard", "--defaults", "--json"])

@@ -176,7 +176,7 @@ export const settings = {
     post<SystemConfig>(
       '/settings/config',
       body,
-      adminToken ? { 'X-Stacksmith-Admin-Token': adminToken } : undefined,
+      adminToken ? { 'X-StackWarden-Admin-Token': adminToken } : undefined,
     ),
 }
 

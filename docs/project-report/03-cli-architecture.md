@@ -6,9 +6,9 @@ The CLI is the operator-focused orchestration surface for planning, building, in
 
 Primary entrypoints:
 
-- Package entrypoint: `stacksmith = "stacksmith.cli_app:app"` in `pyproject.toml`
-- CLI app definition and command wiring: `packages/stacksmith/src/stacksmith/cli.py`
-- Shared setup and helpers: `packages/stacksmith/src/stacksmith/cli_shared/*`
+- Package entrypoint: `stackwarden = "stackwarden.cli_app:app"` in `pyproject.toml`
+- CLI app definition and command wiring: `packages/stackwarden/src/stackwarden/cli.py`
+- Shared setup and helpers: `packages/stackwarden/src/stackwarden/cli_shared/*`
 
 ## Command Model
 
@@ -19,8 +19,8 @@ The CLI combines top-level commands with grouped subcommands:
 
 Risk taxonomy metadata is maintained in:
 
-- `packages/stacksmith/src/stacksmith/cli_commands/low_risk.py`
-- `packages/stacksmith/src/stacksmith/cli_commands/high_risk.py`
+- `packages/stackwarden/src/stackwarden/cli_commands/low_risk.py`
+- `packages/stackwarden/src/stackwarden/cli_commands/high_risk.py`
 
 This helps operational framing and release review of command surfaces.
 
@@ -28,15 +28,15 @@ This helps operational framing and release review of command surfaces.
 
 App configuration behavior is centralized in:
 
-- `packages/stacksmith/src/stacksmith/config.py`
-- `packages/stacksmith/src/stacksmith/paths.py`
+- `packages/stackwarden/src/stackwarden/config.py`
+- `packages/stackwarden/src/stackwarden/paths.py`
 
 Important conventions:
 
-- Config file path defaults to XDG-compatible `~/.config/stacksmith/config.yaml`.
-- Data roots default to XDG-compatible `~/.local/share/stacksmith`.
-- `STACKSMITH_DATA_DIR` can override profile/stack/block roots.
-- CLI context setup (`packages/stacksmith/src/stacksmith/cli_shared/context.py`) loads config and initializes logging.
+- Config file path defaults to XDG-compatible `~/.config/stackwarden/config.yaml`.
+- Data roots default to XDG-compatible `~/.local/share/stackwarden`.
+- `STACKWARDEN_DATA_DIR` can override profile/stack/block roots.
+- CLI context setup (`packages/stackwarden/src/stackwarden/cli_shared/context.py`) loads config and initializes logging.
 
 Operational toggles include strict compatibility behavior, tuple layer mode, and remote catalog settings.
 
@@ -46,20 +46,20 @@ The CLI does not require API calls for core operations. It directly orchestrates
 
 Key shared modules:
 
-- `packages/stacksmith/src/stacksmith/application/create_flows.py`
-- `packages/stacksmith/src/stacksmith/domain/ensure.py`
-- `packages/stacksmith/src/stacksmith/resolvers/resolver.py`
+- `packages/stackwarden/src/stackwarden/application/create_flows.py`
+- `packages/stackwarden/src/stackwarden/domain/ensure.py`
+- `packages/stackwarden/src/stackwarden/resolvers/resolver.py`
 
 Side-effectful interactions:
 
-- Docker client wrappers in `packages/stacksmith/src/stacksmith/runtime/docker_client.py`
-- Buildx subprocess integration in `packages/stacksmith/src/stacksmith/runtime/buildx.py`
-- Build orchestration in `packages/stacksmith/src/stacksmith/builders/plan_executor.py`
-- Catalog persistence in `packages/stacksmith/src/stacksmith/catalog/store.py`
+- Docker client wrappers in `packages/stackwarden/src/stackwarden/runtime/docker_client.py`
+- Buildx subprocess integration in `packages/stackwarden/src/stackwarden/runtime/buildx.py`
+- Build orchestration in `packages/stackwarden/src/stackwarden/builders/plan_executor.py`
+- Catalog persistence in `packages/stackwarden/src/stackwarden/catalog/store.py`
 
 ## Error Handling and Exit Semantics
 
-CLI error normalization and user-safe rendering are implemented in `packages/stacksmith/src/stacksmith/cli_shared/errors.py` and related helpers. The intent is stable machine/script behavior with predictable exit outcomes and actionable operator messaging.
+CLI error normalization and user-safe rendering are implemented in `packages/stackwarden/src/stackwarden/cli_shared/errors.py` and related helpers. The intent is stable machine/script behavior with predictable exit outcomes and actionable operator messaging.
 
 ## Design Decisions
 
@@ -86,10 +86,10 @@ Architecture guard tests also enforce layering boundaries:
 
 ## Key Files to Read Next
 
-- `packages/stacksmith/src/stacksmith/cli.py`
-- `packages/stacksmith/src/stacksmith/cli_shared/context.py`
-- `packages/stacksmith/src/stacksmith/cli_shared/errors.py`
-- `packages/stacksmith/src/stacksmith/domain/ensure.py`
+- `packages/stackwarden/src/stackwarden/cli.py`
+- `packages/stackwarden/src/stackwarden/cli_shared/context.py`
+- `packages/stackwarden/src/stackwarden/cli_shared/errors.py`
+- `packages/stackwarden/src/stackwarden/domain/ensure.py`
 - `tests/test_cli_parity.py`
 
 ## Common Modification Scenarios

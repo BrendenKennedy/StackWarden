@@ -3,9 +3,9 @@
 
 import pytest
 
-from stacksmith.catalog.store import CatalogStore
-from stacksmith.domain.enums import ArtifactStatus, LicenseSeverity
-from stacksmith.domain.models import (
+from stackwarden.catalog.store import CatalogStore
+from stackwarden.domain.enums import ArtifactStatus, LicenseSeverity
+from stackwarden.domain.models import (
     ArtifactComponent,
     ArtifactRecord,
     BaseCandidate,
@@ -52,7 +52,7 @@ def stack():
 _fp_counter = 0
 
 
-def _artifact(tag="local/stacksmith:test", status=ArtifactStatus.BUILDING, **kw):
+def _artifact(tag="local/stackwarden:test", status=ArtifactStatus.BUILDING, **kw):
     global _fp_counter
     _fp_counter += 1
     defaults = dict(
@@ -96,7 +96,7 @@ class TestArtifacts:
         store.upsert_stack(stack)
         art = _artifact()
         store.insert_artifact(art)
-        found = store.get_artifact_by_tag("local/stacksmith:test")
+        found = store.get_artifact_by_tag("local/stackwarden:test")
         assert found is not None
         assert found.id == "art1"
         assert found.status == ArtifactStatus.BUILDING
@@ -107,7 +107,7 @@ class TestArtifacts:
         art = _artifact()
         store.insert_artifact(art)
         store.update_artifact_status("art1", ArtifactStatus.BUILT)
-        found = store.get_artifact_by_tag("local/stacksmith:test")
+        found = store.get_artifact_by_tag("local/stackwarden:test")
         assert found.status == ArtifactStatus.BUILT
 
     def test_mark_stale(self, store, profile, stack):

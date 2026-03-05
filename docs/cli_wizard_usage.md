@@ -1,12 +1,12 @@
 # CLI Wizard Usage
 
-Stacksmith now supports guided create flows for profiles, blocks, and stacks.
+StackWarden now supports guided create flows for profiles, blocks, and stacks.
 
 ## Commands
 
-- `stacksmith profiles wizard`
-- `stacksmith blocks wizard`
-- `stacksmith stacks wizard`
+- `stackwarden profiles wizard`
+- `stackwarden blocks wizard`
+- `stackwarden stacks wizard`
 
 ## Common Flags
 
@@ -34,8 +34,8 @@ Stacksmith now supports guided create flows for profiles, blocks, and stacks.
 
 Power users can still use:
 
-- `stacksmith profiles create --file ...`
-- `stacksmith blocks create --file ...`
-- `stacksmith stacks create --file ...`
+- `stackwarden profiles create --file ...`
+- `stackwarden blocks create --file ...`
+- `stackwarden stacks create --file ...`
 
 Run `--dry-run` and `doctor` for validation/health checks before writing in CI.

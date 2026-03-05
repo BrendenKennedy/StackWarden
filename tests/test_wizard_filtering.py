@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from stacksmith.domain.models import (
+from stackwarden.domain.models import (
     BaseCandidate,
     CudaSpec,
     GpuSpec,
     Profile,
     StackSpec,
 )
-from stacksmith.ui.wizard import (
+from stackwarden.ui.wizard import (
     filter_compatible_stacks,
     choose_stack,
 )

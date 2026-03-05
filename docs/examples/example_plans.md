@@ -3,21 +3,21 @@
 ## Diffusion on DGX Spark
 
 ```
-$ stacksmith plan --profile dgx_spark --stack diffusion_fastapi
+$ stackwarden plan --profile dgx_spark --stack diffusion_fastapi
 
-╭────────────────────────── Stacksmith Plan ───────────────────────────╮
+╭────────────────────────── StackWarden Plan ───────────────────────────╮
 │ Plan: plan_46d159906e84ea3c                                          │
 ╰──────────────────────────────────────────────────────────────────────╯
   Profile: dgx_spark
   Stack:   diffusion_fastapi
   Base:    nvcr.io/nvidia/pytorch:24.06-py3
   Builder: overlay
-  Tag:     local/stacksmith:diffusion_fastapi-dgx_spark-cuda12.5-python_api-fastapi-46d159906e84
+  Tag:     local/stackwarden:diffusion_fastapi-dgx_spark-cuda12.5-python_api-fastapi-46d159906e84
   FP:      46d159906e84ea3c0447f91a...
 
 Steps (2):
   1. pull nvcr.io/nvidia/pytorch:24.06-py3
-  2. build_overlay -> local/stacksmith:diffusion_fastapi-dgx_spark-cuda12.5-python_api-fastapi-46d159906e84
+  2. build_overlay -> local/stackwarden:diffusion_fastapi-dgx_spark-cuda12.5-python_api-fastapi-46d159906e84
 ```
 
 The resolver selected `nvcr.io/nvidia/pytorch:24.06-py3` as the base because:
@@ -28,21 +28,21 @@ The resolver selected `nvcr.io/nvidia/pytorch:24.06-py3` as the base because:
 ## vLLM on DGX Spark
 
 ```
-$ stacksmith plan --profile dgx_spark --stack llm_vllm
+$ stackwarden plan --profile dgx_spark --stack llm_vllm
 
-╭────────────────────────── Stacksmith Plan ───────────────────────────╮
+╭────────────────────────── StackWarden Plan ───────────────────────────╮
 │ Plan: plan_a1b2c3d4e5f6a7b8                                         │
 ╰──────────────────────────────────────────────────────────────────────╯
   Profile: dgx_spark
   Stack:   llm_vllm_fastapi
   Base:    nvcr.io/nvidia/pytorch:24.06-py3
   Builder: overlay
-  Tag:     local/stacksmith:llm_vllm_fastapi-dgx_spark-cuda12.5-vllm-fastapi-a1b2c3d4e5f6
+  Tag:     local/stackwarden:llm_vllm_fastapi-dgx_spark-cuda12.5-vllm-fastapi-a1b2c3d4e5f6
   FP:      a1b2c3d4e5f6a7b8...
 
 Steps (2):
   1. pull nvcr.io/nvidia/pytorch:24.06-py3
-  2. build_overlay -> local/stacksmith:llm_vllm_fastapi-dgx_spark-cuda12.5-vllm-fastapi-a1b2c3d4e5f6
+  2. build_overlay -> local/stackwarden:llm_vllm_fastapi-dgx_spark-cuda12.5-vllm-fastapi-a1b2c3d4e5f6
 ```
 
 ## Mismatch Example: x86-only package on ARM64
@@ -50,7 +50,7 @@ Steps (2):
 If a stack includes `xformers` (which has limited ARM64 support):
 
 ```
-$ stacksmith plan --profile dgx_spark --stack diffusion_with_xformers
+$ stackwarden plan --profile dgx_spark --stack diffusion_with_xformers
 
   ...
   Warnings:
@@ -64,7 +64,7 @@ The plan still generates (it's a warning, not an error), but the user is alerted
 If a profile disallows a serve type:
 
 ```
-$ stacksmith plan --profile restricted_profile --stack triton_stack
+$ stackwarden plan --profile restricted_profile --stack triton_stack
 
 Error: Stack is incompatible with profile:
   - serve type 'triton' is disallowed by profile 'restricted_profile'

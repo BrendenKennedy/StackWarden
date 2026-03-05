@@ -1,10 +1,10 @@
-"""Unit tests for stacksmith.application.create_flows module."""
+"""Unit tests for stackwarden.application.create_flows module."""
 
 from __future__ import annotations
 
 import pytest
 
-from stacksmith.application.create_flows import (
+from stackwarden.application.create_flows import (
     AppConflictError,
     AppValidationError,
     ComposeResult,
@@ -25,8 +25,8 @@ from stacksmith.application.create_flows import (
     prepare_profile,
     prepare_stack,
 )
-from stacksmith.domain.errors import BlockNotFoundError, ProfileNotFoundError, StackNotFoundError
-from stacksmith.web.schemas import (
+from stackwarden.domain.errors import BlockNotFoundError, ProfileNotFoundError, StackNotFoundError
+from stackwarden.web.schemas import (
     BaseCandidateCreateDTO,
     BlockCreateRequest,
     CudaCreateDTO,
@@ -258,22 +258,22 @@ def spec_dirs(tmp_path, monkeypatch):
     profiles_dir.mkdir()
     stacks_dir.mkdir()
     blocks_dir.mkdir()
-    monkeypatch.setattr("stacksmith.application.create_flows.get_profiles_dir", lambda: profiles_dir)
-    monkeypatch.setattr("stacksmith.application.create_flows.get_stacks_dir", lambda: stacks_dir)
-    monkeypatch.setattr("stacksmith.application.create_flows.get_blocks_dir", lambda: blocks_dir)
+    monkeypatch.setattr("stackwarden.application.create_flows.get_profiles_dir", lambda: profiles_dir)
+    monkeypatch.setattr("stackwarden.application.create_flows.get_stacks_dir", lambda: stacks_dir)
+    monkeypatch.setattr("stackwarden.application.create_flows.get_blocks_dir", lambda: blocks_dir)
     return {"profiles": profiles_dir, "stacks": stacks_dir, "blocks": blocks_dir}
 
 
 class TestCreateStack:
     def test_creates_yaml_file(self, spec_dirs, monkeypatch):
-        monkeypatch.setattr("stacksmith.application.create_flows.load_stack", _raise_stack_not_found)
+        monkeypatch.setattr("stackwarden.application.create_flows.load_stack", _raise_stack_not_found)
         req = _minimal_stack_req()
         path = create_stack(req)
         assert path.exists()
         assert path.name == "test-stack.yaml"
 
     def test_conflict_raises(self, spec_dirs, monkeypatch):
-        monkeypatch.setattr("stacksmith.application.create_flows.load_stack", _raise_stack_not_found)
+        monkeypatch.setattr("stackwarden.application.create_flows.load_stack", _raise_stack_not_found)
         req = _minimal_stack_req()
         create_stack(req)
         with pytest.raises(AppConflictError):
@@ -282,7 +282,7 @@ class TestCreateStack:
 
 class TestCreateBlock:
     def test_creates_yaml_file(self, spec_dirs, monkeypatch):
-        monkeypatch.setattr("stacksmith.application.create_flows.load_block", _raise_block_not_found)
+        monkeypatch.setattr("stackwarden.application.create_flows.load_block", _raise_block_not_found)
         req = _minimal_block_req()
         path = create_block(req)
         assert path.exists()
@@ -291,7 +291,7 @@ class TestCreateBlock:
 
 class TestCreateProfile:
     def test_creates_yaml_file(self, spec_dirs, monkeypatch):
-        monkeypatch.setattr("stacksmith.application.create_flows.load_profile", _raise_profile_not_found)
+        monkeypatch.setattr("stackwarden.application.create_flows.load_profile", _raise_profile_not_found)
         req = _minimal_profile_req()
         path = create_profile(req)
         assert path.exists()

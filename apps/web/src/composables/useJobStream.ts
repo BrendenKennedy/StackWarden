@@ -57,7 +57,7 @@ export function useJobStream(jobIdRef: Ref<string> | string) {
 
   async function streamEvents(jobId: string, token: number, controller: AbortController) {
     const requestHeaders: Record<string, string> = {}
-    const authToken = localStorage.getItem('stacksmith_token')
+    const authToken = localStorage.getItem('stackwarden_token')
     if (authToken) {
       requestHeaders.Authorization = `Bearer ${authToken}`
     }

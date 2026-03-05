@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typer.testing import CliRunner
 
-from stacksmith.cli import app
+from stackwarden.cli import app
 
 
 class _Record:
@@ -18,8 +18,8 @@ class _Catalog:
 
 def test_export_run_cpu_runtime_skips_default_gpus(monkeypatch):
     runner = CliRunner()
-    monkeypatch.setattr("stacksmith.cli._get_catalog", lambda: _Catalog())
-    monkeypatch.setattr("stacksmith.cli._artifact_runtime_and_ports", lambda _r: ("runc", [8080]))
+    monkeypatch.setattr("stackwarden.cli._get_catalog", lambda: _Catalog())
+    monkeypatch.setattr("stackwarden.cli._artifact_runtime_and_ports", lambda _r: ("runc", [8080]))
 
     out = runner.invoke(app, ["export", "run", "my:tag"])
     assert out.exit_code == 0, out.output
@@ -29,8 +29,8 @@ def test_export_run_cpu_runtime_skips_default_gpus(monkeypatch):
 
 def test_export_compose_nvidia_runtime_includes_gpu_defaults(monkeypatch):
     runner = CliRunner()
-    monkeypatch.setattr("stacksmith.cli._get_catalog", lambda: _Catalog())
-    monkeypatch.setattr("stacksmith.cli._artifact_runtime_and_ports", lambda _r: ("nvidia", [8000]))
+    monkeypatch.setattr("stackwarden.cli._get_catalog", lambda: _Catalog())
+    monkeypatch.setattr("stackwarden.cli._artifact_runtime_and_ports", lambda _r: ("nvidia", [8000]))
 
     out = runner.invoke(app, ["export", "compose", "my:tag"])
     assert out.exit_code == 0, out.output
@@ -41,8 +41,8 @@ def test_export_compose_nvidia_runtime_includes_gpu_defaults(monkeypatch):
 
 def test_export_compose_cpu_runtime_omits_gpu_reservations(monkeypatch):
     runner = CliRunner()
-    monkeypatch.setattr("stacksmith.cli._get_catalog", lambda: _Catalog())
-    monkeypatch.setattr("stacksmith.cli._artifact_runtime_and_ports", lambda _r: ("runc", [8000]))
+    monkeypatch.setattr("stackwarden.cli._get_catalog", lambda: _Catalog())
+    monkeypatch.setattr("stackwarden.cli._artifact_runtime_and_ports", lambda _r: ("runc", [8000]))
 
     out = runner.invoke(app, ["export", "compose", "my:tag"])
     assert out.exit_code == 0, out.output

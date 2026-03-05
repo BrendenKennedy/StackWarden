@@ -1,7 +1,7 @@
 """Tests for deterministic fingerprinting and tag generation."""
 
-from stacksmith.domain.hashing import canonicalize, fingerprint, generate_tag
-from stacksmith.domain.models import (
+from stackwarden.domain.hashing import canonicalize, fingerprint, generate_tag
+from stackwarden.domain.models import (
     BaseCandidate,
     CudaSpec,
     GpuSpec,
@@ -182,7 +182,7 @@ class TestTagGeneration:
         p, s = _profile(), _stack()
         fp = fingerprint(p, s, "base:latest")
         tag = generate_tag(s, p, fp)
-        assert tag.startswith("local/stacksmith:")
+        assert tag.startswith("local/stackwarden:")
         parts = tag.split(":")[1].split("-")
         assert parts[0] == "test_stack"
         assert parts[1] == "test_profile"

@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from stacksmith.config import load_block, load_profile, load_stack
+from stackwarden.config import load_block, load_profile, load_stack
 
 
 # ---------------------------------------------------------------------------
@@ -34,10 +34,10 @@ def client(data_dir):
     """TestClient that writes specs to *data_dir*."""
     with patch.dict(
         os.environ,
-        {"STACKSMITH_DATA_DIR": str(data_dir), "STACKSMITH_WEB_DEV": "true"},
+        {"STACKWARDEN_DATA_DIR": str(data_dir), "STACKWARDEN_WEB_DEV": "true"},
     ):
-        from stacksmith.web.app import create_app
-        from stacksmith.web.settings import WebSettings
+        from stackwarden.web.app import create_app
+        from stackwarden.web.settings import WebSettings
 
         app = create_app(WebSettings(token=None, dev=True))
         yield TestClient(app)
@@ -128,7 +128,7 @@ class TestCreateStack:
         assert body["display_name"] == "My New Stack"
         assert (data_dir / "stacks" / "my-new-stack.yaml").exists()
 
-        with patch.dict(os.environ, {"STACKSMITH_DATA_DIR": str(data_dir)}):
+        with patch.dict(os.environ, {"STACKWARDEN_DATA_DIR": str(data_dir)}):
             stack = load_stack("my-new-stack")
             assert stack.id == "my-new-stack"
             assert stack.kind == "stack"
@@ -185,7 +185,7 @@ class TestCreateStack:
         _ensure_fastapi_block(client)
         resp = client.post("/api/stacks", json=_valid_recipe_stack_payload())
         assert resp.status_code == 201
-        with patch.dict(os.environ, {"STACKSMITH_DATA_DIR": str(data_dir)}):
+        with patch.dict(os.environ, {"STACKWARDEN_DATA_DIR": str(data_dir)}):
             stack = load_stack("my-recipe-stack")
             assert stack.id == "my-recipe-stack"
             assert stack.components.base_role == "pytorch"
@@ -348,10 +348,10 @@ class TestComposePreview:
         assert any(c.get("type") == "entrypoint" for c in body.get("runtime_conflicts", []))
 
     def test_internal_fault_maps_to_500(self, client, monkeypatch):
-        from stacksmith.application.errors import AppInternalError
+        from stackwarden.application.errors import AppInternalError
 
         monkeypatch.setattr(
-            "stacksmith.web.routes.create.app_compose_stack_preview",
+            "stackwarden.web.routes.create.app_compose_stack_preview",
             lambda *_args, **_kwargs: (_ for _ in ()).throw(AppInternalError("boom")),
         )
         resp = client.post("/api/stacks/compose", json=_valid_recipe_stack_payload())
@@ -371,7 +371,7 @@ class TestCreateProfile:
         assert body["id"] == "my-new-profile"
         assert (data_dir / "profiles" / "my-new-profile.yaml").exists()
 
-        with patch.dict(os.environ, {"STACKSMITH_DATA_DIR": str(data_dir)}):
+        with patch.dict(os.environ, {"STACKWARDEN_DATA_DIR": str(data_dir)}):
             profile = load_profile("my-new-profile")
             assert profile.id == "my-new-profile"
             assert profile.arch.value == "amd64"
@@ -415,7 +415,7 @@ class TestCreateProfile:
         )
         resp = client.post("/api/profiles", json=payload)
         assert resp.status_code == 201
-        with patch.dict(os.environ, {"STACKSMITH_DATA_DIR": str(data_dir)}):
+        with patch.dict(os.environ, {"STACKWARDEN_DATA_DIR": str(data_dir)}):
             profile = load_profile("my-new-profile")
             assert "triton" in profile.constraints.disallow.get("serve", [])
             assert "NVIDIA_VISIBLE_DEVICES" in profile.constraints.require.get("env", [])
@@ -471,7 +471,7 @@ class TestDeclarativeDerivationNormalization:
         resp = client.post("/api/stacks", json=payload)
         assert resp.status_code == 201
 
-        with patch.dict(os.environ, {"STACKSMITH_DATA_DIR": str(data_dir)}):
+        with patch.dict(os.environ, {"STACKWARDEN_DATA_DIR": str(data_dir)}):
             stack = load_stack("derived-stack")
             # load_stack resolves recipe -> composed StackSpec and does not retain derivation trace fields.
             assert stack.id == "derived-stack"
@@ -493,7 +493,7 @@ class TestDeclarativeDerivationNormalization:
         resp = client.post("/api/profiles", json=payload)
         assert resp.status_code == 201
 
-        with patch.dict(os.environ, {"STACKSMITH_DATA_DIR": str(data_dir)}):
+        with patch.dict(os.environ, {"STACKWARDEN_DATA_DIR": str(data_dir)}):
             profile = load_profile("derived-profile")
             assert profile.derived_capabilities == ["tensorcore", "cuda"]
             assert "profile trace" in profile.decision_trace
@@ -545,7 +545,7 @@ class TestCreateBlock:
         body = resp.json()
         assert body["id"] == "fastapi"
         assert (data_dir / "blocks" / "fastapi.yaml").exists()
-        with patch.dict(os.environ, {"STACKSMITH_DATA_DIR": str(data_dir)}):
+        with patch.dict(os.environ, {"STACKWARDEN_DATA_DIR": str(data_dir)}):
             block = load_block("fastapi")
             assert block.id == "fastapi"
 
@@ -622,7 +622,7 @@ class TestCreateBlock:
 
 class TestAtomicWrite:
     def test_creates_dirs(self, tmp_path):
-        from stacksmith.web.util.write_yaml import atomic_write_yaml
+        from stackwarden.web.util.write_yaml import atomic_write_yaml
 
         target = tmp_path / "nested" / "deep" / "spec.yaml"
         atomic_write_yaml({"id": "test"}, target)
@@ -630,7 +630,7 @@ class TestAtomicWrite:
         assert target.read_text().startswith("id: test")
 
     def test_dir_fsync_called(self, tmp_path):
-        from stacksmith.web.util.write_yaml import atomic_write_yaml
+        from stackwarden.web.util.write_yaml import atomic_write_yaml
 
         target = tmp_path / "spec.yaml"
         calls = []
@@ -640,7 +640,7 @@ class TestAtomicWrite:
             calls.append(fd)
             return real_fsync(fd)
 
-        with patch("stacksmith.web.util.write_yaml.os.fsync", side_effect=tracking_fsync):
+        with patch("stackwarden.web.util.write_yaml.os.fsync", side_effect=tracking_fsync):
             atomic_write_yaml({"id": "test"}, target)
 
         assert len(calls) == 2, "Expected two fsync calls (file + directory)"

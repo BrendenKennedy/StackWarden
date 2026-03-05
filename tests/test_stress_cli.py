@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from stacksmith.cli import app
+from stackwarden.cli import app
 
 
 class TestOutputJsonOnFailure:
@@ -21,7 +21,7 @@ class TestOutputJsonOnFailure:
     def test_ensure_failure_with_output_json_exits_nonzero(self):
         """When ensure fails and --json, exit code is non-zero, no confirm prompt."""
         runner = CliRunner()
-        with patch("stacksmith.domain.ensure.ensure_internal") as mock_ensure:
+        with patch("stackwarden.domain.ensure.ensure_internal") as mock_ensure:
             mock_ensure.side_effect = Exception("Build failed")
             out = runner.invoke(app, ["ensure", "--profile", "p1", "--stack", "s1", "--json"])
             assert out.exit_code != 0
@@ -31,18 +31,18 @@ class TestOutputJsonOnFailure:
         """When ensure succeeds with --output-json, prints JSON."""
         runner = CliRunner()
         rec = MagicMock()
-        rec.model_dump.return_value = {"tag": "local/stacksmith:test", "status": "built"}
-        rec.tag = "local/stacksmith:test"
+        rec.model_dump.return_value = {"tag": "local/stackwarden:test", "status": "built"}
+        rec.tag = "local/stackwarden:test"
         rec.status = MagicMock(value="built")
         rec.image_id = "abc123"
         rec.digest = None
         plan = MagicMock()
         plan.decision.rationale = None
-        with patch("stacksmith.domain.ensure.ensure_internal", return_value=(rec, plan)), \
-             patch("stacksmith.cli_shared.context.setup_cli"):
+        with patch("stackwarden.domain.ensure.ensure_internal", return_value=(rec, plan)), \
+             patch("stackwarden.cli_shared.context.setup_cli"):
             out = runner.invoke(app, ["ensure", "--profile", "p1", "--stack", "s1", "--json"])
             assert out.exit_code == 0, out.output
-            assert "local/stacksmith" in out.output or "tag" in out.output
+            assert "local/stackwarden" in out.output or "tag" in out.output
 
 
 class TestExplain:
@@ -52,7 +52,7 @@ class TestExplain:
         """When --explain, resolve is called with explain=True."""
         runner = CliRunner()
         rec = MagicMock()
-        rec.tag = "local/stacksmith:test"
+        rec.tag = "local/stackwarden:test"
         rec.status = MagicMock(value="built")
         rec.image_id = "abc123"
         rec.digest = None
@@ -61,7 +61,7 @@ class TestExplain:
         plan.decision.rationale = MagicMock()
         plan.decision.rationale.candidates = []
         plan.decision.rationale.rules_fired = []
-        with patch("stacksmith.domain.ensure.ensure_internal", return_value=(rec, plan)):
+        with patch("stackwarden.domain.ensure.ensure_internal", return_value=(rec, plan)):
             out = runner.invoke(app, ["ensure", "--profile", "p1", "--stack", "s1", "--explain"])
             assert out.exit_code == 0
 
@@ -72,7 +72,7 @@ class TestNonInteractive:
     def test_ensure_no_confirm_when_non_interactive(self):
         """When ensure fails and output_json, no typer.confirm is called."""
         runner = CliRunner()
-        with patch("stacksmith.domain.ensure.ensure_internal") as mock_ensure:
+        with patch("stackwarden.domain.ensure.ensure_internal") as mock_ensure:
             mock_ensure.side_effect = Exception("Build failed")
             # CliRunner uses isolated filesystem and non-interactive by default
             out = runner.invoke(app, ["ensure", "--profile", "p1", "--stack", "s1"])

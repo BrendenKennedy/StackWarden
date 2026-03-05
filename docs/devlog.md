@@ -1,4 +1,4 @@
-# Stacksmith Devlog — Stress Test Bug Tracking
+# StackWarden Devlog — Stress Test Bug Tracking
 
 This devlog records bugs and issues discovered during stress testing. Add entries as tests are run and issues are found.
 

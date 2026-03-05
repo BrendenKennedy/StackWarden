@@ -8,12 +8,12 @@ from unittest.mock import patch
 
 import pytest
 
-from stacksmith.domain.manifest import ResolvedManifest, save_manifest, load_manifest
+from stackwarden.domain.manifest import ResolvedManifest, save_manifest, load_manifest
 
 
 @pytest.fixture
 def tmp_artifacts(tmp_path):
-    with patch("stacksmith.paths.get_artifacts_root", return_value=tmp_path):
+    with patch("stackwarden.paths.get_artifacts_root", return_value=tmp_path):
         yield tmp_path
 
 
@@ -57,8 +57,8 @@ class TestManifestSaveLoad:
 
 class TestReproFingerprint:
     def test_repro_stack_has_distinct_id(self):
-        from stacksmith.domain.repro import repro_stack_from_manifest
-        from stacksmith.domain.models import StackSpec
+        from stackwarden.domain.repro import repro_stack_from_manifest
+        from stackwarden.domain.models import StackSpec
 
         manifest = ResolvedManifest(
             profile_id="p1",

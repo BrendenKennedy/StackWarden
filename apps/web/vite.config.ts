@@ -19,7 +19,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: '../../packages/stacksmith/src/stacksmith/web/static',
+    outDir: '../../packages/stackwarden/src/stackwarden/web/static',
     emptyOutDir: true,
   },
 })

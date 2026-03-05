@@ -69,7 +69,7 @@ Styling approach:
 Development and deployment coupling:
 
 - Vite dev proxy forwards `/api` requests to backend server
-- Production frontend build outputs static assets to backend static path (`packages/stacksmith/src/stacksmith/web/static`)
+- Production frontend build outputs static assets to backend static path (`packages/stackwarden/src/stackwarden/web/static`)
 - Backend serves SPA assets and fallback routing through FastAPI app
 
 This keeps deployment simple and tightly integrated with backend distribution.

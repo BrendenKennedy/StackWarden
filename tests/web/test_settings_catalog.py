@@ -13,19 +13,19 @@ def client(tmp_path, monkeypatch):
     (tmp_path / "stacks").mkdir()
     (tmp_path / "profiles").mkdir()
     (tmp_path / "blocks").mkdir()
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("STACKSMITH_WEB_DEV", "true")
-    monkeypatch.setenv("STACKSMITH_WEB_ADMIN_TOKEN", "admin-secret")
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_WEB_DEV", "true")
+    monkeypatch.setenv("STACKWARDEN_WEB_ADMIN_TOKEN", "admin-secret")
     with patch.dict(
         os.environ,
         {
-            "STACKSMITH_DATA_DIR": str(tmp_path),
-            "STACKSMITH_WEB_DEV": "true",
-            "STACKSMITH_WEB_ADMIN_TOKEN": "admin-secret",
+            "STACKWARDEN_DATA_DIR": str(tmp_path),
+            "STACKWARDEN_WEB_DEV": "true",
+            "STACKWARDEN_WEB_ADMIN_TOKEN": "admin-secret",
         },
     ):
-        from stacksmith.web.app import create_app
-        from stacksmith.web.settings import WebSettings
+        from stackwarden.web.app import create_app
+        from stackwarden.web.settings import WebSettings
 
         app = create_app(WebSettings(token=None, dev=True))
         yield TestClient(app)
@@ -62,7 +62,7 @@ def test_upsert_hardware_catalog_item_requires_admin_header(client):
     allowed = client.post(
         "/api/settings/hardware-catalogs/gpu_model",
         json=body,
-        headers={"X-Stacksmith-Admin-Token": "admin-secret"},
+        headers={"X-StackWarden-Admin-Token": "admin-secret"},
     )
     assert allowed.status_code == 200
     assert any(i["id"] == "h100" for i in allowed.json()["gpu_model"])
@@ -73,43 +73,43 @@ def test_update_settings_config_remote_catalog(client):
         "/api/settings/config",
         json={
             "remote_catalog_enabled": True,
-            "remote_catalog_repo_url": "https://example.com/org/stacksmith-data.git",
+            "remote_catalog_repo_url": "https://example.com/org/stackwarden-data.git",
             "remote_catalog_branch": "main",
-            "remote_catalog_local_path": "/tmp/stacksmith-remote-data",
-            "remote_catalog_local_overrides_path": "/tmp/stacksmith-local-overrides",
+            "remote_catalog_local_path": "/tmp/stackwarden-remote-data",
+            "remote_catalog_local_overrides_path": "/tmp/stackwarden-local-overrides",
             "remote_catalog_auto_pull": True,
             "sync_now": False,
         },
-        headers={"X-Stacksmith-Admin-Token": "admin-secret"},
+        headers={"X-StackWarden-Admin-Token": "admin-secret"},
     )
     assert resp.status_code == 200
     body = resp.json()
     assert body["remote_catalog_enabled"] is True
-    assert body["remote_catalog_repo_url"] == "https://example.com/org/stacksmith-data.git"
+    assert body["remote_catalog_repo_url"] == "https://example.com/org/stackwarden-data.git"
     assert body["remote_catalog_branch"] == "main"
-    assert body["remote_catalog_local_path"] == "/tmp/stacksmith-remote-data"
-    assert body["remote_catalog_local_overrides_path"] == "/tmp/stacksmith-local-overrides"
+    assert body["remote_catalog_local_path"] == "/tmp/stackwarden-remote-data"
+    assert body["remote_catalog_local_overrides_path"] == "/tmp/stackwarden-local-overrides"
     assert body["remote_catalog_auto_pull"] is True
 
 
 def test_update_settings_config_can_sync_now(client, monkeypatch):
     monkeypatch.setattr(
-        "stacksmith.web.routes.settings.sync_remote_catalog",
+        "stackwarden.web.routes.settings.sync_remote_catalog",
         lambda _cfg: SimpleNamespace(
             status="ok",
             detail="synced",
             commit="abc123",
-            local_path="/tmp/stacksmith-remote-data",
+            local_path="/tmp/stackwarden-remote-data",
         ),
     )
     resp = client.post(
         "/api/settings/config",
         json={
             "remote_catalog_enabled": True,
-            "remote_catalog_repo_url": "https://example.com/org/stacksmith-data.git",
+            "remote_catalog_repo_url": "https://example.com/org/stackwarden-data.git",
             "sync_now": True,
         },
-        headers={"X-Stacksmith-Admin-Token": "admin-secret"},
+        headers={"X-StackWarden-Admin-Token": "admin-secret"},
     )
     assert resp.status_code == 200
     body = resp.json()

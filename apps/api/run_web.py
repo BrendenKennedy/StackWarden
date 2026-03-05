@@ -1,4 +1,4 @@
-from stacksmith.web_entry import main
+from stackwarden.web_entry import main
 
 
 if __name__ == "__main__":

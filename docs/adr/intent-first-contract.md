@@ -4,7 +4,7 @@
 Accepted (Phase 0 baseline)
 
 ## Context
-Stacksmith currently accepts a mix of user-authored capability data and detected host facts, then resolves compatible stacks and builds. As features grow, implementation details are leaking into user input, making onboarding and explainability harder.
+StackWarden currently accepts a mix of user-authored capability data and detected host facts, then resolves compatible stacks and builds. As features grow, implementation details are leaking into user input, making onboarding and explainability harder.
 
 This ADR defines the blocks-first contract:
 - User intent is declared by selecting `stack.blocks`.
@@ -12,7 +12,7 @@ This ADR defines the blocks-first contract:
 - System derives implementation outputs deterministically.
 
 ## Contract Statement
-Users declare desired functionality by choosing **blocks**; Stacksmith derives compatible implementation details from block requirements, host facts, and restrictions, and records a **decision_trace** for every derived output.
+Users declare desired functionality by choosing **blocks**; StackWarden derives compatible implementation details from block requirements, host facts, and restrictions, and records a **decision_trace** for every derived output.
 
 ## Frozen Terminology
 - `blocks`: primary user intent contract.

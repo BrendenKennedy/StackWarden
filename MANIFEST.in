@@ -1,1 +1,1 @@
-recursive-include packages/stacksmith/src/stacksmith/web/static *
+recursive-include packages/stackwarden/src/stackwarden/web/static *

@@ -12,10 +12,10 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from stacksmith.domain.enums import ArtifactStatus
-from stacksmith.domain.models import ArtifactRecord, Plan, PlanArtifact, PlanDecision, PlanStep
-from stacksmith.domain.verify import VerifyReport
-from stacksmith.web.jobs.models import JobStatus
+from stackwarden.domain.enums import ArtifactStatus
+from stackwarden.domain.models import ArtifactRecord, Plan, PlanArtifact, PlanDecision, PlanStep
+from stackwarden.domain.verify import VerifyReport
+from stackwarden.web.jobs.models import JobStatus
 
 
 @pytest.fixture()
@@ -26,17 +26,17 @@ def client_bundle(tmp_path):
     with patch.dict(
         os.environ,
         {
-            "STACKSMITH_DATA_DIR": str(tmp_path),
-            "STACKSMITH_WEB_DEV": "true",
-            "STACKSMITH_TUPLE_LAYER_MODE": "off",
+            "STACKWARDEN_DATA_DIR": str(tmp_path),
+            "STACKWARDEN_WEB_DEV": "true",
+            "STACKWARDEN_TUPLE_LAYER_MODE": "off",
         },
     ):
-        from stacksmith.catalog.store import CatalogStore
-        from stacksmith.web.app import create_app
-        from stacksmith.web.deps import get_catalog, get_job_manager
-        from stacksmith.web.jobs.manager import JobManager
-        from stacksmith.web.jobs.store import JobStore
-        from stacksmith.web.settings import WebSettings
+        from stackwarden.catalog.store import CatalogStore
+        from stackwarden.web.app import create_app
+        from stackwarden.web.deps import get_catalog, get_job_manager
+        from stackwarden.web.jobs.manager import JobManager
+        from stackwarden.web.jobs.store import JobStore
+        from stackwarden.web.settings import WebSettings
 
         catalog = CatalogStore(db_path=tmp_path / "catalog.sqlite3")
         manager = JobManager(store=JobStore(db_path=tmp_path / "catalog.sqlite3"))
@@ -71,22 +71,22 @@ def test_jobs_endpoints_cover_queue_detail_cancel_events_and_ensure(client_bundl
 
     # Cover /api/ensure with lightweight monkeypatches (no resolver/build execution).
     monkeypatch.setattr(
-        "stacksmith.web.routes.jobs.load_profile",
+        "stackwarden.web.routes.jobs.load_profile",
         lambda _: SimpleNamespace(host_facts=SimpleNamespace(memory_gb_total=None)),
     )
-    monkeypatch.setattr("stacksmith.web.routes.jobs.load_stack", lambda _: SimpleNamespace(blocks=[]))
-    monkeypatch.setattr("stacksmith.web.routes.jobs.load_block", lambda _: object())
+    monkeypatch.setattr("stackwarden.web.routes.jobs.load_stack", lambda _: SimpleNamespace(blocks=[]))
+    monkeypatch.setattr("stackwarden.web.routes.jobs.load_block", lambda _: object())
     monkeypatch.setattr(
-        "stacksmith.web.routes.jobs.resolve",
+        "stackwarden.web.routes.jobs.resolve",
         lambda *args, **kwargs: SimpleNamespace(decision=SimpleNamespace(build_optimization=None)),
     )
     monkeypatch.setattr(
-        "stacksmith.web.routes.jobs.decide_admission",
+        "stackwarden.web.routes.jobs.decide_admission",
         lambda **_kwargs: SimpleNamespace(allowed=True, detail="ok"),
     )
     async def _fake_run_ensure_job(*_args, **_kwargs):
         return None
-    monkeypatch.setattr("stacksmith.web.routes.jobs.run_ensure_job", _fake_run_ensure_job)
+    monkeypatch.setattr("stackwarden.web.routes.jobs.run_ensure_job", _fake_run_ensure_job)
 
     ensure_resp = client.post(
         "/api/ensure",
@@ -99,17 +99,17 @@ def test_jobs_endpoints_cover_queue_detail_cancel_events_and_ensure(client_bundl
 def test_ensure_rejects_when_admission_denies(client_bundle, monkeypatch):
     client, _catalog, _manager = client_bundle
     monkeypatch.setattr(
-        "stacksmith.web.routes.jobs.load_profile",
+        "stackwarden.web.routes.jobs.load_profile",
         lambda _: SimpleNamespace(host_facts=SimpleNamespace(memory_gb_total=8.0)),
     )
-    monkeypatch.setattr("stacksmith.web.routes.jobs.load_stack", lambda _: SimpleNamespace(blocks=[]))
-    monkeypatch.setattr("stacksmith.web.routes.jobs.load_block", lambda _: object())
+    monkeypatch.setattr("stackwarden.web.routes.jobs.load_stack", lambda _: SimpleNamespace(blocks=[]))
+    monkeypatch.setattr("stackwarden.web.routes.jobs.load_block", lambda _: object())
     monkeypatch.setattr(
-        "stacksmith.web.routes.jobs.resolve",
+        "stackwarden.web.routes.jobs.resolve",
         lambda *args, **kwargs: SimpleNamespace(decision=SimpleNamespace(build_optimization=None)),
     )
     monkeypatch.setattr(
-        "stacksmith.web.routes.jobs.decide_admission",
+        "stackwarden.web.routes.jobs.decide_admission",
         lambda **_kwargs: SimpleNamespace(allowed=False, detail="busy"),
     )
     resp = client.post(
@@ -131,8 +131,8 @@ def test_run_ensure_job_respects_pre_start_cancel(client_bundle, monkeypatch):
         called["ran"] = True
         raise AssertionError("ensure sync path should not run for pre-canceled jobs")
 
-    monkeypatch.setattr("stacksmith.web.jobs.runners._run_ensure_sync", _never_run)
-    from stacksmith.web.jobs.runners import run_ensure_job
+    monkeypatch.setattr("stackwarden.web.jobs.runners._run_ensure_sync", _never_run)
+    from stackwarden.web.jobs.runners import run_ensure_job
 
     asyncio.run(run_ensure_job(record, manager))
     fresh = manager.get_job(record.job_id)
@@ -149,7 +149,7 @@ def test_run_ensure_job_fails_when_artifact_is_failed(client_bundle, monkeypatch
         id="artifact-failed",
         profile_id="p-fail",
         stack_id="s-fail",
-        tag="local/stacksmith:failed",
+        tag="local/stackwarden:failed",
         fingerprint="f" * 64,
         base_image="python:3.12",
         build_strategy="overlay",
@@ -158,10 +158,10 @@ def test_run_ensure_job_fails_when_artifact_is_failed(client_bundle, monkeypatch
     )
 
     monkeypatch.setattr(
-        "stacksmith.web.jobs.runners._run_ensure_sync",
+        "stackwarden.web.jobs.runners._run_ensure_sync",
         lambda *_args, **_kwargs: (failed_artifact, None),
     )
-    from stacksmith.web.jobs.runners import run_ensure_job
+    from stackwarden.web.jobs.runners import run_ensure_job
 
     asyncio.run(run_ensure_job(record, manager))
     fresh = manager.get_job(record.job_id)
@@ -181,12 +181,12 @@ def test_plan_verify_and_artifacts_route_coverage(client_bundle, monkeypatch):
         stack_id="stack_test",
         decision=PlanDecision(base_image="python:3.12-slim", builder="overlay"),
         steps=[PlanStep(type="pull", image="python:3.12-slim")],
-        artifact=PlanArtifact(tag="local/stacksmith:test", fingerprint=fingerprint),
+        artifact=PlanArtifact(tag="local/stackwarden:test", fingerprint=fingerprint),
     )
-    monkeypatch.setattr("stacksmith.web.routes.plan.load_profile", lambda _: object())
-    monkeypatch.setattr("stacksmith.web.routes.plan.load_stack", lambda _: SimpleNamespace(blocks=[]))
-    monkeypatch.setattr("stacksmith.web.routes.plan.load_block", lambda _: object())
-    monkeypatch.setattr("stacksmith.web.routes.plan.resolve", lambda *args, **kwargs: plan_obj)
+    monkeypatch.setattr("stackwarden.web.routes.plan.load_profile", lambda _: object())
+    monkeypatch.setattr("stackwarden.web.routes.plan.load_stack", lambda _: SimpleNamespace(blocks=[]))
+    monkeypatch.setattr("stackwarden.web.routes.plan.load_block", lambda _: object())
+    monkeypatch.setattr("stackwarden.web.routes.plan.resolve", lambda *args, **kwargs: plan_obj)
 
     plan_resp = client.post(
         "/api/plan",
@@ -196,13 +196,13 @@ def test_plan_verify_and_artifacts_route_coverage(client_bundle, monkeypatch):
     assert plan_resp.json()["plan_id"] == "plan_test"
 
     # /api/verify (mock docker + verification/fix behavior)
-    monkeypatch.setattr("stacksmith.web.routes.verify.DockerClient", lambda: object())
+    monkeypatch.setattr("stackwarden.web.routes.verify.DockerClient", lambda: object())
     monkeypatch.setattr(
-        "stacksmith.web.routes.verify.verify_artifact",
+        "stackwarden.web.routes.verify.verify_artifact",
         lambda *args, **kwargs: VerifyReport(ok=False, errors=["mismatch"], warnings=[], facts={}),
     )
     monkeypatch.setattr(
-        "stacksmith.web.routes.verify.apply_fix",
+        "stackwarden.web.routes.verify.apply_fix",
         lambda *_args, **_kwargs: ["marked stale"],
     )
     verify_resp = client.post("/api/verify", json={"tag_or_id": "anything", "strict": False, "fix": True})
@@ -216,7 +216,7 @@ def test_plan_verify_and_artifacts_route_coverage(client_bundle, monkeypatch):
         id="artifact_test",
         profile_id="profile_test",
         stack_id="stack_test",
-        tag="local/stacksmith:test",
+        tag="local/stackwarden:test",
         fingerprint=fingerprint,
         base_image="python:3.12-slim",
         build_strategy="overlay",
@@ -225,7 +225,7 @@ def test_plan_verify_and_artifacts_route_coverage(client_bundle, monkeypatch):
     )
     catalog.insert_artifact(record)
 
-    from stacksmith.domain.snapshots import artifact_dir
+    from stackwarden.domain.snapshots import artifact_dir
 
     art_dir = artifact_dir(record.fingerprint)
     art_dir.mkdir(parents=True, exist_ok=True)
@@ -253,7 +253,7 @@ def test_plan_verify_and_artifacts_route_coverage(client_bundle, monkeypatch):
             id="artifact_delete_test",
             profile_id="profile_test",
             stack_id="stack_test",
-            tag="local/stacksmith:delete-test",
+            tag="local/stackwarden:delete-test",
             fingerprint="fp_delete",
             base_image="python:3.12",
             build_strategy="overlay",
@@ -287,10 +287,10 @@ def test_compatibility_fix_endpoints(client_bundle, monkeypatch):
     plan_obj = SimpleNamespace(
         decision=SimpleNamespace(base_image="nvcr.io/nvidia/pytorch:25.03-py3"),
     )
-    monkeypatch.setattr("stacksmith.web.routes.jobs.load_profile", lambda _: object())
-    monkeypatch.setattr("stacksmith.web.routes.jobs.load_stack", lambda _: SimpleNamespace(blocks=[]))
-    monkeypatch.setattr("stacksmith.web.routes.jobs.load_block", lambda _: object())
-    monkeypatch.setattr("stacksmith.web.routes.jobs.resolve", lambda *args, **kwargs: plan_obj)
+    monkeypatch.setattr("stackwarden.web.routes.jobs.load_profile", lambda _: object())
+    monkeypatch.setattr("stackwarden.web.routes.jobs.load_stack", lambda _: SimpleNamespace(blocks=[]))
+    monkeypatch.setattr("stackwarden.web.routes.jobs.load_block", lambda _: object())
+    monkeypatch.setattr("stackwarden.web.routes.jobs.resolve", lambda *args, **kwargs: plan_obj)
 
     # GET compatibility-fix
     fix_resp = client.get(f"/api/jobs/{record.job_id}/compatibility-fix")
@@ -304,7 +304,7 @@ def test_compatibility_fix_endpoints(client_bundle, monkeypatch):
     async def _fake_run(*_args, **_kwargs):
         return None
 
-    monkeypatch.setattr("stacksmith.web.routes.jobs.run_ensure_job", _fake_run)
+    monkeypatch.setattr("stackwarden.web.routes.jobs.run_ensure_job", _fake_run)
 
     retry_resp = client.post(f"/api/jobs/{record.job_id}/retry-with-fix")
     assert retry_resp.status_code == 200

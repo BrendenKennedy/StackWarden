@@ -1,11 +1,11 @@
-"""Tests for stacksmith.catalog.migrations."""
+"""Tests for stackwarden.catalog.migrations."""
 
 from __future__ import annotations
 
 import pytest
 from sqlalchemy import create_engine, text, inspect as sa_inspect
 
-from stacksmith.catalog.migrations import _column_exists, _index_exists, run_migrations
+from stackwarden.catalog.migrations import _column_exists, _index_exists, run_migrations
 
 
 @pytest.fixture()

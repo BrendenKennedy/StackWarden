@@ -12,13 +12,13 @@ from pathlib import Path
 
 import pytest
 
-from stacksmith.domain.compatibility_fix import (
+from stackwarden.domain.compatibility_fix import (
     analyze_build_failure,
     apply_compatibility_fix,
     CompatibilityFixResult,
 )
-from stacksmith.domain.errors import RegistryPolicyError
-from stacksmith.domain.registry_policy import RegistryPolicy, assert_registry_allowed
+from stackwarden.domain.errors import RegistryPolicyError
+from stackwarden.domain.registry_policy import RegistryPolicy, assert_registry_allowed
 
 
 class TestCompatibilityFixAnalysis:

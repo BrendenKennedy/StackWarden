@@ -1,7 +1,7 @@
 """Tests for overlay npm install policy command resolution."""
 
-from stacksmith.builders.overlay import _resolve_npm_install_commands
-from stacksmith.domain.models import StackSpec
+from stackwarden.builders.overlay import _resolve_npm_install_commands
+from stackwarden.domain.models import StackSpec
 
 
 def _make_stack(**overrides) -> StackSpec:

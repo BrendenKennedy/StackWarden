@@ -3,12 +3,12 @@ from __future__ import annotations
 import textwrap
 from types import SimpleNamespace
 
-from stacksmith.domain.hardware_catalog import load_hardware_catalog, reconcile_detected_fields
-from stacksmith.web.services.host_detection_probes import infer_gpu_family
+from stackwarden.domain.hardware_catalog import load_hardware_catalog, reconcile_detected_fields
+from stackwarden.web.services.host_detection_probes import infer_gpu_family
 
 
 def test_default_catalog_has_core_ids(tmp_path, monkeypatch):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     catalog = load_hardware_catalog()
     assert any(i.id == "amd64" for i in catalog.arch)
     assert any(i.id == "ppc64le" for i in catalog.arch)
@@ -22,7 +22,7 @@ def test_default_catalog_has_core_ids(tmp_path, monkeypatch):
 
 
 def test_reconcile_detected_fields_maps_known_values(tmp_path, monkeypatch):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     payload = {
         "arch": "x86_64",
         "os_family": "ubuntu",
@@ -38,7 +38,7 @@ def test_reconcile_detected_fields_maps_known_values(tmp_path, monkeypatch):
 
 
 def test_reconcile_detected_fields_maps_os_version_and_gpu_model(tmp_path, monkeypatch):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     rules_dir = tmp_path / "rules"
     rules_dir.mkdir(parents=True, exist_ok=True)
     (rules_dir / "hardware_catalog.yaml").write_text(
@@ -75,7 +75,7 @@ def test_reconcile_detected_fields_maps_os_version_and_gpu_model(tmp_path, monke
 
 
 def test_reconcile_detected_fields_infers_gpu_model_from_long_name(tmp_path, monkeypatch):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     payload = {
         "gpu_model": "NVIDIA GB10 [GeForce RTX 5090 Laptop GPU]",
     }
@@ -91,7 +91,7 @@ def test_infer_gpu_family_blackwell_variants():
 
 
 def test_reconcile_detected_fields_handles_gpu_object_payload(tmp_path, monkeypatch):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     payload = {
         "gpu": SimpleNamespace(vendor="nvidia", family="blackwell"),
     }

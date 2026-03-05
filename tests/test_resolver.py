@@ -2,8 +2,8 @@
 
 import pytest
 
-from stacksmith.domain.errors import IncompatibleStackError
-from stacksmith.domain.models import (
+from stackwarden.domain.errors import IncompatibleStackError
+from stackwarden.domain.models import (
     BaseCandidate,
     CudaSpec,
     GpuSpec,
@@ -14,20 +14,20 @@ from stacksmith.domain.models import (
     StackEntrypoint,
     StackSpec,
 )
-from stacksmith.resolvers.resolver import resolve
-from stacksmith.resolvers.rules import (
+from stackwarden.resolvers.resolver import resolve
+from stackwarden.resolvers.rules import (
     check_arch_compatibility,
     check_required_capabilities,
     check_serve_disallowed,
     evaluate_all,
 )
-from stacksmith.resolvers.scoring import score_candidate, select_base
-from stacksmith.resolvers.validators import validate_profile, validate_stack
+from stackwarden.resolvers.scoring import score_candidate, select_base
+from stackwarden.resolvers.validators import validate_profile, validate_stack
 
 
 @pytest.fixture(autouse=True)
 def _tuple_layer_off(monkeypatch):
-    monkeypatch.setenv("STACKSMITH_TUPLE_LAYER_MODE", "off")
+    monkeypatch.setenv("STACKWARDEN_TUPLE_LAYER_MODE", "off")
 
 
 # ---------------------------------------------------------------------------
@@ -155,7 +155,7 @@ class TestScoring:
 
 class TestValidators:
     def test_empty_base_candidates_rejected(self):
-        from stacksmith.domain.errors import ValidationError
+        from stackwarden.domain.errors import ValidationError
         p = _profile(base_candidates=[])
         with pytest.raises(ValidationError):
             validate_profile(p)
@@ -164,7 +164,7 @@ class TestValidators:
         validate_profile(_profile())
 
     def test_empty_base_role_rejected(self):
-        from stacksmith.domain.errors import ValidationError
+        from stackwarden.domain.errors import ValidationError
         s = _stack(components=StackComponents(base_role=""))
         with pytest.raises(ValidationError):
             validate_stack(s)
@@ -182,7 +182,7 @@ class TestResolver:
         plan = resolve(p, s)
         assert plan.profile_id == "test"
         assert plan.stack_id == "test_stack"
-        assert plan.artifact.tag.startswith("local/stacksmith:")
+        assert plan.artifact.tag.startswith("local/stackwarden:")
         assert len(plan.steps) >= 1
 
     def test_resolve_deterministic(self):
@@ -198,10 +198,10 @@ class TestResolver:
         s = _stack()
         plan = resolve(p, s)
         labels = plan.artifact.labels
-        assert "stacksmith.profile" in labels
-        assert "stacksmith.stack" in labels
-        assert "stacksmith.fingerprint" in labels
-        assert labels["stacksmith.profile"] == "test"
+        assert "stackwarden.profile" in labels
+        assert "stackwarden.stack" in labels
+        assert "stackwarden.fingerprint" in labels
+        assert labels["stackwarden.profile"] == "test"
 
     def test_resolve_incompatible_raises(self):
         p = _profile(cuda=None, container_runtime="runc", derived_capabilities=[])
@@ -249,15 +249,15 @@ class TestResolver:
         assert plan.decision.build_optimization is not None
         assert plan.decision.build_optimization.cpu_parallelism >= 1
         build_step = next(step for step in plan.steps if step.type == "build_overlay")
-        assert "STACKSMITH_BUILD_JOBS" in build_step.build_args
+        assert "STACKWARDEN_BUILD_JOBS" in build_step.build_args
         assert "--progress=plain" in build_step.buildx_flags
 
     def test_resolve_tuple_mode_is_explicit_and_deterministic(self, monkeypatch):
         p = _profile()
         s = _stack()
-        monkeypatch.setenv("STACKSMITH_TUPLE_LAYER_MODE", "enforce")
+        monkeypatch.setenv("STACKWARDEN_TUPLE_LAYER_MODE", "enforce")
         plan1 = resolve(p, s, tuple_mode="off")
-        monkeypatch.setenv("STACKSMITH_TUPLE_LAYER_MODE", "warn")
+        monkeypatch.setenv("STACKWARDEN_TUPLE_LAYER_MODE", "warn")
         plan2 = resolve(p, s, tuple_mode="off")
         assert plan1.artifact.fingerprint == plan2.artifact.fingerprint
         assert plan1.decision.tuple_decision.get("mode") == "off"

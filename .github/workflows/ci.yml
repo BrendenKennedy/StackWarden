@@ -31,4 +31,4 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
       - name: Backend tests
-        run: pytest tests/ -q --ignore=tests/test_build_integration.py --cov=stacksmith --cov-report=xml
+        run: pytest tests/ -q --ignore=tests/test_build_integration.py --cov=stackwarden --cov-report=xml

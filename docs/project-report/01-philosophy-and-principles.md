@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Stacksmith is a deterministic system for planning and producing ML container artifacts. It is built to make compatibility, reproducibility, and operational safety explicit instead of implicit.
+StackWarden is a deterministic system for planning and producing ML container artifacts. It is built to make compatibility, reproducibility, and operational safety explicit instead of implicit.
 
 At a product level:
 
@@ -25,7 +25,7 @@ Practical implications:
 
 ## 2) Determinism by Default
 
-Given equivalent inputs, Stacksmith aims to produce equivalent plans, fingerprints, and image tags.
+Given equivalent inputs, StackWarden aims to produce equivalent plans, fingerprints, and image tags.
 
 Key deterministic inputs include:
 
@@ -53,7 +53,7 @@ This improves:
 
 ## 5) Operational Safety and Governance
 
-Stacksmith emphasizes controlled mutation of artifacts and clear lifecycle state transitions (`planned`, `building`, `built`, `failed`, `stale`).
+StackWarden emphasizes controlled mutation of artifacts and clear lifecycle state transitions (`planned`, `building`, `built`, `failed`, `stale`).
 
 Safety posture includes:
 
@@ -77,16 +77,16 @@ Safety posture includes:
 
 ## Non-Goals
 
-- Stacksmith is not a scheduler or workload orchestrator.
-- Stacksmith is not a generic SAT solver for every dependency scenario.
+- StackWarden is not a scheduler or workload orchestrator.
+- StackWarden is not a generic SAT solver for every dependency scenario.
 - License policy tooling is advisory and does not replace legal review.
 
 ## Key Files to Read Next
 
 - `README.md`
 - `docs/adr/intent-first-contract.md`
-- `packages/stacksmith/src/stacksmith/resolvers/resolver.py`
-- `packages/stacksmith/src/stacksmith/domain/ensure.py`
+- `packages/stackwarden/src/stackwarden/resolvers/resolver.py`
+- `packages/stackwarden/src/stackwarden/domain/ensure.py`
 
 ## Common Modification Scenarios
 

@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from stacksmith.web.schemas import CudaDTO, DetectionHintsDTO, DetectionProbeDTO, GpuDTO
+from stackwarden.web.schemas import CudaDTO, DetectionHintsDTO, DetectionProbeDTO, GpuDTO
 
 
 @pytest.fixture()
@@ -16,9 +16,9 @@ def client(tmp_path):
     (tmp_path / "stacks").mkdir()
     (tmp_path / "profiles").mkdir()
     (tmp_path / "blocks").mkdir()
-    with patch.dict(os.environ, {"STACKSMITH_DATA_DIR": str(tmp_path), "STACKSMITH_WEB_DEV": "true"}):
-        from stacksmith.web.app import create_app
-        from stacksmith.web.settings import WebSettings
+    with patch.dict(os.environ, {"STACKWARDEN_DATA_DIR": str(tmp_path), "STACKWARDEN_WEB_DEV": "true"}):
+        from stackwarden.web.app import create_app
+        from stackwarden.web.settings import WebSettings
 
         app = create_app(WebSettings(token=None, dev=True))
         yield TestClient(app)
@@ -39,7 +39,7 @@ def test_detection_hints_returns_payload(client, monkeypatch):
         memory_gb_total=251.5,
         probes=[DetectionProbeDTO(name="mock", status="ok", message="ok", duration_ms=1)],
     )
-    monkeypatch.setattr("stacksmith.web.routes.detection.detect_server_hints", lambda: fake)
+    monkeypatch.setattr("stackwarden.web.routes.detection.detect_server_hints", lambda: fake)
 
     resp = client.get("/api/system/detection-hints")
     assert resp.status_code == 200
@@ -66,7 +66,7 @@ def test_detection_hints_refresh_bypasses_cache(client, monkeypatch):
             probes=[DetectionProbeDTO(name="mock", status="ok", message="ok", duration_ms=1)],
         )
 
-    monkeypatch.setattr("stacksmith.web.routes.detection.detect_server_hints", _fake_detect)
+    monkeypatch.setattr("stackwarden.web.routes.detection.detect_server_hints", _fake_detect)
 
     # Prime cache with patched detector and validate default cache reuse.
     resp1 = client.get("/api/system/detection-hints", params={"refresh": "true"})
@@ -188,9 +188,9 @@ def test_settings_tuple_catalog_endpoint(client):
 
 
 def test_app_requires_token_outside_dev(tmp_path):
-    with patch.dict(os.environ, {"STACKSMITH_DATA_DIR": str(tmp_path), "STACKSMITH_WEB_DEV": "true"}):
-        from stacksmith.web.app import create_app
-        from stacksmith.web.settings import WebSettings
+    with patch.dict(os.environ, {"STACKWARDEN_DATA_DIR": str(tmp_path), "STACKWARDEN_WEB_DEV": "true"}):
+        from stackwarden.web.app import create_app
+        from stackwarden.web.settings import WebSettings
 
         with pytest.raises(RuntimeError):
             create_app(WebSettings(token=None, dev=False))

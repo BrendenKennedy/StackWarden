@@ -16,10 +16,10 @@ def client(tmp_path):
     (tmp_path / "blocks").mkdir()
     with patch.dict(
         os.environ,
-        {"STACKSMITH_DATA_DIR": str(tmp_path), "STACKSMITH_WEB_DEV": "true"},
+        {"STACKWARDEN_DATA_DIR": str(tmp_path), "STACKWARDEN_WEB_DEV": "true"},
     ):
-        from stacksmith.web.app import create_app
-        from stacksmith.web.settings import WebSettings
+        from stackwarden.web.app import create_app
+        from stackwarden.web.settings import WebSettings
 
         app = create_app(WebSettings(token=None, dev=True))
         yield TestClient(app), tmp_path
@@ -65,7 +65,7 @@ def test_list_profiles_skips_malformed_records(client):
     assert resp.status_code == 200
     rows = resp.json()
     assert [r["id"] for r in rows] == ["good"]
-    assert resp.headers.get("X-Stacksmith-Profiles-Skipped") == "1"
+    assert resp.headers.get("X-StackWarden-Profiles-Skipped") == "1"
 
 
 def test_list_stacks_skips_malformed_records(client):
@@ -94,7 +94,7 @@ def test_list_stacks_skips_malformed_records(client):
     resp = c.get("/api/stacks")
     assert resp.status_code == 200
     assert [r["id"] for r in resp.json()] == ["good"]
-    assert resp.headers.get("X-Stacksmith-Stacks-Skipped") == "1"
+    assert resp.headers.get("X-StackWarden-Stacks-Skipped") == "1"
 
 
 def test_list_blocks_skips_malformed_records(client):
@@ -121,5 +121,5 @@ def test_list_blocks_skips_malformed_records(client):
     resp = c.get("/api/blocks")
     assert resp.status_code == 200
     assert [r["id"] for r in resp.json()] == ["good"]
-    assert resp.headers.get("X-Stacksmith-Blocks-Skipped") == "1"
+    assert resp.headers.get("X-StackWarden-Blocks-Skipped") == "1"
 

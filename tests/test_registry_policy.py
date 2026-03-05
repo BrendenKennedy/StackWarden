@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from stacksmith.domain.errors import RegistryPolicyError
-from stacksmith.domain.registry_policy import RegistryPolicy, check_registry, _extract_registry
-from stacksmith.domain.registry_policy import assert_registry_allowed
+from stackwarden.domain.errors import RegistryPolicyError
+from stackwarden.domain.registry_policy import RegistryPolicy, check_registry, _extract_registry
+from stackwarden.domain.registry_policy import assert_registry_allowed
 
 
 class TestExtractRegistry:

@@ -16,7 +16,7 @@ conflicts: []
 display_name: ROS2 Runtime (Pilot)
 entrypoint: null
 env:
-- STACKSMITH_PROFILE=balanced
+- STACKWARDEN_PROFILE=balanced
 - NVIDIA_VISIBLE_DEVICES=all
 - CUDA_MODULE_LOADING=LAZY
 files:

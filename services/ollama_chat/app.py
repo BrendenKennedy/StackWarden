@@ -1,4 +1,4 @@
-"""Stacksmith stub Ollama chat UI."""
+"""StackWarden stub Ollama chat UI."""
 import gradio as gr
 demo = gr.Interface(fn=lambda x: x, inputs="text", outputs="text", title="Ollama Chat Stub")
 if __name__ == "__main__":

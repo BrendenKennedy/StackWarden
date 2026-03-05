@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from stacksmith.domain.models import StackSpec, VariantDef
-from stacksmith.domain.variants import normalize_variants, parse_variants, validate_variant_flags
+from stackwarden.domain.models import StackSpec, VariantDef
+from stackwarden.domain.variants import normalize_variants, parse_variants, validate_variant_flags
 
 
 # ---------------------------------------------------------------------------

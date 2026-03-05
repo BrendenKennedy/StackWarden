@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from stacksmith.contracts import ALLOWED_BUILD_STRATEGIES, SPEC_ID_PATTERN
+from stackwarden.contracts import ALLOWED_BUILD_STRATEGIES, SPEC_ID_PATTERN
 
 
 def main() -> None:

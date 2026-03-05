@@ -2,7 +2,7 @@
 
 ## Decision Log Purpose
 
-This page consolidates major Stacksmith design choices and links rationale to implementation boundaries. It complements formal ADRs and provides practical context for contributors making architecture-impacting changes.
+This page consolidates major StackWarden design choices and links rationale to implementation boundaries. It complements formal ADRs and provides practical context for contributors making architecture-impacting changes.
 
 Primary ADR reference:
 
@@ -46,7 +46,7 @@ Trade-off:
 
 Where enforced:
 
-- Shared use of `packages/stacksmith/src/stacksmith/domain/ensure.py`, resolver modules, and create flows.
+- Shared use of `packages/stackwarden/src/stackwarden/domain/ensure.py`, resolver modules, and create flows.
 
 ## 3) Resolver Purity Boundary
 
@@ -65,7 +65,7 @@ Trade-off:
 
 Where enforced:
 
-- `packages/stacksmith/src/stacksmith/resolvers/*` module responsibilities and architecture tests.
+- `packages/stackwarden/src/stackwarden/resolvers/*` module responsibilities and architecture tests.
 
 ## 4) Deterministic Fingerprinting and Provenance
 
@@ -161,7 +161,7 @@ When a change impacts architecture-level behavior:
 ## Key Files to Read Next
 
 - `docs/adr/intent-first-contract.md`
-- `packages/stacksmith/src/stacksmith/resolvers/resolver.py`
-- `packages/stacksmith/src/stacksmith/domain/ensure.py`
-- `packages/stacksmith/src/stacksmith/web/app.py`
+- `packages/stackwarden/src/stackwarden/resolvers/resolver.py`
+- `packages/stackwarden/src/stackwarden/domain/ensure.py`
+- `packages/stackwarden/src/stackwarden/web/app.py`
 - `apps/web/src/composables/useEntityCreateFlow.ts`

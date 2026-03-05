@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import yaml
 
-from stacksmith.domain.models import CudaSpec, GpuSpec, Profile, StackComponents, StackEntrypoint, StackSpec
-from stacksmith.resolvers.compatibility import evaluate_compatibility
-from stacksmith.resolvers.rule_catalog import load_rule_catalog
+from stackwarden.domain.models import CudaSpec, GpuSpec, Profile, StackComponents, StackEntrypoint, StackSpec
+from stackwarden.resolvers.compatibility import evaluate_compatibility
+from stackwarden.resolvers.rule_catalog import load_rule_catalog
 
 
 def _profile(runtime: str = "runc") -> Profile:
@@ -45,7 +45,7 @@ def _stack() -> StackSpec:
 
 
 def test_rule_catalog_schema_loads(tmp_path, monkeypatch):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     rules_dir = tmp_path / "rules"
     rules_dir.mkdir(parents=True, exist_ok=True)
     (rules_dir / "compatibility_rules.yaml").write_text(
@@ -73,8 +73,8 @@ def test_rule_catalog_schema_loads(tmp_path, monkeypatch):
 
 
 def test_strict_hard_rule_respects_strict_mode(tmp_path, monkeypatch):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("STACKSMITH_TUPLE_LAYER_MODE", "off")
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_TUPLE_LAYER_MODE", "off")
     rules_dir = tmp_path / "rules"
     rules_dir.mkdir(parents=True, exist_ok=True)
     (rules_dir / "compatibility_rules.yaml").write_text(

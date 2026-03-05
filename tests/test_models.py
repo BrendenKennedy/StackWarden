@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from stacksmith.domain.enums import (
+from stackwarden.domain.enums import (
     ApiType,
     Arch,
     ArtifactStatus,
@@ -12,7 +12,7 @@ from stacksmith.domain.enums import (
     ServeType,
     TaskType,
 )
-from stacksmith.domain.models import (
+from stackwarden.domain.models import (
     ArtifactRecord,
     BaseCandidate,
     BlockSpec,
@@ -252,14 +252,14 @@ class TestPlan:
             decision=PlanDecision(base_image="pytorch:latest", builder="overlay"),
             steps=[PlanStep(type="pull", image="pytorch:latest")],
             artifact=PlanArtifact(
-                tag="local/stacksmith:test",
+                tag="local/stackwarden:test",
                 fingerprint="abc123",
-                labels={"stacksmith.profile": "dgx_spark"},
+                labels={"stackwarden.profile": "dgx_spark"},
             ),
         )
         data = plan.to_json()
         assert data["plan_id"] == "plan_test"
-        assert data["artifact"]["labels"]["stacksmith.profile"] == "dgx_spark"
+        assert data["artifact"]["labels"]["stackwarden.profile"] == "dgx_spark"
 
     def test_plan_artifact_labels_present(self):
         plan = Plan(
@@ -272,11 +272,11 @@ class TestPlan:
                 tag="tag",
                 fingerprint="fp",
                 labels={
-                    "stacksmith.profile": "p",
-                    "stacksmith.stack": "s",
-                    "stacksmith.fingerprint": "fp",
-                    "stacksmith.base_digest": "",
-                    "stacksmith.schema_version": "1",
+                    "stackwarden.profile": "p",
+                    "stackwarden.stack": "s",
+                    "stackwarden.fingerprint": "fp",
+                    "stackwarden.base_digest": "",
+                    "stackwarden.schema_version": "1",
                 },
             ),
         )

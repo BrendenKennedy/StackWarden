@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from stacksmith.domain.models import VariantDef, StackSpec
-from stacksmith.domain.hashing import canonicalize, fingerprint
+from stackwarden.domain.models import VariantDef, StackSpec
+from stackwarden.domain.hashing import canonicalize, fingerprint
 
 
 class TestVariantDefValidation:
@@ -31,7 +31,7 @@ class TestVariantDefValidation:
 class TestVariantHashing:
     @pytest.fixture
     def dummy_profile(self):
-        from stacksmith.domain.models import Profile, CudaSpec, GpuSpec, BaseCandidate
+        from stackwarden.domain.models import Profile, CudaSpec, GpuSpec, BaseCandidate
         return Profile(
             id="test",
             display_name="Test",

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-from stacksmith.config import (
+from stackwarden.config import (
     get_profile_origin,
     get_profiles_dir,
     list_profile_ids,
@@ -40,11 +40,11 @@ def test_remote_overlay_prefers_local_overrides(tmp_path, monkeypatch):
     local_root = tmp_path / "local-catalog"
 
     _write_yaml(
-        config_root / "stacksmith" / "config.yaml",
+        config_root / "stackwarden" / "config.yaml",
         {
             "remote_catalog": {
                 "enabled": True,
-                "repo_url": "https://github.com/acme/stacksmith-catalog.git",
+                "repo_url": "https://github.com/acme/stackwarden-catalog.git",
                 "branch": "main",
                 "local_path": str(remote_root),
                 "local_overrides_path": str(local_root),
@@ -66,7 +66,7 @@ def test_remote_overlay_prefers_local_overrides(tmp_path, monkeypatch):
         _profile_yaml("remote_only", "Remote Only Profile"),
     )
 
-    monkeypatch.delenv("STACKSMITH_DATA_DIR", raising=False)
+    monkeypatch.delenv("STACKWARDEN_DATA_DIR", raising=False)
     monkeypatch.setenv("XDG_CONFIG_HOME", str(config_root))
     monkeypatch.delenv("XDG_DATA_HOME", raising=False)
 
@@ -83,7 +83,7 @@ def test_remote_overlay_prefers_local_overrides(tmp_path, monkeypatch):
     remote_origin = get_profile_origin("remote_only")
     assert remote_origin is not None
     assert remote_origin["source"] == "remote"
-    assert remote_origin["source_repo_url"] == "https://github.com/acme/stacksmith-catalog.git"
+    assert remote_origin["source_repo_url"] == "https://github.com/acme/stackwarden-catalog.git"
     assert remote_origin["source_repo_owner"] == "acme"
 
     assert get_profiles_dir() == local_root / "profiles"

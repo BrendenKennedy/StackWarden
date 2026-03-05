@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "stacksmith"
+name = "stackwarden"
 version = "0.1.0"
 description = "Hardware-aware ML container build manager"
 requires-python = ">=3.10"
@@ -30,19 +30,19 @@ web = [
 ]
 
 [project.scripts]
-stacksmith = "stacksmith.cli_app:app"
-stacksmith-web = "stacksmith.web_entry:main"
+stackwarden = "stackwarden.cli_app:app"
+stackwarden-web = "stackwarden.web_entry:main"
 
 [tool.setuptools]
-package-dir = {"" = "packages/stacksmith/src"}
+package-dir = {"" = "packages/stackwarden/src"}
 
 [tool.setuptools.packages.find]
-where = ["packages/stacksmith/src"]
-include = ["stacksmith*"]
+where = ["packages/stackwarden/src"]
+include = ["stackwarden*"]
 
 [tool.setuptools.package-data]
-"stacksmith.licenses" = ["spdx_map.yaml"]
-"stacksmith.web" = ["static/**", "static/**/*"]
+"stackwarden.licenses" = ["spdx_map.yaml"]
+"stackwarden.web" = ["static/**", "static/**/*"]
 
 [tool.ruff]
 line-length = 100
@@ -50,4 +50,4 @@ target-version = "py310"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["packages/stacksmith/src"]
+pythonpath = ["packages/stackwarden/src"]

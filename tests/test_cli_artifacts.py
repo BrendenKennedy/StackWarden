@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typer.testing import CliRunner
 
-from stacksmith.cli import app
+from stackwarden.cli import app
 
 
 class _Report:
@@ -21,9 +21,9 @@ class _Catalog:
 
 def test_verify_json(monkeypatch):
     runner = CliRunner()
-    monkeypatch.setattr("stacksmith.cli._get_catalog", lambda: _Catalog())
-    monkeypatch.setattr("stacksmith.runtime.docker_client.DockerClient", lambda: object())
-    monkeypatch.setattr("stacksmith.domain.verify.verify_artifact", lambda *_, **__: _Report())
+    monkeypatch.setattr("stackwarden.cli._get_catalog", lambda: _Catalog())
+    monkeypatch.setattr("stackwarden.runtime.docker_client.DockerClient", lambda: object())
+    monkeypatch.setattr("stackwarden.domain.verify.verify_artifact", lambda *_, **__: _Report())
     out = runner.invoke(app, ["verify", "my-tag", "--json"])
     assert out.exit_code == 0, out.output
     assert '"ok": true' in out.output

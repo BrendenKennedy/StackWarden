@@ -1,2 +1,2 @@
-"""Stacksmith stub RL training."""
+"""StackWarden stub RL training."""
 print("RL training stub ready")

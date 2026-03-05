@@ -86,7 +86,7 @@
             Dependency defaults use latest compatible installs. Switch to custom constraints only when you need explicit control.
           </p>
           <p class="help">
-            Custom version constraints are advanced usage. Stacksmith validates syntax but does not guarantee cross-environment compatibility.
+            Custom version constraints are advanced usage. StackWarden validates syntax but does not guarantee cross-environment compatibility.
           </p>
           <div class="dependency-group">
             <div class="dependency-group-header">

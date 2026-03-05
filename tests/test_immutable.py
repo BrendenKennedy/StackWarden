@@ -6,17 +6,17 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from stacksmith.domain.drift import DriftReason
-from stacksmith.domain.enums import ArtifactStatus
-from stacksmith.domain.errors import DriftError
-from stacksmith.domain.models import (
+from stackwarden.domain.drift import DriftReason
+from stackwarden.domain.enums import ArtifactStatus
+from stackwarden.domain.errors import DriftError
+from stackwarden.domain.models import (
     ArtifactRecord,
     Plan,
     PlanArtifact,
     PlanDecision,
 )
-from stacksmith.builders.plan_executor import check_existing
-from stacksmith import __version__
+from stackwarden.builders.plan_executor import check_existing
+from stackwarden import __version__
 
 
 def _plan(fp: str = "abc123") -> Plan:
@@ -31,14 +31,14 @@ def _plan(fp: str = "abc123") -> Plan:
         ),
         steps=[],
         artifact=PlanArtifact(
-            tag="local/stacksmith:test",
+            tag="local/stackwarden:test",
             fingerprint=fp,
             labels={
-                "stacksmith.fingerprint": fp,
-                "stacksmith.base_digest": "sha256:aaa",
-                "stacksmith.template_hash": "",
-                "stacksmith.schema_version": "1",
-                "stacksmith.builder_version": __version__,
+                "stackwarden.fingerprint": fp,
+                "stackwarden.base_digest": "sha256:aaa",
+                "stackwarden.template_hash": "",
+                "stackwarden.schema_version": "1",
+                "stackwarden.builder_version": __version__,
             },
         ),
     )
@@ -47,7 +47,7 @@ def _plan(fp: str = "abc123") -> Plan:
 def _record(**overrides) -> ArtifactRecord:
     defaults = dict(
         id="r1", profile_id="p1", stack_id="s1",
-        tag="local/stacksmith:test", fingerprint="abc123",
+        tag="local/stackwarden:test", fingerprint="abc123",
         base_image="base:latest",
         build_strategy="overlay", stack_schema_version=1,
         status=ArtifactStatus.BUILT,
@@ -57,15 +57,15 @@ def _record(**overrides) -> ArtifactRecord:
 
 
 class TestImmutableMode:
-    def test_drift_error_is_a_stacksmith_error(self):
-        from stacksmith.domain.errors import StacksmithError
+    def test_drift_error_is_a_stackwarden_error(self):
+        from stackwarden.domain.errors import StackWardenError
         err = DriftError("tag", "reason")
-        assert isinstance(err, StacksmithError)
+        assert isinstance(err, StackWardenError)
         assert "tag" in str(err)
         assert "reason" in str(err)
 
     def test_drift_error_message(self):
-        err = DriftError("local/stacksmith:test", "fingerprint_mismatch")
+        err = DriftError("local/stackwarden:test", "fingerprint_mismatch")
         assert "Immutable mode" in str(err)
         assert "fingerprint_mismatch" in str(err)
 
@@ -76,7 +76,7 @@ class TestImmutableMode:
         docker.image_exists.return_value = True
         docker.get_image_labels.return_value = {
             **plan.artifact.labels,
-            "stacksmith.fingerprint": "WRONG",
+            "stackwarden.fingerprint": "WRONG",
         }
         catalog = MagicMock()
         catalog.get_artifact_by_tag.return_value = _record()
@@ -116,7 +116,7 @@ class TestImmutableMode:
         docker.image_exists.return_value = True
         docker.get_image_labels.return_value = {
             **plan.artifact.labels,
-            "stacksmith.fingerprint": "WRONG",
+            "stackwarden.fingerprint": "WRONG",
         }
         record = _record()
         catalog = MagicMock()

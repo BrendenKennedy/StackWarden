@@ -1,6 +1,6 @@
 # Repository Layout Guide
 
-This document explains the Stacksmith file structure, why each directory exists, and where new files should go.
+This document explains the StackWarden file structure, why each directory exists, and where new files should go.
 
 ## Design Goals
 
@@ -26,7 +26,7 @@ Why it exists:
 ## `packages/`
 
 Reusable implementation packages.
-- `packages/stacksmith/src/stacksmith/`: canonical Python package source.
+- `packages/stackwarden/src/stackwarden/`: canonical Python package source.
 
 Why it exists:
 
@@ -103,7 +103,7 @@ Why it exists:
 
 Use these rules when adding files:
 
-- New Python module used by CLI/API/shared logic -> `packages/stacksmith/src/stacksmith/...`
+- New Python module used by CLI/API/shared logic -> `packages/stackwarden/src/stackwarden/...`
 - New UI component/view/composable -> `apps/web/src/...`
 - New authored stack/profile/block/rule/template data -> `specs/...`
 - New generated/compiled resolver output -> `generated/...`

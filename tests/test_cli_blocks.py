@@ -5,7 +5,7 @@ from __future__ import annotations
 import yaml
 from typer.testing import CliRunner
 
-from stacksmith.cli import app
+from stackwarden.cli import app
 
 
 def _write_yaml(path, data) -> None:
@@ -66,7 +66,7 @@ def _seed_composed_stack_data(root) -> None:
 
 
 def test_list_blocks_cli(monkeypatch, tmp_path):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     _seed_composed_stack_data(tmp_path)
     runner = CliRunner()
     result = runner.invoke(app, ["list", "blocks"])
@@ -75,7 +75,7 @@ def test_list_blocks_cli(monkeypatch, tmp_path):
 
 
 def test_inspect_block_cli_json(monkeypatch, tmp_path):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     _seed_composed_stack_data(tmp_path)
     runner = CliRunner()
     result = runner.invoke(app, ["inspect-block", "--id", "runtime", "--json"])
@@ -84,7 +84,7 @@ def test_inspect_block_cli_json(monkeypatch, tmp_path):
 
 
 def test_compose_cli_json(monkeypatch, tmp_path):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     _seed_composed_stack_data(tmp_path)
     runner = CliRunner()
     result = runner.invoke(app, ["compose", "--stack", "recipe", "--json"])
@@ -94,7 +94,7 @@ def test_compose_cli_json(monkeypatch, tmp_path):
 
 
 def test_plan_cli_with_recipe_stack(monkeypatch, tmp_path):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     _seed_composed_stack_data(tmp_path)
     runner = CliRunner()
     result = runner.invoke(

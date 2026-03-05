@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_ROOT = ROOT / "packages" / "stacksmith" / "src" / "stacksmith"
+PACKAGE_ROOT = ROOT / "packages" / "stackwarden" / "src" / "stackwarden"
 
 
 def _imports_for(path: Path) -> list[str]:
@@ -26,17 +26,17 @@ def test_routes_do_not_import_route_internals() -> None:
         if path.name == "create.py":
             continue
         imports = _imports_for(path)
-        assert "stacksmith.web.routes.create" not in imports, f"{path} imports route internals"
+        assert "stackwarden.web.routes.create" not in imports, f"{path} imports route internals"
 
 
 def test_adapters_are_not_cross_layer_coupled() -> None:
     cli_imports = _imports_for(PACKAGE_ROOT / "cli.py")
-    assert not any(mod.startswith("stacksmith.web.routes") for mod in cli_imports)
+    assert not any(mod.startswith("stackwarden.web.routes") for mod in cli_imports)
 
     routes_dir = PACKAGE_ROOT / "web" / "routes"
     for path in routes_dir.glob("*.py"):
         imports = _imports_for(path)
-        assert not any(mod.startswith("stacksmith.cli") for mod in imports), f"{path} imports cli"
+        assert not any(mod.startswith("stackwarden.cli") for mod in imports), f"{path} imports cli"
 
 
 def test_application_layer_not_coupled_to_web_utilities() -> None:
@@ -47,6 +47,6 @@ def test_application_layer_not_coupled_to_web_utilities() -> None:
             # Transitional adapter shims isolate existing behavior while
             # create/update flows migrate off web utility internals.
             continue
-        assert not any(mod.startswith("stacksmith.web.util") for mod in imports), (
+        assert not any(mod.startswith("stackwarden.web.util") for mod in imports), (
             f"{path} imports web utilities directly"
         )

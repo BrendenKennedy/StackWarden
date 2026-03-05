@@ -7,8 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
-from stacksmith.domain.hashing import canonical_json
-from stacksmith.domain.models import (
+from stackwarden.domain.hashing import canonical_json
+from stackwarden.domain.models import (
     BaseCandidate,
     CudaSpec,
     GpuSpec,
@@ -22,7 +22,7 @@ from stacksmith.domain.models import (
     StackEntrypoint,
     StackSpec,
 )
-from stacksmith.domain.snapshots import artifact_dir, load_snapshot, write_snapshot_files
+from stackwarden.domain.snapshots import artifact_dir, load_snapshot, write_snapshot_files
 
 
 def _profile() -> Profile:
@@ -62,14 +62,14 @@ def _plan() -> Plan:
         stack_id="test_stack",
         decision=PlanDecision(base_image="pytorch:latest", builder="overlay"),
         steps=[PlanStep(type="pull", image="pytorch:latest")],
-        artifact=PlanArtifact(tag="local/stacksmith:test", fingerprint="abc123"),
+        artifact=PlanArtifact(tag="local/stackwarden:test", fingerprint="abc123"),
     )
 
 
 class TestArtifactDir:
     def test_returns_path_under_artifacts_root(self, tmp_path):
         fp = "abcdef1234567890"
-        with patch("stacksmith.domain.snapshots.get_artifacts_root", return_value=tmp_path):
+        with patch("stackwarden.domain.snapshots.get_artifacts_root", return_value=tmp_path):
             result = artifact_dir(fp)
             assert result == tmp_path / fp
 

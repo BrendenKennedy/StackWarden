@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from stacksmith.domain.locking import (
+from stackwarden.domain.locking import (
     _sanitize_filename,
     acquire_lock,
     compute_variant_hash,
@@ -61,14 +61,14 @@ class TestSanitizeFilename:
 
 class TestAcquireLock:
     def test_basic_acquire_release(self, tmp_path):
-        with patch("stacksmith.domain.locking.get_locks_root", return_value=tmp_path):
+        with patch("stackwarden.domain.locking.get_locks_root", return_value=tmp_path):
             with acquire_lock("profile", "stack"):
                 lock_files = list(tmp_path.glob("*.lock"))
                 assert len(lock_files) == 1
 
     def test_lock_serializes_access(self, tmp_path):
         """Two threads acquiring the same lock should not overlap."""
-        with patch("stacksmith.domain.locking.get_locks_root", return_value=tmp_path):
+        with patch("stackwarden.domain.locking.get_locks_root", return_value=tmp_path):
             results = []
 
             def worker(idx):
@@ -92,7 +92,7 @@ class TestAcquireLock:
             assert exit_1 < enter_2 or exit_2 < enter_1
 
     def test_different_keys_no_contention(self, tmp_path):
-        with patch("stacksmith.domain.locking.get_locks_root", return_value=tmp_path):
+        with patch("stackwarden.domain.locking.get_locks_root", return_value=tmp_path):
             results = []
 
             def worker(profile_id, idx):
@@ -109,6 +109,6 @@ class TestAcquireLock:
 
     def test_creates_locks_directory(self, tmp_path):
         lock_dir = tmp_path / "locks"
-        with patch("stacksmith.domain.locking.get_locks_root", return_value=lock_dir):
+        with patch("stackwarden.domain.locking.get_locks_root", return_value=lock_dir):
             with acquire_lock("p", "s"):
                 assert lock_dir.exists()

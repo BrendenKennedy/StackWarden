@@ -8,13 +8,13 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from stacksmith.config import AppConfig
+from stackwarden.config import AppConfig
 
 
 class TestAppConfig:
     def test_load_returns_defaults_when_missing(self, tmp_path):
         fake_path = tmp_path / "nonexistent.yaml"
-        with patch("stacksmith.config.get_config_path", return_value=fake_path):
+        with patch("stackwarden.config.get_config_path", return_value=fake_path):
             cfg = AppConfig.load()
             assert cfg.default_profile is None
             assert cfg.catalog_path is None
@@ -26,7 +26,7 @@ class TestAppConfig:
             "catalog_path": "/custom/catalog.db",
             "registry": {"allow": ["nvcr.io"], "deny": []},
         }))
-        with patch("stacksmith.config.get_config_path", return_value=config_path):
+        with patch("stackwarden.config.get_config_path", return_value=config_path):
             cfg = AppConfig.load()
             assert cfg.default_profile == "x86_cuda"
             assert cfg.catalog_path == "/custom/catalog.db"
@@ -36,8 +36,8 @@ class TestAppConfig:
         """The default config written by init should load cleanly."""
         config_path = tmp_path / "config.yaml"
         default_config = (
-            "# Stacksmith configuration\n"
-            "# See: stacksmith doctor\n"
+            "# StackWarden configuration\n"
+            "# See: stackwarden doctor\n"
             "\n"
             "# default_profile: x86_cuda\n"
             "# catalog_path: null\n"
@@ -50,7 +50,7 @@ class TestAppConfig:
             "  deny: []\n"
         )
         config_path.write_text(default_config)
-        with patch("stacksmith.config.get_config_path", return_value=config_path):
+        with patch("stackwarden.config.get_config_path", return_value=config_path):
             cfg = AppConfig.load()
             assert cfg.default_profile is None
             assert "nvcr.io" in cfg.registry.allow
@@ -61,14 +61,14 @@ class TestInitDirectories:
     def test_creates_all_dirs_via_init_command(self, tmp_path):
         """Exercise the actual CLI init command to verify directory creation."""
         from typer.testing import CliRunner
-        from stacksmith.cli import app
+        from stackwarden.cli import app
 
         data_root = tmp_path / "data"
         config_root = tmp_path / "config"
 
         with (
-            patch("stacksmith.paths._data_root", return_value=data_root),
-            patch("stacksmith.paths._config_root", return_value=config_root),
+            patch("stackwarden.paths._data_root", return_value=data_root),
+            patch("stackwarden.paths._config_root", return_value=config_root),
         ):
             runner = CliRunner()
             result = runner.invoke(app, ["init"])
@@ -83,14 +83,14 @@ class TestInitDirectories:
     def test_init_idempotent(self, tmp_path):
         """Running init twice does not fail."""
         from typer.testing import CliRunner
-        from stacksmith.cli import app
+        from stackwarden.cli import app
 
         data_root = tmp_path / "data"
         config_root = tmp_path / "config"
 
         with (
-            patch("stacksmith.paths._data_root", return_value=data_root),
-            patch("stacksmith.paths._config_root", return_value=config_root),
+            patch("stackwarden.paths._data_root", return_value=data_root),
+            patch("stackwarden.paths._config_root", return_value=config_root),
         ):
             runner = CliRunner()
             result1 = runner.invoke(app, ["init"])
@@ -101,13 +101,13 @@ class TestInitDirectories:
 
 class TestGetCatalog:
     def test_default_path(self, tmp_path):
-        with patch("stacksmith.paths._data_root", return_value=tmp_path):
-            from stacksmith.catalog.store import CatalogStore
+        with patch("stackwarden.paths._data_root", return_value=tmp_path):
+            from stackwarden.catalog.store import CatalogStore
             store = CatalogStore()
             assert (tmp_path / "catalog.db").exists()
 
     def test_custom_path(self, tmp_path):
         custom_db = tmp_path / "custom.db"
-        from stacksmith.catalog.store import CatalogStore
+        from stackwarden.catalog.store import CatalogStore
         store = CatalogStore(db_path=custom_db)
         assert custom_db.exists()

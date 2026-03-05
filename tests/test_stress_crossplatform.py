@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from stacksmith.domain.models import (
+from stackwarden.domain.models import (
     BaseCandidate,
     CudaSpec,
     GpuSpec,
@@ -19,7 +19,7 @@ from stacksmith.domain.models import (
     StackEntrypoint,
     StackSpec,
 )
-from stacksmith.resolvers.rules import check_arch_compatibility
+from stackwarden.resolvers.rules import check_arch_compatibility
 
 
 def _profile(arch: str = "amd64") -> Profile:
@@ -52,7 +52,7 @@ class TestArchCompatibility:
 
     def test_arm64_warns_on_problematic_packages(self):
         """check_arch_compatibility returns warnings for arm64 + known packages."""
-        from stacksmith.domain.models import PipDep
+        from stackwarden.domain.models import PipDep
 
         p = _profile(arch="arm64")
         s = _stack()
@@ -74,8 +74,8 @@ class TestPlatformFlag:
 
     def test_overlay_build_includes_platform(self):
         """build_overlay uses profile.os and profile.arch for platform."""
-        from stacksmith.builders.overlay import build_overlay
-        from stacksmith.domain.models import Plan, PlanArtifact, PlanDecision
+        from stackwarden.builders.overlay import build_overlay
+        from stackwarden.domain.models import Plan, PlanArtifact, PlanDecision
 
         profile = _profile(arch="arm64")
         stack = _stack()
@@ -86,12 +86,12 @@ class TestPlatformFlag:
             decision=PlanDecision(base_image="python:3.12-slim", base_digest=None, builder="overlay"),
             steps=[],
             artifact=PlanArtifact(
-                tag="local/stacksmith:test",
+                tag="local/stackwarden:test",
                 fingerprint="fp1",
                 labels={},
             ),
         )
-        with patch("stacksmith.builders.overlay.buildx") as mock_buildx:
+        with patch("stackwarden.builders.overlay.buildx") as mock_buildx:
             build_overlay(plan, stack, profile, MagicMock())
             mock_buildx.build.assert_called_once()
             call_kw = mock_buildx.build.call_args[1]

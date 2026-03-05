@@ -6,14 +6,14 @@ The Web API is the contract-driven integration surface for web clients and exter
 
 Primary app modules:
 
-- App factory and middleware: `packages/stacksmith/src/stacksmith/web/app.py`
-- Entrypoint: `packages/stacksmith/src/stacksmith/web_entry.py`
-- Environment settings: `packages/stacksmith/src/stacksmith/web/settings.py`
-- Route modules: `packages/stacksmith/src/stacksmith/web/routes/*`
+- App factory and middleware: `packages/stackwarden/src/stackwarden/web/app.py`
+- Entrypoint: `packages/stackwarden/src/stackwarden/web_entry.py`
+- Environment settings: `packages/stackwarden/src/stackwarden/web/settings.py`
+- Route modules: `packages/stackwarden/src/stackwarden/web/routes/*`
 
 ## App Lifecycle and Middleware
 
-`create_app()` configures middleware, error handlers, route wiring, and static SPA fallback. Lifespan startup initializes shared dependencies (catalog, job manager) through `packages/stacksmith/src/stacksmith/web/deps.py`.
+`create_app()` configures middleware, error handlers, route wiring, and static SPA fallback. Lifespan startup initializes shared dependencies (catalog, job manager) through `packages/stackwarden/src/stackwarden/web/deps.py`.
 
 Core middleware responsibilities:
 
@@ -35,7 +35,7 @@ This grouping mirrors operator tasks rather than low-level subsystem internals.
 
 ## Contracts and Versioning
 
-Request/response DTOs are centralized in `packages/stacksmith/src/stacksmith/web/schemas.py`. API contract/version behavior is supported by `packages/stacksmith/src/stacksmith/web/util/versioning.py`.
+Request/response DTOs are centralized in `packages/stackwarden/src/stackwarden/web/schemas.py`. API contract/version behavior is supported by `packages/stackwarden/src/stackwarden/web/util/versioning.py`.
 
 Design intent:
 
@@ -62,8 +62,8 @@ Security hardening patterns include:
 
 Job lifecycle support:
 
-- Job store: `packages/stacksmith/src/stacksmith/web/jobs/store.py`
-- Manager/runners: `packages/stacksmith/src/stacksmith/web/jobs/manager.py`, `packages/stacksmith/src/stacksmith/web/jobs/runners.py`
+- Job store: `packages/stackwarden/src/stackwarden/web/jobs/store.py`
+- Manager/runners: `packages/stackwarden/src/stackwarden/web/jobs/manager.py`, `packages/stackwarden/src/stackwarden/web/jobs/runners.py`
 - Event streaming via SSE endpoints for live logs and status transitions
 
 This design enables responsive UI workflows while preserving backend execution authority.
@@ -72,9 +72,9 @@ This design enables responsive UI workflows while preserving backend execution a
 
 The API reuses shared core behavior rather than implementing parallel business logic. Critical shared paths include:
 
-- `packages/stacksmith/src/stacksmith/domain/ensure.py`
-- `packages/stacksmith/src/stacksmith/application/create_flows.py`
-- `packages/stacksmith/src/stacksmith/resolvers/resolver.py`
+- `packages/stackwarden/src/stackwarden/domain/ensure.py`
+- `packages/stackwarden/src/stackwarden/application/create_flows.py`
+- `packages/stackwarden/src/stackwarden/resolvers/resolver.py`
 
 This keeps CLI and API semantics aligned for planning and execution.
 
@@ -94,10 +94,10 @@ Focus areas include response contracts, status codes, lifecycle transitions, and
 
 ## Key Files to Read Next
 
-- `packages/stacksmith/src/stacksmith/web/app.py`
-- `packages/stacksmith/src/stacksmith/web/routes/jobs.py`
-- `packages/stacksmith/src/stacksmith/web/schemas.py`
-- `packages/stacksmith/src/stacksmith/web/util/validation.py`
+- `packages/stackwarden/src/stackwarden/web/app.py`
+- `packages/stackwarden/src/stackwarden/web/routes/jobs.py`
+- `packages/stackwarden/src/stackwarden/web/schemas.py`
+- `packages/stackwarden/src/stackwarden/web/util/validation.py`
 - `tests/web/test_jobs_plan_verify_artifacts.py`
 
 ## Common Modification Scenarios

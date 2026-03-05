@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stress test runner for Stacksmith.
+# Stress test runner for StackWarden.
 # Runs all test_stress_*.py tests and optionally appends results to docs/devlog.md.
 #
 # Usage:
@@ -16,7 +16,7 @@ DEVLOG="${REPO_ROOT}/docs/devlog.md"
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 run_stress_tests() {
-    echo "=== Stacksmith Stress Tests ==="
+    echo "=== StackWarden Stress Tests ==="
     echo "Timestamp: $TIMESTAMP"
     echo "Tests: $STRESS_TESTS"
     echo ""

@@ -6,7 +6,7 @@ Skipped if Docker is not available.
 
 import pytest
 
-from stacksmith.domain.models import (
+from stackwarden.domain.models import (
     BaseCandidate,
     CudaSpec,
     GpuSpec,
@@ -41,7 +41,7 @@ pytestmark = pytest.mark.skipif(not DOCKER_AVAILABLE, reason="Docker not availab
 @pytest.fixture(autouse=True)
 def _tuple_layer_off(monkeypatch):
     """Trivial profile (arm64, cpu) does not match any tuple; disable for build tests."""
-    monkeypatch.setenv("STACKSMITH_TUPLE_LAYER_MODE", "off")
+    monkeypatch.setenv("STACKWARDEN_TUPLE_LAYER_MODE", "off")
 
 
 def _trivial_profile() -> Profile:
@@ -74,16 +74,16 @@ def _trivial_stack() -> StackSpec:
 
 class TestOverlayBuild:
     def test_build_and_catalog(self, tmp_path):
-        from stacksmith.catalog.store import CatalogStore
-        from stacksmith.resolvers.resolver import resolve
-        from stacksmith.builders.plan_executor import execute_plan
-        from stacksmith.runtime.docker_client import DockerClient
+        from stackwarden.catalog.store import CatalogStore
+        from stackwarden.resolvers.resolver import resolve
+        from stackwarden.builders.plan_executor import execute_plan
+        from stackwarden.runtime.docker_client import DockerClient
 
         profile = _trivial_profile()
         stack = _trivial_stack()
         plan = resolve(profile, stack)
         assert plan.decision.build_optimization is not None
-        assert "stacksmith.build_optimization" in plan.artifact.labels
+        assert "stackwarden.build_optimization" in plan.artifact.labels
 
         catalog = CatalogStore(tmp_path / "test.db")
         catalog.upsert_profile(profile)
@@ -98,9 +98,9 @@ class TestOverlayBuild:
         assert docker.image_exists(plan.artifact.tag)
 
         labels = docker.get_image_labels(plan.artifact.tag)
-        assert labels.get("stacksmith.fingerprint") == plan.artifact.fingerprint
-        assert labels.get("stacksmith.profile") == "integration_test"
-        assert labels.get("stacksmith.stack") == "integration_test"
+        assert labels.get("stackwarden.fingerprint") == plan.artifact.fingerprint
+        assert labels.get("stackwarden.profile") == "integration_test"
+        assert labels.get("stackwarden.stack") == "integration_test"
 
         cat_record = catalog.get_artifact_by_tag(plan.artifact.tag)
         assert cat_record is not None

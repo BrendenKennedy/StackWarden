@@ -5,7 +5,7 @@ from __future__ import annotations
 import yaml
 from typer.testing import CliRunner
 
-from stacksmith.cli import app
+from stackwarden.cli import app
 
 
 def _write_yaml(path, data) -> None:
@@ -14,7 +14,7 @@ def _write_yaml(path, data) -> None:
 
 
 def test_profiles_entity_commands(monkeypatch, tmp_path):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     runner = CliRunner()
 
     profile_file = tmp_path / "input-profile.yaml"
@@ -74,7 +74,7 @@ def test_profiles_entity_commands(monkeypatch, tmp_path):
 
 
 def test_stacks_and_blocks_entity_commands(monkeypatch, tmp_path):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     runner = CliRunner()
 
     block_file = tmp_path / "input-block.yaml"
@@ -141,8 +141,8 @@ def test_stacks_and_blocks_entity_commands(monkeypatch, tmp_path):
 
 
 def test_check_and_migrate_commands(monkeypatch, tmp_path):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("STACKSMITH_TUPLE_LAYER_MODE", "off")
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_TUPLE_LAYER_MODE", "off")
     runner = CliRunner()
 
     profile_file = tmp_path / "input-profile.yaml"

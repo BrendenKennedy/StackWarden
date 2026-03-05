@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import pytest
 
-from stacksmith.catalog.store import CatalogStore
-from stacksmith.domain.enums import ArtifactStatus
-from stacksmith.domain.models import ArtifactRecord
+from stackwarden.catalog.store import CatalogStore
+from stackwarden.domain.enums import ArtifactStatus
+from stackwarden.domain.models import ArtifactRecord
 
 
 @pytest.fixture
@@ -33,7 +33,7 @@ def _artifact(catalog, profile_id="p1", stack_id="s1", tag="t1", fp="fp1",
         status=status,
         **kw,
     )
-    from stacksmith.catalog.models import ProfileRow, StackRow
+    from stackwarden.catalog.models import ProfileRow, StackRow
 
     with catalog._session() as s:
         if not s.get(ProfileRow, profile_id):

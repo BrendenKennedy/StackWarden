@@ -2,7 +2,7 @@
 
 ## Quality Goals
 
-Stacksmith quality strategy focuses on deterministic behavior, contract stability, and safe lifecycle transitions across CLI, API, and UI surfaces.
+StackWarden quality strategy focuses on deterministic behavior, contract stability, and safe lifecycle transitions across CLI, API, and UI surfaces.
 
 ## Test Strategy by Layer
 

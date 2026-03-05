@@ -11,8 +11,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from stacksmith.domain.enums import ArtifactStatus
-from stacksmith.domain.errors import BuildError
+from stackwarden.domain.enums import ArtifactStatus
+from stackwarden.domain.errors import BuildError
 
 
 class TestOOMHandling:
@@ -20,9 +20,9 @@ class TestOOMHandling:
 
     def test_build_error_sets_artifact_failed(self):
         """When builder raises, artifact is updated to FAILED."""
-        from stacksmith.builders.plan_executor import _do_execute
-        from stacksmith.catalog.store import CatalogStore
-        from stacksmith.domain.models import Plan, PlanArtifact, PlanDecision
+        from stackwarden.builders.plan_executor import _do_execute
+        from stackwarden.catalog.store import CatalogStore
+        from stackwarden.domain.models import Plan, PlanArtifact, PlanDecision
 
         plan = Plan(
             plan_id="x",
@@ -31,9 +31,9 @@ class TestOOMHandling:
             decision=PlanDecision(base_image="base:latest", base_digest=None, builder="overlay"),
             steps=[],
             artifact=PlanArtifact(
-                tag="local/stacksmith:test",
+                tag="local/stackwarden:test",
                 fingerprint="fp1",
-                labels={"stacksmith.variants": "{}", "stacksmith.schema_version": "1"},
+                labels={"stackwarden.variants": "{}", "stackwarden.schema_version": "1"},
             ),
         )
         profile = MagicMock()
@@ -50,7 +50,7 @@ class TestOOMHandling:
         builder = MagicMock()
         builder.execute.side_effect = MemoryError("Cannot allocate memory")
 
-        with patch("stacksmith.builders.plan_executor.BUILDER_REGISTRY", {"overlay": builder}):
+        with patch("stackwarden.builders.plan_executor.BUILDER_REGISTRY", {"overlay": builder}):
             with pytest.raises(BuildError):
                 _do_execute(plan, profile, stack, docker, catalog, rebuild=True)
 
@@ -65,13 +65,13 @@ class TestNetworkFailure:
 
     def test_ensure_continues_when_remote_sync_fails(self):
         """ensure_internal continues when sync_remote_catalog raises."""
-        from stacksmith.domain.ensure import ensure_internal
+        from stackwarden.domain.ensure import ensure_internal
         from types import SimpleNamespace
 
         cfg = MagicMock()
         cfg.remote_catalog_enabled = True
         cfg.remote_catalog_auto_pull = True
-        cfg.catalog_path = "/tmp/stacksmith_stress.db"
+        cfg.catalog_path = "/tmp/stackwarden_stress.db"
         cfg.registry = MagicMock()
         cfg.registry.allow = ["docker.io"]
         cfg.registry.deny = []
@@ -79,18 +79,18 @@ class TestNetworkFailure:
         def sync_fail(_):
             raise RuntimeError("network down")
 
-        with patch("stacksmith.config.AppConfig.load", return_value=cfg), \
-             patch("stacksmith.domain.remote_catalog.sync_remote_catalog", side_effect=sync_fail), \
-             patch("stacksmith.config.load_profile") as lp, \
-             patch("stacksmith.config.load_stack") as ls, \
-             patch("stacksmith.config.load_block", return_value=None), \
-             patch("stacksmith.resolvers.resolver.resolve") as mock_resolve, \
-             patch("stacksmith.domain.registry_policy.assert_registry_allowed"), \
-             patch("stacksmith.domain.ensure.DockerClient") as mock_docker_cls, \
-             patch("stacksmith.domain.ensure.CatalogStore") as mock_cat_cls, \
-             patch("stacksmith.builders.plan_executor.execute_plan") as mock_exec:
+        with patch("stackwarden.config.AppConfig.load", return_value=cfg), \
+             patch("stackwarden.domain.remote_catalog.sync_remote_catalog", side_effect=sync_fail), \
+             patch("stackwarden.config.load_profile") as lp, \
+             patch("stackwarden.config.load_stack") as ls, \
+             patch("stackwarden.config.load_block", return_value=None), \
+             patch("stackwarden.resolvers.resolver.resolve") as mock_resolve, \
+             patch("stackwarden.domain.registry_policy.assert_registry_allowed"), \
+             patch("stackwarden.domain.ensure.DockerClient") as mock_docker_cls, \
+             patch("stackwarden.domain.ensure.CatalogStore") as mock_cat_cls, \
+             patch("stackwarden.builders.plan_executor.execute_plan") as mock_exec:
 
-            from stacksmith.domain.models import (
+            from stackwarden.domain.models import (
                 BaseCandidate,
                 CudaSpec,
                 GpuSpec,

@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from stacksmith.contracts import ALLOWED_BUILD_STRATEGIES, SPEC_ID_PATTERN
+from stackwarden.contracts import ALLOWED_BUILD_STRATEGIES, SPEC_ID_PATTERN
 
 
 def test_frontend_contract_constants_are_synced() -> None:
@@ -34,13 +34,13 @@ def test_frontend_endpoint_shapes_match_backend_runtime(tmp_path) -> None:
 
     with patch.dict(
         os.environ,
-        {"STACKSMITH_DATA_DIR": str(tmp_path), "STACKSMITH_WEB_DEV": "true"},
+        {"STACKWARDEN_DATA_DIR": str(tmp_path), "STACKWARDEN_WEB_DEV": "true"},
     ):
-        from stacksmith.web.app import create_app
-        from stacksmith.web.deps import get_job_manager
-        from stacksmith.web.jobs.manager import JobManager
-        from stacksmith.web.jobs.store import JobStore
-        from stacksmith.web.settings import WebSettings
+        from stackwarden.web.app import create_app
+        from stackwarden.web.deps import get_job_manager
+        from stackwarden.web.jobs.manager import JobManager
+        from stackwarden.web.jobs.store import JobStore
+        from stackwarden.web.settings import WebSettings
 
         manager = JobManager(store=JobStore(db_path=tmp_path / "catalog.sqlite3"))
         app = create_app(WebSettings(token=None, dev=True))

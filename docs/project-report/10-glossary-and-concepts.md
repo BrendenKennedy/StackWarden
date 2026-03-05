@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This glossary defines core Stacksmith terminology used across CLI, API, UI, tests, and architecture documentation.
+This glossary defines core StackWarden terminology used across CLI, API, UI, tests, and architecture documentation.
 
 ## Core Concepts
 
@@ -40,7 +40,7 @@ The execution pipeline that takes validated plan inputs and performs build/pull 
 
 ## Artifact
 
-A built or referenced container output tracked by Stacksmith with metadata, provenance, and lifecycle state.
+A built or referenced container output tracked by StackWarden with metadata, provenance, and lifecycle state.
 
 ## Catalog
 

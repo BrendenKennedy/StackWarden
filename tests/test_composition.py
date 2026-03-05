@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from stacksmith.domain.composition import analyze_recipe_tuple_conflicts, compose_stack
-from stacksmith.domain.models import BlockSpec, StackRecipeSpec
+from stackwarden.domain.composition import analyze_recipe_tuple_conflicts, compose_stack
+from stackwarden.domain.models import BlockSpec, StackRecipeSpec
 
 
 def _block(**overrides) -> BlockSpec:

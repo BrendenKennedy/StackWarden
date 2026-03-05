@@ -3,11 +3,11 @@ from __future__ import annotations
 import yaml
 from typer.testing import CliRunner
 
-from stacksmith.cli import app
+from stackwarden.cli import app
 
 
 def test_migrate_preview(monkeypatch, tmp_path):
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     (tmp_path / "rules").mkdir(parents=True, exist_ok=True)
     (tmp_path / "rules" / "hardware_catalog.yaml").write_text(
         yaml.safe_dump({"schema_version": 1, "revision": 1}),

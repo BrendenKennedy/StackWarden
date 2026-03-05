@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from stacksmith.ui.wizard import WizardFlags, WizardSelection, build_command
+from stackwarden.ui.wizard import WizardFlags, WizardSelection, build_command
 
 
 class TestBuildCommand:
@@ -12,7 +12,7 @@ class TestBuildCommand:
             stack_id="llm_vllm",
         )
         cmd = build_command(sel)
-        assert cmd == "stacksmith ensure --profile x86_cuda --stack llm_vllm"
+        assert cmd == "stackwarden ensure --profile x86_cuda --stack llm_vllm"
 
     def test_with_variants_sorted(self):
         sel = WizardSelection(
@@ -78,8 +78,8 @@ class TestBuildCommand:
         cmd2 = build_command(sel)
         assert cmd1 == cmd2
 
-    def test_starts_with_stacksmith_ensure(self):
+    def test_starts_with_stackwarden_ensure(self):
         sel = WizardSelection(
             profile_id="p", stack_id="s",
         )
-        assert build_command(sel).startswith("stacksmith ensure")
+        assert build_command(sel).startswith("stackwarden ensure")

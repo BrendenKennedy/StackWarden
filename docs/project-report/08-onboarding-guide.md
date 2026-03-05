@@ -2,7 +2,7 @@
 
 ## Audience and Goal
 
-This guide helps new open-source contributors understand Stacksmith quickly and make safe, meaningful changes within their first day.
+This guide helps new open-source contributors understand StackWarden quickly and make safe, meaningful changes within their first day.
 
 ## First-Day Setup
 
@@ -25,7 +25,7 @@ pip install -e ".[dev]"
 Sanity checks:
 
 ```bash
-stacksmith doctor
+stackwarden doctor
 python -m pytest tests/ -v
 ```
 
@@ -49,15 +49,15 @@ Read in this order:
 
 Core backend:
 
-- `packages/stacksmith/src/stacksmith/domain`: canonical models and invariants
-- `packages/stacksmith/src/stacksmith/resolvers`: compatibility/rules and plan logic
-- `packages/stacksmith/src/stacksmith/builders`, `packages/stacksmith/src/stacksmith/runtime`: execution side effects
-- `packages/stacksmith/src/stacksmith/catalog`: persistent artifact lifecycle store
+- `packages/stackwarden/src/stackwarden/domain`: canonical models and invariants
+- `packages/stackwarden/src/stackwarden/resolvers`: compatibility/rules and plan logic
+- `packages/stackwarden/src/stackwarden/builders`, `packages/stackwarden/src/stackwarden/runtime`: execution side effects
+- `packages/stackwarden/src/stackwarden/catalog`: persistent artifact lifecycle store
 
 Surfaces:
 
-- CLI: `packages/stacksmith/src/stacksmith/cli.py`
-- Web API: `packages/stacksmith/src/stacksmith/web/*`
+- CLI: `packages/stackwarden/src/stackwarden/cli.py`
+- Web API: `packages/stackwarden/src/stackwarden/web/*`
 - Web UI: `apps/web/src/*`
 
 Specs and data:
@@ -69,8 +69,8 @@ Specs and data:
 ## 4) Where to Change What
 
 - Add or adjust business logic: start in domain/application/resolver modules.
-- Add CLI behavior: wire command in `packages/stacksmith/src/stacksmith/cli.py` using shared core calls.
-- Add API behavior: add route and schemas in `packages/stacksmith/src/stacksmith/web/routes` and `packages/stacksmith/src/stacksmith/web/schemas.py`.
+- Add CLI behavior: wire command in `packages/stackwarden/src/stackwarden/cli.py` using shared core calls.
+- Add API behavior: add route and schemas in `packages/stackwarden/src/stackwarden/web/routes` and `packages/stackwarden/src/stackwarden/web/schemas.py`.
 - Add UI workflow: update `apps/web/src/views`, `components`, `composables`, and endpoint wrappers.
 
 Avoid:

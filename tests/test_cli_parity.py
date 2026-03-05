@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typer.testing import CliRunner
 
-from stacksmith.cli import app
+from stackwarden.cli import app
 
 
 class _FakePlan:
@@ -33,17 +33,17 @@ class _CompatReport:
 
 def test_plan_uses_strict_default_from_env(monkeypatch):
     runner = CliRunner()
-    monkeypatch.setenv("STACKSMITH_COMPAT_STRICT", "1")
-    monkeypatch.setattr("stacksmith.config.load_profile", lambda _id: object())
-    monkeypatch.setattr("stacksmith.config.load_stack", lambda _id: type("S", (), {"blocks": []})())
-    monkeypatch.setattr("stacksmith.config.load_block", lambda _id: object())
+    monkeypatch.setenv("STACKWARDEN_COMPAT_STRICT", "1")
+    monkeypatch.setattr("stackwarden.config.load_profile", lambda _id: object())
+    monkeypatch.setattr("stackwarden.config.load_stack", lambda _id: type("S", (), {"blocks": []})())
+    monkeypatch.setattr("stackwarden.config.load_block", lambda _id: object())
     seen: dict[str, bool] = {}
 
     def _resolve(*_args, **kwargs):
         seen["strict_mode"] = bool(kwargs.get("strict_mode"))
         return _FakePlan()
 
-    monkeypatch.setattr("stacksmith.resolvers.resolver.resolve", _resolve)
+    monkeypatch.setattr("stackwarden.resolvers.resolver.resolve", _resolve)
     out = runner.invoke(app, ["plan", "--profile", "p1", "--stack", "s1", "--json"])
     assert out.exit_code == 0, out.output
     assert seen["strict_mode"] is True
@@ -51,17 +51,17 @@ def test_plan_uses_strict_default_from_env(monkeypatch):
 
 def test_check_uses_env_default_and_can_override(monkeypatch):
     runner = CliRunner()
-    monkeypatch.setenv("STACKSMITH_COMPAT_STRICT", "1")
-    monkeypatch.setattr("stacksmith.config.load_profile", lambda _id: object())
-    monkeypatch.setattr("stacksmith.config.load_stack", lambda _id: type("S", (), {"blocks": []})())
-    monkeypatch.setattr("stacksmith.config.load_block", lambda _id: object())
+    monkeypatch.setenv("STACKWARDEN_COMPAT_STRICT", "1")
+    monkeypatch.setattr("stackwarden.config.load_profile", lambda _id: object())
+    monkeypatch.setattr("stackwarden.config.load_stack", lambda _id: type("S", (), {"blocks": []})())
+    monkeypatch.setattr("stackwarden.config.load_block", lambda _id: object())
     seen: list[bool] = []
 
     def _evaluate(*_args, **kwargs):
         seen.append(bool(kwargs.get("strict_mode")))
         return _CompatReport()
 
-    monkeypatch.setattr("stacksmith.resolvers.compatibility.evaluate_compatibility", _evaluate)
+    monkeypatch.setattr("stackwarden.resolvers.compatibility.evaluate_compatibility", _evaluate)
 
     out_default = runner.invoke(app, ["check", "--profile", "p1", "--stack", "s1", "--json"])
     assert out_default.exit_code == 0, out_default.output

@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import pytest
 
-from stacksmith.builders.overlay import _resolve_npm_install_commands
-from stacksmith.domain.hashing import fingerprint
-from stacksmith.domain.models import (
+from stackwarden.builders.overlay import _resolve_npm_install_commands
+from stackwarden.domain.hashing import fingerprint
+from stackwarden.domain.models import (
     BaseCandidate,
     CudaSpec,
     GpuSpec,
@@ -54,7 +54,7 @@ class TestWheelhouseMissing:
 
     def test_wheelhouse_only_requires_path(self):
         """Stack with wheelhouse_only but empty path should fail validation."""
-        from stacksmith.domain.models import StackSpec
+        from stackwarden.domain.models import StackSpec
 
         data = {
             "id": "s1", "display_name": "S1", "task": "custom", "serve": "custom", "api": "none",

@@ -1,7 +1,7 @@
 schema_version: 1
 revision: 1
 # Optional override file for the built-in block preset catalog.
-# If `categories` or `presets` are omitted, Stacksmith uses the bundled defaults.
+# If `categories` or `presets` are omitted, StackWarden uses the bundled defaults.
 # To fully replace defaults, provide explicit `categories` and `presets` arrays.
 #
 # Preset entries may include optional `layers` for stack wizard guidance:

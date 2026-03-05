@@ -1,4 +1,4 @@
-# Stacksmith Catalog
+# StackWarden Catalog
 
 Profiles, stacks, blocks, and rules for hardware-aware ML container builds.
 

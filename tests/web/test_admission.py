@@ -1,11 +1,11 @@
-"""Tests for stacksmith.web.jobs.admission."""
+"""Tests for stackwarden.web.jobs.admission."""
 
 from __future__ import annotations
 
 import pytest
 
-from stacksmith.domain.models import GpuSpec, HostDiscoveryFacts, Profile
-from stacksmith.web.jobs.admission import AdmissionDecision, decide_admission
+from stackwarden.domain.models import GpuSpec, HostDiscoveryFacts, Profile
+from stackwarden.web.jobs.admission import AdmissionDecision, decide_admission
 
 
 def _profile_with_memory(memory_gb: float | None) -> Profile:

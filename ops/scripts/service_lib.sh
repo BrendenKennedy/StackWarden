@@ -2,16 +2,16 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-STATE_DIR="$ROOT_DIR/.stacksmith/run"
-LOG_DIR="$ROOT_DIR/.stacksmith/logs"
+STATE_DIR="$ROOT_DIR/.stackwarden/run"
+LOG_DIR="$ROOT_DIR/.stackwarden/logs"
 
-BACKEND_NAME="stacksmith-web"
+BACKEND_NAME="stackwarden-web"
 BACKEND_HOST="127.0.0.1"
 BACKEND_PORT="8765"
 BACKEND_PIDFILE="$STATE_DIR/backend.pid"
 BACKEND_LOGFILE="$LOG_DIR/backend.log"
 
-FRONTEND_NAME="stacksmith-frontend"
+FRONTEND_NAME="stackwarden-frontend"
 FRONTEND_HOST="127.0.0.1"
 FRONTEND_PORT="5173"
 FRONTEND_PIDFILE="$STATE_DIR/frontend.pid"
@@ -160,9 +160,9 @@ start_backend() {
   echo "[start] $BACKEND_NAME"
   (
     cd "$ROOT_DIR"
-    STACKSMITH_WEB_DEV="${STACKSMITH_WEB_DEV:-true}" \
-    STACKSMITH_WEB_HOST="$BACKEND_HOST" STACKSMITH_WEB_PORT="$BACKEND_PORT" \
-      nohup stacksmith-web >"$BACKEND_LOGFILE" 2>&1 &
+    STACKWARDEN_WEB_DEV="${STACKWARDEN_WEB_DEV:-true}" \
+    STACKWARDEN_WEB_HOST="$BACKEND_HOST" STACKWARDEN_WEB_PORT="$BACKEND_PORT" \
+      nohup stackwarden-web >"$BACKEND_LOGFILE" 2>&1 &
     echo $! >"$BACKEND_PIDFILE"
   )
 

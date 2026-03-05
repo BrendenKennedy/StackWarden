@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from stacksmith.web.schemas import DetectionProbeDTO
-from stacksmith.web.services import host_detection as hd
-from stacksmith.web.services.host_detection_probes import ProbeContext, ProbeResult, ProbeSpec, route_os_branch
+from stackwarden.web.schemas import DetectionProbeDTO
+from stackwarden.web.services import host_detection as hd
+from stackwarden.web.services.host_detection_probes import ProbeContext, ProbeResult, ProbeSpec, route_os_branch
 
 
 def _probe_result(name: str, payload: dict) -> ProbeResult:

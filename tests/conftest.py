@@ -1,11 +1,11 @@
-"""Shared fixtures for Stacksmith tests."""
+"""Shared fixtures for StackWarden tests."""
 
 from __future__ import annotations
 
 import pytest
 
-from stacksmith.domain.enums import ArtifactStatus
-from stacksmith.domain.models import (
+from stackwarden.domain.enums import ArtifactStatus
+from stackwarden.domain.models import (
     BaseCandidate,
     CudaSpec,
     GpuSpec,
@@ -52,5 +52,5 @@ def sample_stack() -> StackSpec:
 
 @pytest.fixture()
 def catalog_store(tmp_path):
-    from stacksmith.catalog.store import CatalogStore
+    from stackwarden.catalog.store import CatalogStore
     return CatalogStore(db_path=tmp_path / "test_catalog.db")

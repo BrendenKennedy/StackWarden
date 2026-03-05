@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from stacksmith.hooks.protocol import HookResult, PostBuildHook
+from stackwarden.hooks.protocol import HookResult, PostBuildHook
 
 
 class MockPassHook:
@@ -52,7 +52,7 @@ class TestHookProtocol:
 
     def test_hooks_receive_tag_not_mutable_handle(self):
         hook = MockPassHook()
-        result = hook.run("local/stacksmith:test", None, None)
+        result = hook.run("local/stackwarden:test", None, None)
         assert result.success
 
 
@@ -65,7 +65,7 @@ class MockExceptionHook:
 
 class TestHookRegistry:
     def test_builtin_hooks_loaded(self):
-        from stacksmith.hooks import get_hooks
+        from stackwarden.hooks import get_hooks
         hooks = get_hooks()
         names = [h.name for h in hooks]
         assert "import_smoke" in names
@@ -90,8 +90,8 @@ class TestHookExceptionHandling:
         """The plan_executor _run_hooks catches per-hook exceptions
         and marks the artifact as failed instead of crashing."""
         from unittest.mock import patch, MagicMock
-        from stacksmith.domain.enums import ArtifactStatus
-        from stacksmith.domain.models import ArtifactRecord
+        from stackwarden.domain.enums import ArtifactStatus
+        from stackwarden.domain.models import ArtifactRecord
 
         record = MagicMock(spec=ArtifactRecord)
         record.tag = "test:tag"
@@ -100,8 +100,8 @@ class TestHookExceptionHandling:
         catalog = MagicMock()
         exception_hook = MockExceptionHook()
 
-        with patch("stacksmith.hooks.get_hooks", return_value=[exception_hook]):
-            from stacksmith.builders.plan_executor import _run_hooks
+        with patch("stackwarden.hooks.get_hooks", return_value=[exception_hook]):
+            from stackwarden.builders.plan_executor import _run_hooks
             _run_hooks(record, None, None, catalog)
 
         assert record.status == ArtifactStatus.FAILED

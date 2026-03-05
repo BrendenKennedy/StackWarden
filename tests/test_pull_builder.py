@@ -1,10 +1,10 @@
-"""Tests for stacksmith.builders.pull — _split_image_ref and build_pull."""
+"""Tests for stackwarden.builders.pull — _split_image_ref and build_pull."""
 
 from __future__ import annotations
 
 import pytest
 
-from stacksmith.builders.pull import _split_image_ref
+from stackwarden.builders.pull import _split_image_ref
 
 
 class TestSplitImageRef:

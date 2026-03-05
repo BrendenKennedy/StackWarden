@@ -26,7 +26,7 @@ describe('useJobStream', () => {
       body: stream,
     })
     vi.stubGlobal('fetch', fetchMock)
-    localStorage.setItem('stacksmith_token', 'abc123')
+    localStorage.setItem('stackwarden_token', 'abc123')
 
     const Comp = defineComponent({
       setup() {
@@ -50,6 +50,6 @@ describe('useJobStream', () => {
       expect((wrapper.vm as any).status).toBe('running')
       expect((wrapper.vm as any).result).toEqual({ artifact_id: 'art1', tag: 'tag1' })
     })
-    localStorage.removeItem('stacksmith_token')
+    localStorage.removeItem('stackwarden_token')
   })
 })

@@ -4,9 +4,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from stacksmith.config import AppConfig
-from stacksmith.domain.errors import RegistryPolicyError
-from stacksmith.domain.ensure import ensure_internal
+from stackwarden.config import AppConfig
+from stackwarden.domain.errors import RegistryPolicyError
+from stackwarden.domain.ensure import ensure_internal
 
 
 def test_ensure_internal_enforces_registry_policy(monkeypatch):
@@ -20,34 +20,34 @@ def test_ensure_internal_enforces_registry_policy(monkeypatch):
                 "enabled": False,
                 "repo_url": None,
                 "branch": "main",
-                "local_path": "~/.local/share/stacksmith/remote-catalog",
+                "local_path": "~/.local/share/stackwarden/remote-catalog",
                 "auto_pull": True,
             },
         }
     )
 
-    monkeypatch.setattr("stacksmith.config.AppConfig.load", lambda: cfg)
-    monkeypatch.setattr("stacksmith.config.load_profile", lambda _profile_id: SimpleNamespace(id="p1"))
-    monkeypatch.setattr("stacksmith.config.load_stack", lambda _stack_id: SimpleNamespace(id="s1", blocks=[]))
-    monkeypatch.setattr("stacksmith.config.load_block", lambda _block_id: None)
+    monkeypatch.setattr("stackwarden.config.AppConfig.load", lambda: cfg)
+    monkeypatch.setattr("stackwarden.config.load_profile", lambda _profile_id: SimpleNamespace(id="p1"))
+    monkeypatch.setattr("stackwarden.config.load_stack", lambda _stack_id: SimpleNamespace(id="s1", blocks=[]))
+    monkeypatch.setattr("stackwarden.config.load_block", lambda _block_id: None)
 
     # Ensure we fail before catalog/build work if policy is violated.
     monkeypatch.setattr(
-        "stacksmith.resolvers.resolver.resolve",
+        "stackwarden.resolvers.resolver.resolve",
         lambda *_args, **_kwargs: SimpleNamespace(
             decision=SimpleNamespace(base_image="docker.io/library/ubuntu:22.04")
         ),
     )
     monkeypatch.setattr(
-        "stacksmith.runtime.docker_client.DockerClient",
+        "stackwarden.runtime.docker_client.DockerClient",
         lambda: SimpleNamespace(get_image_digest=lambda _img: None),
     )
     monkeypatch.setattr(
-        "stacksmith.catalog.store.CatalogStore",
+        "stackwarden.catalog.store.CatalogStore",
         lambda **_kwargs: pytest.fail("CatalogStore should not be constructed when registry policy fails"),
     )
     monkeypatch.setattr(
-        "stacksmith.builders.plan_executor.execute_plan",
+        "stackwarden.builders.plan_executor.execute_plan",
         lambda *_args, **_kwargs: pytest.fail("execute_plan should not run when registry policy fails"),
     )
 
@@ -63,30 +63,30 @@ def test_ensure_internal_continues_when_remote_sync_fails(monkeypatch):
                 "enabled": True,
                 "repo_url": "https://example.com/catalog.git",
                 "branch": "main",
-                "local_path": "~/.local/share/stacksmith/remote-catalog",
+                "local_path": "~/.local/share/stackwarden/remote-catalog",
                 "auto_pull": True,
             },
         }
     )
-    monkeypatch.setattr("stacksmith.config.AppConfig.load", lambda: cfg)
+    monkeypatch.setattr("stackwarden.config.AppConfig.load", lambda: cfg)
     monkeypatch.setattr(
-        "stacksmith.domain.remote_catalog.sync_remote_catalog",
+        "stackwarden.domain.remote_catalog.sync_remote_catalog",
         lambda _cfg: (_ for _ in ()).throw(RuntimeError("network down")),
     )
-    monkeypatch.setattr("stacksmith.config.load_profile", lambda _profile_id: SimpleNamespace(id="p1"))
-    monkeypatch.setattr("stacksmith.config.load_stack", lambda _stack_id: SimpleNamespace(id="s1", blocks=[]))
+    monkeypatch.setattr("stackwarden.config.load_profile", lambda _profile_id: SimpleNamespace(id="p1"))
+    monkeypatch.setattr("stackwarden.config.load_stack", lambda _stack_id: SimpleNamespace(id="s1", blocks=[]))
     monkeypatch.setattr(
-        "stacksmith.resolvers.resolver.resolve",
+        "stackwarden.resolvers.resolver.resolve",
         lambda *_args, **_kwargs: SimpleNamespace(
             decision=SimpleNamespace(base_image="docker.io/library/ubuntu:22.04"),
         ),
     )
     monkeypatch.setattr(
-        "stacksmith.runtime.docker_client.DockerClient",
+        "stackwarden.runtime.docker_client.DockerClient",
         lambda: SimpleNamespace(get_image_digest=lambda _img: None),
     )
     monkeypatch.setattr(
-        "stacksmith.catalog.store.CatalogStore",
+        "stackwarden.catalog.store.CatalogStore",
         lambda **_kwargs: SimpleNamespace(
             upsert_profile=lambda _p: None,
             upsert_stack=lambda _s: None,
@@ -94,7 +94,7 @@ def test_ensure_internal_continues_when_remote_sync_fails(monkeypatch):
     )
     expected_record = SimpleNamespace(tag="ok:tag")
     monkeypatch.setattr(
-        "stacksmith.builders.plan_executor.execute_plan",
+        "stackwarden.builders.plan_executor.execute_plan",
         lambda *_args, **_kwargs: expected_record,
     )
 

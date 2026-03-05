@@ -2,18 +2,18 @@
 
 ## Scope Inventory
 
-- Entrypoints: `/stacksmith/cli_app.py`, `/stacksmith/cli.py`
-- Command safety maps: `/stacksmith/cli_commands/high_risk.py`, `/stacksmith/cli_commands/low_risk.py`
-- CLI shared helpers: `/stacksmith/cli_shared/context.py`, `/stacksmith/cli_shared/errors.py`, `/stacksmith/cli_shared/catalog.py`
-- Wizard surface: `/stacksmith/ui/wizard.py`
-- Runtime paths exercised from CLI: `/stacksmith/domain/ensure.py`, `/stacksmith/domain/remote_catalog.py`, `/stacksmith/runtime/buildx.py`, `/stacksmith/catalog/store.py`
+- Entrypoints: `/stackwarden/cli_app.py`, `/stackwarden/cli.py`
+- Command safety maps: `/stackwarden/cli_commands/high_risk.py`, `/stackwarden/cli_commands/low_risk.py`
+- CLI shared helpers: `/stackwarden/cli_shared/context.py`, `/stackwarden/cli_shared/errors.py`, `/stackwarden/cli_shared/catalog.py`
+- Wizard surface: `/stackwarden/ui/wizard.py`
+- Runtime paths exercised from CLI: `/stackwarden/domain/ensure.py`, `/stackwarden/domain/remote_catalog.py`, `/stackwarden/runtime/buildx.py`, `/stackwarden/catalog/store.py`
 
 ## CLI vs Core/Web Parity Matrix
 
 | Area | Previous CLI Behavior | Core/Web Behavior | Change |
 | --- | --- | --- | --- |
-| Strict compatibility default (`plan`) | Non-strict by default | Uses `STACKSMITH_COMPAT_STRICT` default in ensure/web | `plan` now passes `compatibility_strict_default()` into `resolve()` |
-| Strict compatibility default (`check`) | Defaulted to `False` unless `--strict` | Env-driven strict default available in core/web | `check` now defaults from `STACKSMITH_COMPAT_STRICT` and supports `--strict/--no-strict` override |
+| Strict compatibility default (`plan`) | Non-strict by default | Uses `STACKWARDEN_COMPAT_STRICT` default in ensure/web | `plan` now passes `compatibility_strict_default()` into `resolve()` |
+| Strict compatibility default (`check`) | Defaulted to `False` unless `--strict` | Env-driven strict default available in core/web | `check` now defaults from `STACKWARDEN_COMPAT_STRICT` and supports `--strict/--no-strict` override |
 | Wizard preview strictness | Preview resolve was non-strict | Ensure execution path uses strict env default | Wizard preview and CLI wizard rendering now use strict default |
 | Repro plan strictness | Repro resolve was non-strict | Core ensure path uses strict env default | Repro resolve now uses strict default |
 | Export runtime behavior | Assumed NVIDIA + GPUs | Profiles can be `runc`/CPU only | Export commands now derive runtime from artifact/profile and only emit GPU flags/reservations for NVIDIA runtime |
@@ -21,7 +21,7 @@
 
 ## Reliability and Performance Hardening
 
-- Remote catalog git operations now have bounded timeout via `STACKSMITH_REMOTE_GIT_TIMEOUT` (default `30s`).
+- Remote catalog git operations now have bounded timeout via `STACKWARDEN_REMOTE_GIT_TIMEOUT` (default `30s`).
 - `ensure_internal()` now degrades gracefully when remote catalog sync fails (warn + continue with local data).
 - Buildx execution now streams logs during build instead of waiting for full buffered output.
 - SQLite catalog engine now configures:

@@ -49,7 +49,7 @@ Define success metrics and event taxonomy for declarative derivation adoption be
 - `runtime_family` (for example `nvidia`, `docker`, `unknown`)
 
 ## Initial Instrumentation Targets
-- Backend create/dry-run/compose routes in `stacksmith/web/routes/create.py`.
+- Backend create/dry-run/compose routes in `stackwarden/web/routes/create.py`.
 - Optional client funnel enrichment in `apps/web/src/api/client.ts` and create views.
 
 ## Baseline Procedure

@@ -75,19 +75,19 @@
       <h3 class="settings-card-title">Remote Catalog Repository</h3>
       <p class="settings-description">
         Configure a git repo containing `specs/profiles/`, `specs/stacks/`, `specs/blocks/`, and `specs/rules/`.
-        When enabled, Stacksmith reads catalog data from the local checkout path.
+        When enabled, StackWarden reads catalog data from the local checkout path.
       </p>
       <div class="detail-grid settings-detail-grid">
         <dt>Enable Remote Catalog</dt>
         <dd><input type="checkbox" v-model="remoteEnabled" /></dd>
         <dt>Repository URL</dt>
-        <dd><input type="text" v-model="remoteRepoUrl" placeholder="https://github.com/org/stacksmith-data.git" /></dd>
+        <dd><input type="text" v-model="remoteRepoUrl" placeholder="https://github.com/org/stackwarden-data.git" /></dd>
         <dt>Branch</dt>
         <dd><input type="text" v-model="remoteBranch" placeholder="main" /></dd>
         <dt>Local Checkout Path</dt>
-        <dd><input type="text" v-model="remoteLocalPath" placeholder="~/.local/share/stacksmith/remote-catalog" /></dd>
+        <dd><input type="text" v-model="remoteLocalPath" placeholder="~/.local/share/stackwarden/remote-catalog" /></dd>
         <dt>Local Overrides Path</dt>
-        <dd><input type="text" v-model="remoteLocalOverridesPath" placeholder="~/.local/share/stacksmith/local-catalog" /></dd>
+        <dd><input type="text" v-model="remoteLocalOverridesPath" placeholder="~/.local/share/stackwarden/local-catalog" /></dd>
         <dt>Auto Pull During Ensure</dt>
         <dd><input type="checkbox" v-model="remoteAutoPull" /></dd>
       </div>
@@ -114,7 +114,7 @@
     <div class="card">
       <h3 class="settings-card-title">Access via SSH Tunnel</h3>
       <p class="settings-description">
-        The Stacksmith web UI binds to <code class="settings-accent-code">127.0.0.1:8765</code> only.
+        The StackWarden web UI binds to <code class="settings-accent-code">127.0.0.1:8765</code> only.
         To access it from your local machine, forward the port over SSH:
       </p>
       <pre class="json-viewer settings-command">ssh -L 8765:127.0.0.1:8765 user@your-server</pre>
@@ -271,7 +271,7 @@ const jobsList = ref<JobSummary[]>([])
 const jobsLoading = ref(false)
 const expandedJobId = ref<string | null>(null)
 const tokenInput = ref('')
-const hasToken = ref(!!localStorage.getItem('stacksmith_token'))
+const hasToken = ref(!!localStorage.getItem('stackwarden_token'))
 const detectionHints = ref<DetectionHints | null>(null)
 const tupleCatalog = ref<TupleCatalog | null>(null)
 const detectingHints = ref(false)
@@ -281,8 +281,8 @@ const savingTupleMode = ref(false)
 const remoteEnabled = ref(false)
 const remoteRepoUrl = ref('')
 const remoteBranch = ref('main')
-const remoteLocalPath = ref('~/.local/share/stacksmith/remote-catalog')
-const remoteLocalOverridesPath = ref('~/.local/share/stacksmith/local-catalog')
+const remoteLocalPath = ref('~/.local/share/stackwarden/remote-catalog')
+const remoteLocalOverridesPath = ref('~/.local/share/stackwarden/local-catalog')
 const remoteAutoPull = ref(true)
 const adminTokenInput = ref('')
 const savingRemoteConfig = ref(false)
@@ -357,8 +357,8 @@ onMounted(async () => {
     remoteEnabled.value = !!cfg.remote_catalog_enabled
     remoteRepoUrl.value = cfg.remote_catalog_repo_url || ''
     remoteBranch.value = cfg.remote_catalog_branch || 'main'
-    remoteLocalPath.value = cfg.remote_catalog_local_path || '~/.local/share/stacksmith/remote-catalog'
-    remoteLocalOverridesPath.value = cfg.remote_catalog_local_overrides_path || '~/.local/share/stacksmith/local-catalog'
+    remoteLocalPath.value = cfg.remote_catalog_local_path || '~/.local/share/stackwarden/remote-catalog'
+    remoteLocalOverridesPath.value = cfg.remote_catalog_local_overrides_path || '~/.local/share/stackwarden/local-catalog'
     remoteAutoPull.value = cfg.remote_catalog_auto_pull ?? true
     detectionHints.value = hints
     tupleCatalog.value = tuples
@@ -380,14 +380,14 @@ onMounted(async () => {
 
 function saveToken() {
   if (tokenInput.value.trim()) {
-    localStorage.setItem('stacksmith_token', tokenInput.value.trim())
+    localStorage.setItem('stackwarden_token', tokenInput.value.trim())
     hasToken.value = true
     tokenInput.value = ''
   }
 }
 
 function clearToken() {
-  localStorage.removeItem('stacksmith_token')
+  localStorage.removeItem('stackwarden_token')
   hasToken.value = false
 }
 
@@ -411,9 +411,9 @@ async function updateRemoteConfig(syncNow = false) {
         remote_catalog_enabled: remoteEnabled.value,
         remote_catalog_repo_url: remoteRepoUrl.value.trim() || null,
         remote_catalog_branch: remoteBranch.value.trim() || 'main',
-        remote_catalog_local_path: remoteLocalPath.value.trim() || '~/.local/share/stacksmith/remote-catalog',
+        remote_catalog_local_path: remoteLocalPath.value.trim() || '~/.local/share/stackwarden/remote-catalog',
         remote_catalog_local_overrides_path:
-          remoteLocalOverridesPath.value.trim() || '~/.local/share/stacksmith/local-catalog',
+          remoteLocalOverridesPath.value.trim() || '~/.local/share/stackwarden/local-catalog',
         remote_catalog_auto_pull: remoteAutoPull.value,
         sync_now: syncNow,
       },

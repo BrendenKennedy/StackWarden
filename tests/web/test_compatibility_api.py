@@ -16,7 +16,7 @@ def client(tmp_path, monkeypatch):
     (tmp_path / "profiles").mkdir()
     (tmp_path / "blocks").mkdir()
     (tmp_path / "rules").mkdir()
-    monkeypatch.setenv("STACKSMITH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
 
     (tmp_path / "rules" / "compatibility_rules.yaml").write_text(
         yaml.safe_dump(
@@ -81,13 +81,13 @@ def client(tmp_path, monkeypatch):
     with patch.dict(
         os.environ,
         {
-            "STACKSMITH_DATA_DIR": str(tmp_path),
-            "STACKSMITH_WEB_DEV": "true",
-            "STACKSMITH_TUPLE_LAYER_MODE": "off",
+            "STACKWARDEN_DATA_DIR": str(tmp_path),
+            "STACKWARDEN_WEB_DEV": "true",
+            "STACKWARDEN_TUPLE_LAYER_MODE": "off",
         },
     ):
-        from stacksmith.web.app import create_app
-        from stacksmith.web.settings import WebSettings
+        from stackwarden.web.app import create_app
+        from stackwarden.web.settings import WebSettings
 
         app = create_app(WebSettings(token=None, dev=True))
         yield TestClient(app)
@@ -112,9 +112,9 @@ def test_compatibility_preview_includes_rule_metadata(client):
 def test_compatibility_preview_uses_env_strict_default(client, monkeypatch):
     captured: dict[str, bool] = {}
 
-    monkeypatch.setattr("stacksmith.web.routes.compatibility.load_profile", lambda _id: object())
-    monkeypatch.setattr("stacksmith.web.routes.compatibility.load_stack", lambda _id: type("S", (), {"blocks": []})())
-    monkeypatch.setattr("stacksmith.web.routes.compatibility.load_block", lambda _id: object())
+    monkeypatch.setattr("stackwarden.web.routes.compatibility.load_profile", lambda _id: object())
+    monkeypatch.setattr("stackwarden.web.routes.compatibility.load_stack", lambda _id: type("S", (), {"blocks": []})())
+    monkeypatch.setattr("stackwarden.web.routes.compatibility.load_block", lambda _id: object())
 
     def _fake_eval(_profile, _stack, *, blocks, strict_mode):
         captured["strict_mode"] = strict_mode
@@ -129,8 +129,8 @@ def test_compatibility_preview_uses_env_strict_default(client, monkeypatch):
             "tuple_decision": {},
         }})()
 
-    monkeypatch.setattr("stacksmith.web.routes.compatibility.evaluate_compatibility", _fake_eval)
-    monkeypatch.setenv("STACKSMITH_COMPAT_STRICT", "true")
+    monkeypatch.setattr("stackwarden.web.routes.compatibility.evaluate_compatibility", _fake_eval)
+    monkeypatch.setenv("STACKWARDEN_COMPAT_STRICT", "true")
 
     resp = client.post("/api/compatibility/preview", json={"profile_id": "p1", "stack_id": "s1"})
     assert resp.status_code == 200
