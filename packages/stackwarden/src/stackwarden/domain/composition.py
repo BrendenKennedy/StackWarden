@@ -515,6 +515,7 @@ def compose_stack(recipe: StackRecipeSpec, blocks: list[BlockSpec]) -> StackSpec
         schema_version=recipe.schema_version,
         id=recipe.id,
         display_name=recipe.display_name,
+        description=recipe.description,
         task=TaskType.CUSTOM,
         serve=ServeType.CUSTOM,
         api=ApiType.CUSTOM,

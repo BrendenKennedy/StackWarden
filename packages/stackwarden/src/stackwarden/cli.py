@@ -18,17 +18,21 @@ from rich.table import Table
 from stackwarden import __version__
 from stackwarden.domain.errors import StackWardenError
 from stackwarden.cli_commands.high_risk import command_map as high_risk_command_map
+from stackwarden.cli_commands.list_commands import register_list_commands
 from stackwarden.cli_commands.low_risk import command_map as low_risk_command_map
 from stackwarden.cli_shared.catalog import get_catalog
 from stackwarden.cli_shared.context import setup_cli
 from stackwarden.cli_shared.errors import deprecated_alias_notice, exit_code_for
+from stackwarden.cli_shared.help_content import HELP_EPILOG, get_help_for_topic
 from stackwarden.cli_shared.io_yaml import atomic_write_spec, edit_yaml_via_editor, load_yaml_file
+from stackwarden.cli_shared.decorators import with_cli_errors
 from stackwarden.cli_shared.render import print_rationale
 
 app = typer.Typer(
     name="stackwarden",
     help="Hardware-aware ML container build manager.",
     no_args_is_help=True,
+    epilog=HELP_EPILOG,
 )
 list_app = typer.Typer(help="List available profiles and stacks.")
 profiles_app = typer.Typer(help="Manage hardware profiles.")
@@ -56,37 +60,15 @@ CLI_HIGH_RISK_COMMAND_MAP = high_risk_command_map()
 
 _verbose_option = typer.Option(False, "--verbose", "-v", help="Enable debug logging")
 _json_option = typer.Option(False, "--json", "-j", help="Output machine-readable JSON")
-
-
-def _setup(verbose: bool = False) -> None:
-    setup_cli(verbose=verbose)
+_var_option = typer.Option(
+    None,
+    "--var",
+    help="Variant override in key=value form (repeatable). Example: --var python=3.11 --var cuda=12.4",
+)
 
 
 def _deprecated_alias_notice(alias_cmd: str, replacement_cmd: str) -> None:
     deprecated_alias_notice(console, alias_cmd, replacement_cmd)
-
-
-def _exit_code_for(exc: Exception) -> int:
-    return exit_code_for(exc)
-
-
-def _get_catalog():
-    """Create a CatalogStore using config overrides when available."""
-    return get_catalog()
-
-
-def _atomic_write_spec(data: dict, target) -> None:
-    """Write YAML atomically with fsync semantics."""
-    atomic_write_spec(data, target)
-
-
-def _load_yaml_file(path: str) -> dict:
-    return load_yaml_file(path)
-
-
-def _edit_yaml_via_editor(initial_data: dict) -> dict:
-    """Open system editor and return edited YAML dict."""
-    return edit_yaml_via_editor(initial_data)
 
 
 def _artifact_runtime_and_ports(record) -> tuple[str | None, list[int]]:
@@ -179,133 +161,13 @@ def main_callback(ctx: typer.Context) -> None:
 # list commands
 # ---------------------------------------------------------------------------
 
-@list_app.command("profiles")
-def list_profiles(
-    verbose: bool = _verbose_option,
-    output_json: bool = _json_option,
-) -> None:
-    """List available hardware profiles."""
-    _setup(verbose)
-    from stackwarden.config import get_profile_origins, list_profile_ids, load_profile
-
-    ids = list_profile_ids()
-    origin_map = get_profile_origins(ids)
-    if output_json:
-        items = []
-        for pid in ids:
-            p = load_profile(pid)
-            origin = origin_map.get(pid) or {}
-            items.append({
-                "id": p.id,
-                "display_name": p.display_name,
-                "arch": p.arch.value,
-                "source": origin.get("source"),
-                "source_path": origin.get("source_path"),
-                "source_repo_url": origin.get("source_repo_url"),
-                "source_repo_owner": origin.get("source_repo_owner"),
-            })
-        console.print_json(json.dumps(items))
-        return
-
-    table = Table(title="Hardware Profiles")
-    table.add_column("ID", style="cyan")
-    table.add_column("Display Name")
-    table.add_column("Source")
-    table.add_column("Arch")
-    for pid in ids:
-        p = load_profile(pid)
-        origin = origin_map.get(pid) or {}
-        source = str(origin.get("source") or "local")
-        owner = str(origin.get("source_repo_owner") or "").strip()
-        source_label = f"{source} ({owner})" if source == "remote" and owner else source
-        table.add_row(p.id, p.display_name, source_label, p.arch.value)
-    console.print(table)
-
-
-@list_app.command("stacks")
-def list_stacks(
-    verbose: bool = _verbose_option,
-    output_json: bool = _json_option,
-) -> None:
-    """List available stack specs."""
-    _setup(verbose)
-    from stackwarden.config import get_stack_origins, list_stack_ids, load_stack
-
-    ids = list_stack_ids()
-    origin_map = get_stack_origins(ids)
-    if output_json:
-        items = []
-        for sid in ids:
-            s = load_stack(sid)
-            origin = origin_map.get(sid) or {}
-            items.append({
-                "id": s.id, "display_name": s.display_name,
-                "blocks": list(getattr(s, "blocks", []) or []),
-                "source": origin.get("source"),
-                "source_path": origin.get("source_path"),
-                "source_repo_url": origin.get("source_repo_url"),
-                "source_repo_owner": origin.get("source_repo_owner"),
-            })
-        console.print_json(json.dumps(items))
-        return
-
-    table = Table(title="Stack Specs")
-    table.add_column("ID", style="cyan")
-    table.add_column("Display Name")
-    table.add_column("Source")
-    table.add_column("Blocks")
-    for sid in ids:
-        s = load_stack(sid)
-        origin = origin_map.get(sid) or {}
-        source = str(origin.get("source") or "local")
-        owner = str(origin.get("source_repo_owner") or "").strip()
-        source_label = f"{source} ({owner})" if source == "remote" and owner else source
-        table.add_row(s.id, s.display_name, source_label, str(len(getattr(s, "blocks", []) or [])))
-    console.print(table)
-
-
-@list_app.command("blocks")
-def list_blocks(
-    verbose: bool = _verbose_option,
-    output_json: bool = _json_option,
-) -> None:
-    """List available stack blocks."""
-    _setup(verbose)
-    from stackwarden.config import get_block_origins, list_block_ids, load_block
-
-    ids = list_block_ids()
-    origin_map = get_block_origins(ids)
-    if output_json:
-        items = []
-        for bid in ids:
-            b = load_block(bid)
-            origin = origin_map.get(bid) or {}
-            items.append({
-                "id": b.id,
-                "display_name": b.display_name,
-                "tags": b.tags,
-                "source": origin.get("source"),
-                "source_path": origin.get("source_path"),
-                "source_repo_url": origin.get("source_repo_url"),
-                "source_repo_owner": origin.get("source_repo_owner"),
-            })
-        console.print_json(json.dumps(items))
-        return
-
-    table = Table(title="Stack Blocks")
-    table.add_column("ID", style="cyan")
-    table.add_column("Display Name")
-    table.add_column("Source")
-    table.add_column("Tags")
-    for bid in ids:
-        b = load_block(bid)
-        origin = origin_map.get(bid) or {}
-        source = str(origin.get("source") or "local")
-        owner = str(origin.get("source_repo_owner") or "").strip()
-        source_label = f"{source} ({owner})" if source == "remote" and owner else source
-        table.add_row(b.id, b.display_name, source_label, ", ".join(b.tags))
-    console.print(table)
-
+list_profiles, list_stacks, list_blocks = register_list_commands(
+    list_app,
+    verbose_option=_verbose_option,
+    json_option=_json_option,
+    setup_fn=setup_cli,
+    console=console,
+)
 
 # ---------------------------------------------------------------------------
 # entity-first commands
@@ -323,22 +185,18 @@ def profiles_list_cmd(
 
 
 @profiles_app.command("show")
+@with_cli_errors(console)
 def profiles_show_cmd(
     id: str = typer.Option(..., "--id", help="Profile ID"),
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
     """Show profile details."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.config import load_profile
     from stackwarden.web.util.write_yaml import serialize_for_yaml
 
-    try:
-        profile = load_profile(id)
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
-
+    profile = load_profile(id)
     data = serialize_for_yaml(profile)
     if output_json:
         console.print_json(json.dumps(data, indent=2))
@@ -356,24 +214,20 @@ def profiles_show_cmd(
 
 
 @profiles_app.command("create")
+@with_cli_errors(console)
 def profiles_create_cmd(
     file: str = typer.Option(..., "--file", "-f", help="Profile YAML file to create from"),
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
     """Create a profile from a YAML file."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.application.create_flows import create_profile
     from stackwarden.web.schemas import ProfileCreateRequest
 
-    try:
-        raw = _load_yaml_file(file)
-        req = ProfileCreateRequest.model_validate(raw)
-        target = create_profile(req)
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
-
+    raw = load_yaml_file(file)
+    req = ProfileCreateRequest.model_validate(raw)
+    target = create_profile(req)
     if output_json:
         console.print_json(json.dumps({"id": req.id, "path": str(target)}, indent=2))
         return
@@ -382,6 +236,7 @@ def profiles_create_cmd(
 
 
 @profiles_app.command("edit")
+@with_cli_errors(console)
 def profiles_edit_cmd(
     id: str = typer.Option(..., "--id", help="Profile ID to edit"),
     file: str | None = typer.Option(None, "--file", "-f", help="Optional YAML file to apply"),
@@ -389,21 +244,16 @@ def profiles_edit_cmd(
     output_json: bool = _json_option,
 ) -> None:
     """Edit an existing profile from file or $EDITOR."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.application.create_flows import update_profile
     from stackwarden.config import load_profile
     from stackwarden.web.schemas import ProfileCreateRequest
     from stackwarden.web.util.write_yaml import serialize_for_yaml
 
-    try:
-        original = load_profile(id)
-        raw = _load_yaml_file(file) if file else _edit_yaml_via_editor(serialize_for_yaml(original))
-        req = ProfileCreateRequest.model_validate(raw)
-        target = update_profile(id, req)
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
-
+    original = load_profile(id)
+    raw = load_yaml_file(file) if file else edit_yaml_via_editor(serialize_for_yaml(original))
+    req = ProfileCreateRequest.model_validate(raw)
+    target = update_profile(id, req)
     if output_json:
         console.print_json(json.dumps({"id": id, "path": str(target)}, indent=2))
         return
@@ -411,19 +261,16 @@ def profiles_edit_cmd(
 
 
 @profiles_app.command("detect")
+@with_cli_errors(console)
 def profiles_detect_cmd(
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
     """Detect profile hints on the current server host."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.web.services.host_detection import detect_server_hints
 
-    try:
-        hints = detect_server_hints()
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
+    hints = detect_server_hints()
     data = hints.model_dump(mode="json")
     if output_json:
         console.print_json(json.dumps(data, indent=2))
@@ -438,6 +285,7 @@ def profiles_detect_cmd(
 
 
 @profiles_app.command("wizard")
+@with_cli_errors(console)
 def profiles_wizard_cmd(
     id: str | None = typer.Option(None, "--id", help="Profile id override"),
     display_name: str | None = typer.Option(None, "--display-name", help="Profile display name override"),
@@ -451,25 +299,20 @@ def profiles_wizard_cmd(
     output_json: bool = _json_option,
 ) -> None:
     """Guided profile wizard with constrained inputs."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.ui.wizard_entities import run_profile_create_wizard
 
-    try:
-        result = run_profile_create_wizard(
-            profile_id=id,
-            display_name=display_name,
-            arch=arch,
-            container_runtime=container_runtime,
-            non_interactive=non_interactive,
-            dry_run=dry_run,
-            yes=yes,
-            output=output,
-            console=console,
-        )
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
-
+    result = run_profile_create_wizard(
+        profile_id=id,
+        display_name=display_name,
+        arch=arch,
+        container_runtime=container_runtime,
+        non_interactive=non_interactive,
+        dry_run=dry_run,
+        yes=yes,
+        output=output,
+        console=console,
+    )
     if output_json:
         console.print_json(result.model_dump_json(indent=2))
         return
@@ -497,21 +340,18 @@ def stacks_list_cmd(
 
 
 @stacks_app.command("show")
+@with_cli_errors(console)
 def stacks_show_cmd(
     id: str = typer.Option(..., "--id", help="Stack ID"),
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
     """Show stack details."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.config import load_stack
     from stackwarden.web.util.write_yaml import serialize_for_yaml
 
-    try:
-        stack = load_stack(id)
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
+    stack = load_stack(id)
     data = serialize_for_yaml(stack)
     if output_json:
         console.print_json(json.dumps(data, indent=2))
@@ -522,25 +362,21 @@ def stacks_show_cmd(
 
 
 @stacks_app.command("create")
+@with_cli_errors(console)
 def stacks_create_cmd(
     file: str = typer.Option(..., "--file", "-f", help="Stack YAML file to create from"),
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
     """Create a stack from a YAML file."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.application.create_flows import create_stack
     from stackwarden.web.schemas import StackCreateRequest
 
-    try:
-        raw = _load_yaml_file(file)
-        req = StackCreateRequest.model_validate(raw)
-        target = create_stack(req)
-        stack_id = req.id
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
-
+    raw = load_yaml_file(file)
+    req = StackCreateRequest.model_validate(raw)
+    target = create_stack(req)
+    stack_id = req.id
     if output_json:
         console.print_json(json.dumps({"id": stack_id, "path": str(target)}, indent=2))
         return
@@ -549,6 +385,7 @@ def stacks_create_cmd(
 
 
 @stacks_app.command("edit")
+@with_cli_errors(console)
 def stacks_edit_cmd(
     id: str = typer.Option(..., "--id", help="Stack ID to edit"),
     file: str | None = typer.Option(None, "--file", "-f", help="Optional YAML file to apply"),
@@ -556,21 +393,16 @@ def stacks_edit_cmd(
     output_json: bool = _json_option,
 ) -> None:
     """Edit an existing stack from file or $EDITOR."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.application.create_flows import update_stack
     from stackwarden.config import load_stack
     from stackwarden.web.schemas import StackCreateRequest
     from stackwarden.web.util.write_yaml import serialize_for_yaml
 
-    try:
-        original = load_stack(id)
-        raw = _load_yaml_file(file) if file else _edit_yaml_via_editor(serialize_for_yaml(original))
-        req = StackCreateRequest.model_validate(raw)
-        target = update_stack(id, req)
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
-
+    original = load_stack(id)
+    raw = load_yaml_file(file) if file else edit_yaml_via_editor(serialize_for_yaml(original))
+    req = StackCreateRequest.model_validate(raw)
+    target = update_stack(id, req)
     if output_json:
         console.print_json(json.dumps({"id": id, "path": str(target)}, indent=2))
         return
@@ -578,6 +410,7 @@ def stacks_edit_cmd(
 
 
 @stacks_app.command("wizard")
+@with_cli_errors(console)
 def stacks_wizard_cmd(
     id: str | None = typer.Option(None, "--id", help="Stack id override"),
     display_name: str | None = typer.Option(None, "--display-name", help="Stack display name override"),
@@ -592,26 +425,21 @@ def stacks_wizard_cmd(
     output_json: bool = _json_option,
 ) -> None:
     """Guided stack wizard with explicit build strategy step."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.ui.wizard_entities import run_stack_create_wizard
 
-    try:
-        result = run_stack_create_wizard(
-            stack_id=id,
-            display_name=display_name,
-            target_profile_id=target_profile,
-            build_strategy=build_strategy,
-            blocks=block,
-            non_interactive=non_interactive,
-            dry_run=dry_run,
-            yes=yes,
-            output=output,
-            console=console,
-        )
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
-
+    result = run_stack_create_wizard(
+        stack_id=id,
+        display_name=display_name,
+        target_profile_id=target_profile,
+        build_strategy=build_strategy,
+        blocks=block,
+        non_interactive=non_interactive,
+        dry_run=dry_run,
+        yes=yes,
+        output=output,
+        console=console,
+    )
     if output_json:
         console.print_json(result.model_dump_json(indent=2))
         return
@@ -629,34 +457,29 @@ def stacks_wizard_cmd(
 
 
 @stacks_app.command("delete")
+@with_cli_errors(console)
 def stacks_delete_cmd(
     id: str = typer.Argument(..., help="Stack ID to delete"),
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
     """Delete a stack by ID."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.config import get_stacks_dir
 
-    try:
-        stacks_dir = get_stacks_dir()
-        target = (stacks_dir / f"{id}.yaml").resolve()
-        if not target.is_relative_to(stacks_dir.resolve()):
-            console.print(f"[red]Error:[/red] Invalid stack id: {id}")
-            raise typer.Exit(1)
-        if not target.exists():
-            console.print(f"[red]Error:[/red] Stack not found: {id}")
-            raise typer.Exit(1)
-        target.unlink()
-        if output_json:
-            console.print_json(json.dumps({"deleted": True, "id": id}))
-        else:
-            console.print(f"[green]Deleted stack:[/green] {id}")
-    except typer.Exit:
-        raise
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
+    stacks_dir = get_stacks_dir()
+    target = (stacks_dir / f"{id}.yaml").resolve()
+    if not target.is_relative_to(stacks_dir.resolve()):
+        console.print(f"[red]Error:[/red] Invalid stack id: {id}")
+        raise typer.Exit(1)
+    if not target.exists():
+        console.print(f"[red]Error:[/red] Stack not found: {id}")
+        raise typer.Exit(1)
+    target.unlink()
+    if output_json:
+        console.print_json(json.dumps({"deleted": True, "id": id}))
+    else:
+        console.print(f"[green]Deleted stack:[/green] {id}")
 
 
 @blocks_app.command("list")
@@ -670,21 +493,18 @@ def blocks_list_cmd(
 
 
 @blocks_app.command("show")
+@with_cli_errors(console)
 def blocks_show_cmd(
     id: str = typer.Option(..., "--id", help="Block ID"),
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
     """Show block details."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.config import load_block
     from stackwarden.web.util.write_yaml import serialize_for_yaml
 
-    try:
-        block = load_block(id)
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
+    block = load_block(id)
     data = serialize_for_yaml(block)
     if output_json:
         console.print_json(json.dumps(data, indent=2))
@@ -694,24 +514,20 @@ def blocks_show_cmd(
 
 
 @blocks_app.command("create")
+@with_cli_errors(console)
 def blocks_create_cmd(
     file: str = typer.Option(..., "--file", "-f", help="Block YAML file to create from"),
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
     """Create a block from a YAML file."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.application.create_flows import create_block
     from stackwarden.web.schemas import BlockCreateRequest
 
-    try:
-        raw = _normalize_legacy_block_payload(_load_yaml_file(file))
-        req = BlockCreateRequest.model_validate(raw)
-        target = create_block(req)
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
-
+    raw = _normalize_legacy_block_payload(load_yaml_file(file))
+    req = BlockCreateRequest.model_validate(raw)
+    target = create_block(req)
     if output_json:
         console.print_json(json.dumps({"id": req.id, "path": str(target)}, indent=2))
         return
@@ -720,6 +536,7 @@ def blocks_create_cmd(
 
 
 @blocks_app.command("edit")
+@with_cli_errors(console)
 def blocks_edit_cmd(
     id: str = typer.Option(..., "--id", help="Block ID to edit"),
     file: str | None = typer.Option(None, "--file", "-f", help="Optional YAML file to apply"),
@@ -727,22 +544,17 @@ def blocks_edit_cmd(
     output_json: bool = _json_option,
 ) -> None:
     """Edit an existing block from file or $EDITOR."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.application.create_flows import update_block
     from stackwarden.config import load_block
     from stackwarden.web.schemas import BlockCreateRequest
     from stackwarden.web.util.write_yaml import serialize_for_yaml
 
-    try:
-        original = load_block(id)
-        raw = _load_yaml_file(file) if file else _edit_yaml_via_editor(serialize_for_yaml(original))
-        raw = _normalize_legacy_block_payload(raw)
-        req = BlockCreateRequest.model_validate(raw)
-        target = update_block(id, req)
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
-
+    original = load_block(id)
+    raw = load_yaml_file(file) if file else edit_yaml_via_editor(serialize_for_yaml(original))
+    raw = _normalize_legacy_block_payload(raw)
+    req = BlockCreateRequest.model_validate(raw)
+    target = update_block(id, req)
     if output_json:
         console.print_json(json.dumps({"id": id, "path": str(target)}, indent=2))
         return
@@ -750,6 +562,7 @@ def blocks_edit_cmd(
 
 
 @blocks_app.command("wizard")
+@with_cli_errors(console)
 def blocks_wizard_cmd(
     id: str | None = typer.Option(None, "--id", help="Block id override"),
     display_name: str | None = typer.Option(None, "--display-name", help="Block display name override"),
@@ -767,29 +580,24 @@ def blocks_wizard_cmd(
     output_json: bool = _json_option,
 ) -> None:
     """Guided block wizard with preset/runtime/review flow."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.ui.wizard_entities import run_block_create_wizard
 
-    try:
-        result = run_block_create_wizard(
-            block_id=id,
-            display_name=display_name,
-            preset_id=preset,
-            profile_mode=profile_mode,  # type: ignore[arg-type]
-            build_strategy=build_strategy,
-            requirements_file=requirements_file,
-            package_json_file=package_json_file,
-            apt_file=apt_file,
-            non_interactive=non_interactive,
-            dry_run=dry_run,
-            yes=yes,
-            output=output,
-            console=console,
-        )
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
-
+    result = run_block_create_wizard(
+        block_id=id,
+        display_name=display_name,
+        preset_id=preset,
+        profile_mode=profile_mode,  # type: ignore[arg-type]
+        build_strategy=build_strategy,
+        requirements_file=requirements_file,
+        package_json_file=package_json_file,
+        apt_file=apt_file,
+        non_interactive=non_interactive,
+        dry_run=dry_run,
+        yes=yes,
+        output=output,
+        console=console,
+    )
     if output_json:
         console.print_json(result.model_dump_json(indent=2))
         return
@@ -810,6 +618,7 @@ def blocks_wizard_cmd(
 # ---------------------------------------------------------------------------
 
 @app.command()
+@with_cli_errors(console)
 def plan(
     profile: str = typer.Option(..., "--profile", "-p", help="Hardware profile ID"),
     stack: str = typer.Option(..., "--stack", "-s", help="Stack spec ID"),
@@ -818,25 +627,20 @@ def plan(
     output_json: bool = _json_option,
 ) -> None:
     """Resolve a plan for the given profile + stack."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.config import compatibility_strict_default, load_block, load_profile, load_stack
     from stackwarden.resolvers.resolver import resolve
 
-    try:
-        p = load_profile(profile)
-        s = load_stack(stack)
-        blocks = [load_block(block_id) for block_id in (s.blocks or [])]
-        result = resolve(
-            p,
-            s,
-            blocks=blocks,
-            explain=explain,
-            strict_mode=compatibility_strict_default(),
-        )
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
-
+    p = load_profile(profile)
+    s = load_stack(stack)
+    blocks = [load_block(block_id) for block_id in (s.blocks or [])]
+    result = resolve(
+        p,
+        s,
+        blocks=blocks,
+        explain=explain,
+        strict_mode=compatibility_strict_default(),
+    )
     if output_json:
         console.print_json(json.dumps(result.to_json(), indent=2))
         return
@@ -872,6 +676,7 @@ def plan(
 # ---------------------------------------------------------------------------
 
 @app.command("check")
+@with_cli_errors(console)
 def check_cmd(
     profile: str = typer.Option(..., "--profile", "-p", help="Hardware profile ID"),
     stack: str = typer.Option(..., "--stack", "-s", help="Stack spec ID"),
@@ -880,25 +685,20 @@ def check_cmd(
     strict: Optional[bool] = typer.Option(
         None,
         "--strict/--no-strict",
-        help="Override strict compatibility mode (defaults to STACKWARDEN_COMPAT_STRICT).",
+        help="Override strict compatibility. Default from STACKWARDEN_COMPAT_STRICT env.",
     ),
 ) -> None:
     """Validate compatibility for profile + stack without building."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.config import compatibility_strict_default, load_block, load_profile, load_stack
     from stackwarden.resolvers.compatibility import evaluate_compatibility
 
     strict_mode = compatibility_strict_default() if strict is None else strict
 
-    try:
-        p = load_profile(profile)
-        s = load_stack(stack)
-        blocks = [load_block(block_id) for block_id in (s.blocks or [])]
-        report = evaluate_compatibility(p, s, blocks=blocks, strict_mode=strict_mode)
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
-
+    p = load_profile(profile)
+    s = load_stack(stack)
+    blocks = [load_block(block_id) for block_id in (s.blocks or [])]
+    report = evaluate_compatibility(p, s, blocks=blocks, strict_mode=strict_mode)
     if output_json:
         console.print_json(json.dumps(report.model_dump(mode="json"), indent=2))
     else:
@@ -930,12 +730,12 @@ def ensure(
     ),
     no_hooks: bool = typer.Option(False, "--no-hooks", help="Skip post-build validation hooks"),
     explain: bool = typer.Option(False, "--explain", help="Show detailed decision rationale"),
-    var: Optional[list[str]] = typer.Option(None, "--var", help="Variant override key=value"),
+    var: Optional[list[str]] = _var_option,
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
     """Ensure the image for profile + stack exists (build/pull if needed)."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.domain.ensure import ensure_internal
     from stackwarden.domain.variants import parse_variants
 
@@ -993,13 +793,13 @@ def ensure(
                     )
                 else:
                     console.print(f"[red]Error:[/red] {exc}")
-                    raise typer.Exit(_exit_code_for(exc))
+                    raise typer.Exit(exit_code_for(exc))
             else:
                 console.print(f"[red]Error:[/red] {exc}")
-                raise typer.Exit(_exit_code_for(exc))
+                raise typer.Exit(exit_code_for(exc))
         else:
             console.print(f"[red]Error:[/red] {exc}")
-            raise typer.Exit(_exit_code_for(exc))
+            raise typer.Exit(exit_code_for(exc))
 
     if explain and result.decision.rationale:
         _print_rationale(result.decision.rationale)
@@ -1021,33 +821,33 @@ def ensure(
 # ---------------------------------------------------------------------------
 
 @app.command()
+@with_cli_errors(console)
 def verify(
     tag_or_id: str = typer.Argument(help="Image tag, artifact fingerprint, or artifact ID"),
-    strict: bool = typer.Option(False, "--strict", help="Treat missing snapshots as errors"),
+    strict: bool = typer.Option(
+        False,
+        "--strict",
+        help="Treat missing snapshots as errors (default: warn only)",
+    ),
     fix: bool = typer.Option(False, "--fix", help="Mark stale on mismatch (no rebuild)"),
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
     """Verify that an artifact is valid and matches its recorded identity."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.domain.verify import verify_artifact, apply_fix
     from stackwarden.runtime.docker_client import DockerClient
     from stackwarden.catalog.store import CatalogStore
 
-    try:
-        docker = DockerClient()
-        catalog = _get_catalog()
+    docker = DockerClient()
+    catalog = get_catalog()
 
-        report = verify_artifact(tag_or_id, docker, catalog, strict=strict)
+    report = verify_artifact(tag_or_id, docker, catalog, strict=strict)
 
-        if fix and not report.ok:
-            actions = apply_fix(tag_or_id, report, catalog)
-            for a in actions:
-                console.print(f"[yellow]Fix:[/yellow] {a}")
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
-
+    if fix and not report.ok:
+        actions = apply_fix(tag_or_id, report, catalog)
+        for a in actions:
+            console.print(f"[yellow]Fix:[/yellow] {a}")
     if output_json:
         console.print_json(report.model_dump_json(indent=2))
         if not report.ok:
@@ -1081,25 +881,22 @@ def verify(
 # ---------------------------------------------------------------------------
 
 @app.command("inspect")
+@with_cli_errors(console)
 def inspect_cmd(
     tag: str = typer.Argument(help="Image tag to inspect"),
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
     """Inspect a container image and show StackWarden metadata."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.runtime.docker_client import DockerClient
     from stackwarden.runtime.inspect import format_image_info
     from stackwarden.catalog.store import CatalogStore
 
-    try:
-        docker = DockerClient()
-        attrs = docker.inspect_image(tag)
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
+    docker = DockerClient()
+    attrs = docker.inspect_image(tag)
 
-    catalog = _get_catalog()
+    catalog = get_catalog()
     cat_record = catalog.get_artifact_by_tag(tag)
     cat_dict = cat_record.model_dump(mode="json") if cat_record else None
 
@@ -1140,21 +937,17 @@ def inspect_cmd(
 
 
 @app.command("inspect-block")
+@with_cli_errors(console)
 def inspect_block_cmd(
     block_id: str = typer.Option(..., "--id", help="Block ID to inspect"),
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
     """Inspect a block definition."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.config import load_block
 
-    try:
-        block = load_block(block_id)
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
-
+    block = load_block(block_id)
     data = block.model_dump(mode="json", by_alias=True)
     if output_json:
         console.print_json(json.dumps(data, indent=2))
@@ -1175,21 +968,17 @@ def inspect_block_cmd(
 
 
 @app.command("compose")
+@with_cli_errors(console)
 def compose_cmd(
     stack: str = typer.Option(..., "--stack", "-s", help="Stack spec ID"),
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
     """Render a resolved stack spec from block-recipe composition."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.config import load_stack
 
-    try:
-        resolved = load_stack(stack)
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
-
+    resolved = load_stack(stack)
     data = resolved.model_dump(mode="json", by_alias=True)
     if output_json:
         console.print_json(json.dumps(data, indent=2))
@@ -1210,17 +999,18 @@ def compose_cmd(
 # ---------------------------------------------------------------------------
 
 @app.command("manifest")
+@with_cli_errors(console)
 def manifest_cmd(
     tag: str = typer.Argument(help="Image tag or artifact fingerprint"),
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
     """Display the stored manifest for a built artifact."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.catalog.store import CatalogStore
     from stackwarden.domain.manifest import load_manifest
 
-    catalog = _get_catalog()
+    catalog = get_catalog()
     record = (
         catalog.get_artifact_by_tag(tag)
         or catalog.get_artifact_by_fingerprint(tag)
@@ -1231,12 +1021,7 @@ def manifest_cmd(
         console.print("[red]No manifest found for this artifact.[/red]")
         raise typer.Exit(1)
 
-    try:
-        manifest = load_manifest(record.fingerprint)
-    except Exception as exc:
-        console.print(f"[red]Error loading manifest:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
-
+    manifest = load_manifest(record.fingerprint)
     if output_json:
         console.print_json(manifest.model_dump_json(indent=2))
         return
@@ -1266,13 +1051,14 @@ def manifest_cmd(
 # ---------------------------------------------------------------------------
 
 @app.command("repro")
+@with_cli_errors(console)
 def repro_cmd(
     artifact_id: str = typer.Argument(help="Artifact ID or fingerprint to reproduce"),
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
     """Reproduce a build from its stored manifest with pinned dependencies."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.config import compatibility_strict_default, load_profile, load_stack
     from stackwarden.resolvers.resolver import resolve
     from stackwarden.runtime.docker_client import DockerClient
@@ -1281,7 +1067,7 @@ def repro_cmd(
     from stackwarden.domain.manifest import load_manifest
     from stackwarden.domain.repro import repro_stack_from_manifest
 
-    catalog = _get_catalog()
+    catalog = get_catalog()
     record = (
         catalog.get_artifact_by_id(artifact_id)
         or catalog.get_artifact_by_fingerprint(artifact_id)
@@ -1290,29 +1076,24 @@ def repro_cmd(
         console.print("[red]No manifest found for this artifact.[/red]")
         raise typer.Exit(1)
 
-    try:
-        manifest = load_manifest(record.fingerprint)
-        p = load_profile(manifest.profile_id)
-        original_stack = load_stack(manifest.stack_id)
-        pinned_stack = repro_stack_from_manifest(manifest, original_stack)
+    manifest = load_manifest(record.fingerprint)
+    p = load_profile(manifest.profile_id)
+    original_stack = load_stack(manifest.stack_id)
+    pinned_stack = repro_stack_from_manifest(manifest, original_stack)
 
-        docker = DockerClient()
-        variants = manifest.variant_overrides or {}
-        result = resolve(
-            p,
-            pinned_stack,
-            variants=variants,
-            strict_mode=compatibility_strict_default(),
-        )
+    docker = DockerClient()
+    variants = manifest.variant_overrides or {}
+    result = resolve(
+        p,
+        pinned_stack,
+        variants=variants,
+        strict_mode=compatibility_strict_default(),
+    )
 
-        catalog.upsert_profile(p)
-        catalog.upsert_stack(pinned_stack)
+    catalog.upsert_profile(p)
+    catalog.upsert_stack(pinned_stack)
 
-        new_record = execute_plan(result, p, pinned_stack, docker, catalog, rebuild=True)
-    except Exception as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
-
+    new_record = execute_plan(result, p, pinned_stack, docker, catalog, rebuild=True)
     if output_json:
         console.print_json(json.dumps(new_record.model_dump(mode="json"), indent=2, default=str))
         return
@@ -1336,10 +1117,10 @@ def catalog_search(
     output_json: bool = _json_option,
 ) -> None:
     """Search the artifact catalog."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.catalog.store import CatalogStore
 
-    catalog = _get_catalog()
+    catalog = get_catalog()
     records = catalog.search_artifacts(profile_id=profile, stack_id=stack, status=status)
 
     if output_json:
@@ -1384,7 +1165,7 @@ def catalog_build(
     immutable: bool = typer.Option(False, "--immutable", help="Fail on drift"),
     no_hooks: bool = typer.Option(False, "--no-hooks", help="Skip post-build hooks"),
     explain: bool = typer.Option(False, "--explain", help="Show rationale"),
-    var: Optional[list[str]] = typer.Option(None, "--var", help="Variant override key=value"),
+    var: Optional[list[str]] = _var_option,
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
@@ -1411,10 +1192,10 @@ def catalog_show(
     output_json: bool = _json_option,
 ) -> None:
     """Show details for a catalog artifact."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.catalog.store import CatalogStore
 
-    catalog = _get_catalog()
+    catalog = get_catalog()
     record = catalog.get_artifact_by_id(artifact_id)
 
     if not record:
@@ -1451,10 +1232,10 @@ def catalog_stale(
     output_json: bool = _json_option,
 ) -> None:
     """List stale artifacts."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.catalog.store import CatalogStore
 
-    catalog = _get_catalog()
+    catalog = get_catalog()
     records = catalog.search_artifacts(status="stale")
 
     if output_json:
@@ -1491,11 +1272,11 @@ def catalog_prune(
     verbose: bool = _verbose_option,
 ) -> None:
     """Remove failed and stale artifacts from the catalog."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.catalog.store import CatalogStore
     from stackwarden.domain.enums import ArtifactStatus
 
-    catalog = _get_catalog()
+    catalog = get_catalog()
     failed = catalog.prune_by_status(ArtifactStatus.FAILED)
     stale = catalog.prune_by_status(ArtifactStatus.STALE)
     console.print(f"Pruned {failed} failed + {stale} stale artifacts.")
@@ -1507,11 +1288,11 @@ def catalog_disk_usage(
     output_json: bool = _json_option,
 ) -> None:
     """Report disk usage per profile, stack, and artifact."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.catalog.store import CatalogStore
     from stackwarden.runtime.docker_client import DockerClient
 
-    catalog = _get_catalog()
+    catalog = get_catalog()
     records = catalog.search_artifacts(status="built")
 
     try:
@@ -1575,6 +1356,7 @@ def catalog_disk_usage(
 # ---------------------------------------------------------------------------
 
 @app.command("sbom")
+@with_cli_errors(console)
 def sbom_cmd(
     tag: str = typer.Argument(help="Image tag to generate SBOM for"),
     fmt: str = typer.Option("spdx-json", "--format", "-f", help="SBOM format"),
@@ -1582,24 +1364,19 @@ def sbom_cmd(
     output_json: bool = _json_option,
 ) -> None:
     """Export an SBOM for a built artifact."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.catalog.store import CatalogStore
     from stackwarden.runtime.sbom import export_sbom
 
-    catalog = _get_catalog()
+    catalog = get_catalog()
     record = catalog.get_artifact_by_tag(tag)
     if not record:
         console.print("[red]Artifact not found in catalog.[/red]")
         raise typer.Exit(1)
 
-    try:
-        path = export_sbom(tag, record.fingerprint, output_format=fmt)
-        record.sbom_path = str(path)
-        catalog.update_artifact(record)
-    except Exception as exc:
-        console.print(f"[red]SBOM generation failed:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
-
+    path = export_sbom(tag, record.fingerprint, output_format=fmt)
+    record.sbom_path = str(path)
+    catalog.update_artifact(record)
     if output_json:
         console.print_json(json.dumps({"sbom_path": str(path), "tag": tag}))
         return
@@ -1617,9 +1394,9 @@ def status(
     output_json: bool = _json_option,
 ) -> None:
     """Show a summary of the artifact catalog."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
 
-    catalog = _get_catalog()
+    catalog = get_catalog()
     all_records = catalog.search_artifacts()
 
     built = [r for r in all_records if r.status.value == "built"]
@@ -1684,7 +1461,7 @@ def prune_cmd(
     output_json: bool = _json_option,
 ) -> None:
     """Prune artifacts from the catalog and optionally remove images."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.catalog.store import CatalogStore
     from stackwarden.domain.enums import ArtifactStatus
 
@@ -1692,7 +1469,7 @@ def prune_cmd(
         stale = True
         failed = True
 
-    catalog = _get_catalog()
+    catalog = get_catalog()
     pruned = 0
     image_remove_failures = 0
 
@@ -1763,7 +1540,7 @@ def doctor(
     verbose: bool = _verbose_option,
 ) -> None:
     """Run environment health checks."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     checks_passed = 0
     checks_failed = 0
 
@@ -1922,7 +1699,7 @@ def migrate_v1_to_v2(
     verbose: bool = _verbose_option,
 ) -> None:
     """Migrate profile/block/stack specs from schema_version=1 to =2."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.config import get_blocks_dir, get_profiles_dir, get_stacks_dir
     from stackwarden.domain.hardware_catalog import load_hardware_catalog
 
@@ -1994,7 +1771,7 @@ def migrate_v1_to_v2(
 
             converted += 1
             if write:
-                _atomic_write_spec(data, path)
+                atomic_write_spec(data, path)
                 console.print(f"[green]migrated[/green] {path}")
             else:
                 console.print(f"[yellow]would migrate[/yellow] {path}")
@@ -2014,7 +1791,7 @@ def init(
     verbose: bool = _verbose_option,
 ) -> None:
     """Initialize StackWarden directories and default configuration."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.paths import (
         get_artifacts_root,
         get_config_root,
@@ -2091,9 +1868,9 @@ def export_run(
     verbose: bool = _verbose_option,
 ) -> None:
     """Print a docker run command for the given artifact."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
 
-    catalog = _get_catalog()
+    catalog = get_catalog()
     record = catalog.get_artifact_by_tag(tag)
     if not record:
         console.print(f"[red]Artifact not found:[/red] {tag}")
@@ -2129,10 +1906,10 @@ def export_compose(
     verbose: bool = _verbose_option,
 ) -> None:
     """Print a docker-compose.yaml snippet for the given artifact."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     import yaml
 
-    catalog = _get_catalog()
+    catalog = get_catalog()
     record = catalog.get_artifact_by_tag(tag)
     if not record:
         console.print(f"[red]Artifact not found:[/red] {tag}")
@@ -2182,7 +1959,7 @@ def wizard(
     run: bool = typer.Option(False, "--run", help="Execute the plan after preview"),
     profile: Optional[str] = typer.Option(None, "--profile", "-p", help="Hardware profile ID"),
     stack: Optional[str] = typer.Option(None, "--stack", "-s", help="Stack spec ID"),
-    var: Optional[list[str]] = typer.Option(None, "--var", help="Variant override key=value"),
+    var: Optional[list[str]] = _var_option,
     defaults: bool = typer.Option(False, "--defaults", help="Accept all defaults without prompting"),
     immutable: bool = typer.Option(False, "--immutable", help="Fail on drift instead of rebuilding"),
     upgrade_base: bool = typer.Option(False, "--upgrade-base", help="Force fresh base pull"),
@@ -2194,7 +1971,7 @@ def wizard(
     verbose: bool = _verbose_option,
 ) -> None:
     """Interactive wizard to select profile, stack, and variants."""
-    _setup(verbose)
+    setup_cli(verbose=verbose)
     from stackwarden.config import AppConfig
     from stackwarden.domain.variants import parse_variants
     from stackwarden.ui.wizard import (
@@ -2228,7 +2005,7 @@ def wizard(
         raise typer.Exit(int(code))
     except Exception as exc:
         console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_exit_code_for(exc))
+        raise typer.Exit(exit_code_for(exc))
 
     if output_json and not run:
         console.print_json(result.model_dump_json(indent=2))
@@ -2275,7 +2052,7 @@ def wizard(
             )
         except Exception as exc:
             console.print(f"[red]Error:[/red] {exc}")
-            raise typer.Exit(_exit_code_for(exc))
+            raise typer.Exit(exit_code_for(exc))
 
         result.executed = True
         result.tag = record.tag
@@ -2296,7 +2073,7 @@ def wizard(
                 from stackwarden.runtime.docker_client import DockerClient
 
                 docker = DockerClient()
-                catalog = _get_catalog()
+                catalog = get_catalog()
                 report = verify_artifact(record.tag, docker, catalog)
                 if report.ok:
                     console.print("[green]PASS[/green] Post-build verification succeeded")
@@ -2326,6 +2103,35 @@ def _print_rationale(rationale) -> None:
 # ---------------------------------------------------------------------------
 # version
 # ---------------------------------------------------------------------------
+
+@app.command("help")
+def help_cmd(
+    topic: Optional[str] = typer.Argument(
+        None,
+        help="Topic: quickstart, env, troubleshooting, or a command name (e.g. ensure, plan)",
+    ),
+) -> None:
+    """Show extended help, examples, environment variables, and links to documentation."""
+    content = get_help_for_topic(topic)
+    if content is not None:
+        console.print(Panel(content.strip(), title="StackWarden Help", border_style="cyan"))
+        return
+    # Topic may be a command name; try to show its help
+    if topic:
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+        result = runner.invoke(app, [topic, "--help"])
+        if result.exit_code == 0:
+            console.print(result.output)
+            return
+        console.print(
+            f"[yellow]Unknown topic or command:[/yellow] {topic}\n"
+            "Try: stackwarden help quickstart | env | troubleshooting"
+        )
+    else:
+        console.print(Panel(get_help_for_topic(None) or HELP_EPILOG, title="StackWarden Help", border_style="cyan"))
+
 
 @app.command()
 def version() -> None:

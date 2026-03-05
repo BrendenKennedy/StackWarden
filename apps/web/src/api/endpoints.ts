@@ -1,13 +1,9 @@
 import { del, get, post, put } from './client'
 import type {
-  BlockDetail,
   BlockSummary,
   ProfileSummary,
-  ProfileDetail,
   StackSummary,
-  StackDetail,
   CatalogItem,
-  ArtifactSummary,
   ArtifactDetail,
   PlanResponse,
   VerifyResponse,
@@ -23,7 +19,6 @@ import type {
   DryRunResponse,
   EnumsMeta,
   CreateContractsResponse,
-  DuplicateRequest,
   BlockCreatePayload,
   ComposePreviewResponse,
   CompatibilityPreviewResponse,
@@ -36,22 +31,15 @@ import type {
 
 export const profiles = {
   list: () => get<ProfileSummary[]>('/profiles'),
-  /** @deprecated Prefer getSpec() for active UI flows. */
-  get: (id: string) => get<ProfileDetail>(`/profiles/${id}`),
   getSpec: (id: string) => get<ProfileCreatePayload>(`/profiles/${id}/spec`),
   create: (payload: ProfileCreatePayload) => post<CreateResponse>('/profiles', payload),
   update: (id: string, payload: ProfileCreatePayload) => put<CreateResponse>(`/profiles/${id}`, payload),
   remove: (id: string) => del<{ deleted: boolean; id: string }>(`/profiles/${id}`),
   dryRun: (payload: ProfileCreatePayload) => post<DryRunResponse>('/profiles/dry-run', payload),
-  /** @deprecated Duplicate flows are not used by current UI surfaces. */
-  duplicate: (profileId: string, payload: DuplicateRequest) =>
-    post<CreateResponse>(`/profiles/${profileId}/duplicate`, payload),
 }
 
 export const stacks = {
   list: () => get<StackSummary[]>('/stacks'),
-  /** @deprecated Prefer getSpec() for active UI flows. */
-  get: (id: string) => get<StackDetail>(`/stacks/${id}`),
   getSpec: (id: string) => get<StackCreatePayload>(`/stacks/${id}/spec`),
   create: (payload: StackCreatePayload) => post<CreateResponse>('/stacks', payload),
   update: (id: string, payload: StackCreatePayload) => put<CreateResponse>(`/stacks/${id}`, payload),
@@ -59,15 +47,10 @@ export const stacks = {
   dryRun: (payload: StackCreatePayload) => post<DryRunResponse>('/stacks/dry-run', payload),
   composePreview: (payload: StackCreatePayload) =>
     post<ComposePreviewResponse>('/stacks/compose', payload),
-  /** @deprecated Duplicate flows are not used by current UI surfaces. */
-  duplicate: (stackId: string, payload: DuplicateRequest) =>
-    post<CreateResponse>(`/stacks/${stackId}/duplicate`, payload),
 }
 
 export const blocks = {
   list: () => get<BlockSummary[]>('/blocks'),
-  /** @deprecated Prefer getSpec() for active UI flows. */
-  get: (id: string) => get<BlockDetail>(`/blocks/${id}`),
   getSpec: (id: string) => get<BlockCreatePayload>(`/blocks/${id}/spec`),
   create: (payload: BlockCreatePayload) => post<CreateResponse>('/blocks', payload),
   update: (id: string, payload: BlockCreatePayload) => put<CreateResponse>(`/blocks/${id}`, payload),
@@ -87,16 +70,6 @@ export const catalog = {
 }
 
 export const artifacts = {
-  /** @deprecated Use catalog.items for listing in current UI surfaces. */
-  list: (params?: {
-    profile_id?: string
-    stack_id?: string
-    status?: string
-    q?: string
-    limit?: string
-    offset?: string
-  }) => get<ArtifactSummary[]>('/artifacts', params),
-
   get: (id: string) => get<ArtifactDetail>(`/artifacts/${id}`),
 
   getFile: (id: string, name: string) =>
@@ -133,8 +106,6 @@ export const jobs = {
     get<JobSummary[]>('/jobs', limit ? { limit: String(limit) } : undefined),
 
   get: (id: string) => get<JobDetail>(`/jobs/${id}`),
-  /** @deprecated Cancel is not wired in current UI surfaces. */
-  cancel: (id: string) => post<{ canceled: boolean; job_id: string }>(`/jobs/${id}/cancel`),
 
   getCompatibilityFix: (id: string) =>
     get<CompatibilityFix>(`/jobs/${id}/compatibility-fix`),
@@ -162,13 +133,7 @@ export const system = {
 export const settings = {
   hardwareCatalogs: () => get<HardwareCatalog>('/settings/hardware-catalogs'),
   blockCatalog: () => get<BlockPresetCatalog>('/settings/block-catalog'),
-  /** @deprecated Not used in current UI settings flow. */
   tupleCatalog: () => get<TupleCatalog>('/settings/tuple-catalog'),
-  /** @deprecated Not used in current UI settings flow. */
-  upsertHardwareCatalogItem: (
-    catalog: string,
-    body: { expected_revision?: number | null; catalog: string; item: HardwareCatalogItem },
-  ) => post<HardwareCatalog>(`/settings/hardware-catalogs/${catalog}`, body),
   updateConfig: (
     body: SettingsConfigUpdatePayload,
     adminToken?: string,

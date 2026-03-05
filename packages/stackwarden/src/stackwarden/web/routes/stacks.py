@@ -18,16 +18,11 @@ from stackwarden.web.schemas import (
     StackDetailDTO,
     StackSummaryDTO,
 )
+from stackwarden.web.util.responses import validation_422
 from stackwarden.web.util.versioning import apply_version_headers, resolve_schema_version
 
 router = APIRouter(tags=["stacks"])
 log = logging.getLogger(__name__)
-
-
-def _validation_422(errors: list[dict[str, str]]):
-    from fastapi.responses import JSONResponse
-
-    return JSONResponse(status_code=422, content={"detail": errors})
 
 
 @router.get("/stacks", response_model=list[StackSummaryDTO])
@@ -70,7 +65,7 @@ async def update_stack(stack_id: str, req: StackCreateRequest):
     try:
         target = app_update_stack(stack_id, req)
     except AppValidationError as exc:
-        return _validation_422(exc.errors)
+        return validation_422(exc.errors)
     except AppNotFoundError as exc:
         raise HTTPException(status_code=404, detail=exc.message)
     return StackCreateResponse(id=stack_id, display_name=req.display_name, path=str(target))

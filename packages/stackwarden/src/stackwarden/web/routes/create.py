@@ -6,7 +6,6 @@ import logging
 import time
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
 
 from stackwarden.application.create_flows import (
     AppConflictError,
@@ -35,14 +34,11 @@ from stackwarden.web.schemas import (
     StackCreateRequest,
     StackCreateResponse,
 )
+from stackwarden.web.util.responses import validation_422
 
 log = logging.getLogger(__name__)
 
 router = APIRouter(tags=["create"])
-
-
-def _validation_422(errors: list[dict[str, str]]):
-    return JSONResponse(status_code=422, content={"detail": errors})
 
 
 def _internal_500(exc: Exception) -> HTTPException:
@@ -105,7 +101,7 @@ async def create_stack(req: StackCreateRequest):
             duration_ms=int((time.perf_counter() - started) * 1000),
             failure_reason="policy_restriction",
         )
-        return _validation_422(exc.errors)
+        return validation_422(exc.errors)
     except AppConflictError as exc:
         _emit_metric(
             "create_result",
@@ -251,7 +247,7 @@ async def create_profile(req: ProfileCreateRequest):
             duration_ms=int((time.perf_counter() - started) * 1000),
             failure_reason="host_mismatch",
         )
-        return _validation_422(exc.errors)
+        return validation_422(exc.errors)
     except AppConflictError as exc:
         _emit_metric(
             "create_result",
@@ -342,7 +338,7 @@ async def create_block(req: BlockCreateRequest):
             failure_reason="policy_restriction",
             runtime_family=(req.build_strategy or "unknown"),
         )
-        return _validation_422(exc.errors)
+        return validation_422(exc.errors)
     except AppConflictError as exc:
         _emit_metric(
             "create_result",
@@ -415,7 +411,7 @@ async def duplicate_stack(stack_id: str, req: DuplicateStackRequest):
     except AppNotFoundError as exc:
         raise HTTPException(status_code=404, detail=exc.message)
     except AppValidationError as exc:
-        return _validation_422(exc.errors)
+        return validation_422(exc.errors)
     except AppConflictError as exc:
         raise HTTPException(status_code=409, detail=exc.message)
     except AppInternalError as exc:
@@ -431,7 +427,7 @@ async def duplicate_profile(profile_id: str, req: DuplicateProfileRequest):
     except AppNotFoundError as exc:
         raise HTTPException(status_code=404, detail=exc.message)
     except AppValidationError as exc:
-        return _validation_422(exc.errors)
+        return validation_422(exc.errors)
     except AppConflictError as exc:
         raise HTTPException(status_code=409, detail=exc.message)
     except AppInternalError as exc:

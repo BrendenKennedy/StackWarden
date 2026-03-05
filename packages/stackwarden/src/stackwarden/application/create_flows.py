@@ -121,6 +121,7 @@ def build_stack_recipe(req: StackCreateRequest) -> StackRecipeSpec:
         schema_version=req.schema_version if hasattr(req, "schema_version") else 1,
         id=req.id,
         display_name=req.display_name,
+        description=req.description or "",
         blocks=req.blocks,
         build_strategy=BuildStrategy(req.build_strategy.lower()) if req.build_strategy else None,
         components=StackComponentsPartial(base_role=req.base_role),
@@ -160,6 +161,7 @@ def build_block(req: BlockCreateRequest) -> BlockSpec:
         schema_version=req.schema_version,
         id=req.id,
         display_name=req.display_name,
+        description=req.description or "",
         tags=req.tags,
         build_strategy=BuildStrategy(req.build_strategy.lower()) if req.build_strategy else None,
         components=StackComponentsPartial(

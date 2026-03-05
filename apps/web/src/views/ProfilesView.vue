@@ -10,21 +10,39 @@
       :rows="tableRows"
       :columns="tableColumns"
       route-base="/profiles"
+      id-key="id"
+      :on-view="handleView"
+      :on-edit="handleEdit"
       :show-delete="true"
       :deleting-id="deletingId"
-      @create="showCreateModal = true"
-      @refresh="fetchProfiles"
-      @delete="deleteProfile"
+      @create="openCreateModal"
+      @refresh="fetchItems"
+      @delete="requestDelete"
+    />
+    <SpecDetailModal
+      :show="showSpecModal"
+      entity="profiles"
+      :id="specModalId"
+      @close="closeSpecModal"
+      @edit="openEditFromView"
+    />
+    <SpecEditModal
+      :show="showEditModal"
+      entity="profiles"
+      :id="editModalId"
+      @close="closeEditModal"
+      @saved="onEditSaved"
     />
     <ProfileCreateFlowModal
       :show="showCreateModal"
-      @cancel="showCreateModal = false"
+      @cancel="closeCreateModal"
       @created="onProfileCreated"
     />
     <ConfirmDeleteModal
       :show="pendingDeleteId !== null"
       :target-id="pendingDeleteId || ''"
       :loading="deletingId !== null"
+      :entity-label="entityLabel"
       @cancel="cancelDelete"
       @confirm="confirmDelete"
     />
@@ -32,13 +50,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import type { ProfileSummary } from '@/api/types'
 import { profiles as profilesApi } from '@/api/endpoints'
 import ProfileCreateFlowModal from '@/components/ProfileCreateFlowModal.vue'
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue'
 import PageEntityTable from '@/components/PageEntityTable.vue'
-import { useEntityListPage } from '@/composables/useEntityListPage'
+import SpecDetailModal from '@/components/SpecDetailModal.vue'
+import SpecEditModal from '@/components/SpecEditModal.vue'
+import { useEntityListPageWithModals } from '@/composables/useEntityListPageWithModals'
 
 const {
   loading,
@@ -46,16 +66,31 @@ const {
   errorMessage,
   deletingId,
   pendingDeleteId,
-  fetchItems: fetchProfiles,
-  requestDelete: deleteProfile,
+  fetchItems,
+  requestDelete,
   cancelDelete,
   confirmDelete,
-} = useEntityListPage<ProfileSummary>({
+  showCreateModal,
+  openCreateModal,
+  closeCreateModal,
+  showSpecModal,
+  specModalId,
+  showEditModal,
+  editModalId,
+  entityLabel,
+  handleView,
+  handleEdit,
+  openEditFromView,
+  closeSpecModal,
+  closeEditModal,
+  onEditSaved,
+} = useEntityListPageWithModals<ProfileSummary>({
+  entity: 'profiles',
   list: () => profilesApi.list(),
   remove: (id) => profilesApi.remove(id),
   getId: (profile) => profile.id,
 })
-const showCreateModal = ref(false)
+
 const tableColumns = [
   { key: 'id', label: 'ID' },
   { key: 'display_name', label: 'Display Name' },
@@ -79,11 +114,10 @@ const tableRows = computed(() =>
   })),
 )
 
-onMounted(fetchProfiles)
+onMounted(fetchItems)
 
 function onProfileCreated() {
-  showCreateModal.value = false
-  fetchProfiles()
+  closeCreateModal()
+  fetchItems()
 }
-
 </script>

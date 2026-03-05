@@ -24,17 +24,12 @@ from stackwarden.web.schemas import (
     ProfileDetailDTO,
     ProfileSummaryDTO,
 )
+from stackwarden.web.util.responses import validation_422
 from stackwarden.web.util.versioning import apply_version_headers, resolve_schema_version
 from stackwarden.web.util.write_yaml import serialize_for_yaml
 
 router = APIRouter(tags=["profiles"])
 log = logging.getLogger(__name__)
-
-
-def _validation_422(errors: list[dict[str, str]]):
-    from fastapi.responses import JSONResponse
-
-    return JSONResponse(status_code=422, content={"detail": errors})
 
 
 @router.get("/profiles", response_model=list[ProfileSummaryDTO])
@@ -94,7 +89,7 @@ async def update_profile(profile_id: str, req: ProfileCreateRequest):
         target = app_update_profile(profile_id, req)
         return ProfileCreateResponse(id=profile_id, display_name=req.display_name, path=str(target))
     except AppValidationError as exc:
-        return _validation_422(exc.errors)
+        return validation_422(exc.errors)
     except AppNotFoundError as exc:
         raise HTTPException(status_code=404, detail=exc.message)
     except HTTPException:

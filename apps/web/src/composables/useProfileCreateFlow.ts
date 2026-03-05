@@ -9,6 +9,7 @@ import type {
 } from '@/api/types'
 import { profiles as profilesApi, meta as metaApi, settings as settingsApi, system as systemApi } from '@/api/endpoints'
 import { ApiError } from '@/api/client'
+import { toUserErrorMessage } from '@/utils/errors'
 import { SPEC_ID_PATTERN } from '@/api/contracts.generated'
 import { useToast } from '@/composables/useToast'
 import { useEntityCreateFlow } from '@/composables/useEntityCreateFlow'
@@ -68,12 +69,6 @@ export function useProfileCreateFlow(options: Options = {}) {
     flow.resetFlowState()
   }
 
-  function unwrapErr(err: unknown): string {
-    if (err instanceof ApiError) return err.detail
-    if (err instanceof Error) return err.message
-    return String(err)
-  }
-
   function syncResolvedIdsFromHints(hints: DetectionHints | null) {
     if (!hints?.resolved_ids) return
     form.os_family_id = hints.resolved_ids.os_family_id || form.os_family_id
@@ -94,7 +89,7 @@ export function useProfileCreateFlow(options: Options = {}) {
       Object.assign(enums, enumData)
       authEnabled.value = sysConfig.auth_enabled
     } catch (e: unknown) {
-      const message = unwrapErr(e)
+      const message = toUserErrorMessage(e)
       backendDisconnected.value = e instanceof ApiError && e.status === 0
       flow.generalError.value = `Failed to load required metadata: ${message}`
       metadataLoaded.value = false
@@ -109,17 +104,17 @@ export function useProfileCreateFlow(options: Options = {}) {
     if (optionalResults[0].status === 'fulfilled') {
       detectionHints.value = optionalResults[0].value
     } else {
-      metadataWarnings.value.push(`detection-hints: ${unwrapErr(optionalResults[0].reason)}`)
+      metadataWarnings.value.push(`detection-hints: ${toUserErrorMessage(optionalResults[0].reason)}`)
     }
     if (optionalResults[1].status === 'fulfilled') {
       createContracts.value = optionalResults[1].value
     } else {
-      metadataWarnings.value.push(`create-contracts: ${unwrapErr(optionalResults[1].reason)}`)
+      metadataWarnings.value.push(`create-contracts: ${toUserErrorMessage(optionalResults[1].reason)}`)
     }
     if (optionalResults[2].status === 'fulfilled') {
       hardwareCatalog.value = optionalResults[2].value
     } else {
-      metadataWarnings.value.push(`hardware-catalogs: ${unwrapErr(optionalResults[2].reason)}`)
+      metadataWarnings.value.push(`hardware-catalogs: ${toUserErrorMessage(optionalResults[2].reason)}`)
     }
     syncResolvedIdsFromHints(detectionHints.value)
 
@@ -142,7 +137,7 @@ export function useProfileCreateFlow(options: Options = {}) {
       showToast('Host detection refreshed', 'success')
       return hints
     } catch (err: unknown) {
-      const msg = unwrapErr(err)
+      const msg = toUserErrorMessage(err)
       metadataWarnings.value = metadataWarnings.value.filter(w => !w.startsWith('detection-hints:'))
       metadataWarnings.value.push(`detection-hints: ${msg}`)
       showToast(`Detection refresh failed: ${msg}`, 'error')

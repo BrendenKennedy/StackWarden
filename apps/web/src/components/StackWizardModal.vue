@@ -13,23 +13,28 @@
           <h3 id="stack-wizard-title">Guided Stack Setup</h3>
           <button class="btn" @click="$emit('cancel')">Close</button>
         </div>
+        <div class="wizard-scroll">
         <p class="wizard-subtitle" aria-live="polite">
           Step {{ step }} of {{ totalSteps }} - {{ stepLabel }}
         </p>
 
         <div v-if="!authEnabled" class="wizard-warning">
-          Auth is disabled. Create operations are unprotected. Set STACKSMITH_WEB_TOKEN to enable authentication.
+          Auth is disabled. Create operations are unprotected. Set STACKWARDEN_WEB_TOKEN to enable authentication.
         </div>
 
         <div v-if="currentStep === 'build_strategy'" class="wizard-step">
           <h4>Build Strategy</h4>
-          <p class="help">
-            Choose how this stack should be assembled. This is independent from layer selection and can be left empty to use defaults.
-          </p>
+          <div class="wizard-detail stack-warning-top-md">
+            <p>Choose how this stack should be assembled. Optional override; empty uses resolver defaults.</p>
+            <ul class="compact-list">
+              <li><strong>pull</strong>: prefer prebuilt artifacts; faster when compatible images exist.</li>
+              <li><strong>overlay</strong>: compose changes on a resolved base; for custom layer composition.</li>
+              <li><strong>default</strong>: resolver chooses from stack/profile context.</li>
+            </ul>
+          </div>
           <div class="dependency-group">
             <div class="dependency-group-header">
               <label class="wizard-label-inline">Strategy</label>
-              <span class="help">Optional override. Empty means resolver/default behavior.</span>
             </div>
             <select v-model="form.build_strategy" name="build_strategy">
               <option value="">Use default strategy</option>
@@ -37,44 +42,23 @@
                 {{ v }} - {{ describeBuildStrategy(v) }}
               </option>
             </select>
-            <p class="help help-gap-sm">
-              Current selection: <strong>{{ form.build_strategy || 'default' }}</strong>
-              <span v-if="form.build_strategy"> - {{ describeBuildStrategy(form.build_strategy) }}</span>
-            </p>
-          </div>
-          <div class="wizard-warning stack-warning-top-md">
-            <strong>How to decide</strong>
-            <ul class="compact-list">
-              <li><strong>pull</strong>: prefer prebuilt/base artifacts; faster startup when compatible images are available.</li>
-              <li><strong>overlay</strong>: compose changes on top of a resolved base; useful when you need custom layer composition.</li>
-              <li><strong>default</strong>: lets resolver choose based on current stack/profile context.</li>
-            </ul>
           </div>
         </div>
 
         <div v-if="currentLayerStep" class="wizard-step">
-          <h4>{{ currentLayerStep.label }}</h4>
-          <p class="help"><strong>Purpose:</strong> {{ currentLayerStep.purpose }}</p>
-          <p class="help help-gap-xs"><strong>When used:</strong> {{ currentLayerStep.whenUsed }}</p>
-          <div
-            v-if="currentLayerStep.id === 'system_runtime_layer'"
-            class="wizard-warning stack-warning-top-md"
-          >
-            This layer is required. Pick a concrete OS/runtime baseline.
+          <div class="wizard-detail stack-warning-top-md">
+            <p><strong>Purpose:</strong> {{ currentLayerStep.purpose }}</p>
+            <p><strong>When used:</strong> {{ currentLayerStep.whenUsed }}</p>
+            <p v-if="currentLayerStep.id === 'system_runtime_layer'">
+              This layer is required. Pick a concrete OS/runtime baseline.
+            </p>
+            <p v-else>Recommendations are guided only. You can skip this layer and continue.</p>
           </div>
-          <p class="help help-gap-md">
-            {{
-              currentLayerStep.id === 'system_runtime_layer'
-                ? 'A concrete system/runtime baseline is required for stack composition.'
-                : 'Recommendations are guided only. You can skip this layer and continue.'
-            }}
-          </p>
           <div
             class="dependency-group"
           >
             <div class="dependency-group-header">
-              <label class="wizard-label-inline">Layer Options</label>
-              <span class="help">{{ currentLayerStep.hint }}</span>
+              <label class="wizard-label-inline">{{ currentLayerStep.label }}</label>
             </div>
             <div class="form-row">
               <select v-model="selectedByLayer[currentLayerStep.id]" class="stack-layer-select">
@@ -129,7 +113,16 @@
               <input type="text" name="display_name" v-model="form.display_name" placeholder="My New Stack" />
             </div>
           </div>
-          <div class="wizard-warning stack-warning-top-lg">
+          <div class="row full">
+            <label>Description</label>
+            <textarea
+              v-model="form.description"
+              name="description"
+              placeholder="What this stack does and why it exists (human-readable)"
+              rows="3"
+            />
+          </div>
+          <div class="wizard-info stack-warning-top-lg">
             <strong>Summary</strong>
             <ul class="compact-list">
               <li>Build strategy: {{ form.build_strategy || 'default' }}</li>
@@ -138,8 +131,8 @@
               <li>Files copied: {{ form.copy_items.length }}</li>
             </ul>
           </div>
-          <div v-if="composing" class="help help-gap-compose">Updating composed runtime preview...</div>
-          <div v-if="dependencyConflicts.length || tupleConflicts.length || runtimeConflicts.length" class="wizard-warning stack-warning-top-70">
+          <div v-if="composing" class="wizard-detail">Updating composed runtime preview...</div>
+          <div v-if="dependencyConflicts.length || tupleConflicts.length || runtimeConflicts.length" class="wizard-error stack-warning-top-70">
             <strong>Compose Conflicts</strong>
             <ul v-if="dependencyConflicts.length" class="compact-list">
               <li v-for="(c, idx) in dependencyConflicts" :key="`dep-${idx}`">
@@ -157,19 +150,16 @@
               </li>
             </ul>
           </div>
-          <div class="dependency-group stack-dependency-top">
-            <div class="dependency-group-header">
-              <label class="wizard-label-inline">Inferred Runtime Output</label>
-            </div>
-            <p class="help">Environment variables: {{ inferredEnv.length }}</p>
+          <div class="wizard-detail stack-dependency-top">
+            <strong>Inferred Runtime Output</strong>
+            <p>Env vars: {{ inferredEnv.length }} · Ports: {{ inferredPorts.length ? inferredPorts.join(', ') : 'none' }} · Entrypoint: {{ inferredEntrypoint || 'none' }}</p>
             <ul v-if="inferredEnv.length" class="compact-list">
               <li v-for="entry in inferredEnv.slice(0, 10)" :key="entry">{{ entry }}</li>
             </ul>
-            <p class="help help-gap-mid">Ports: {{ inferredPorts.length ? inferredPorts.join(', ') : 'none' }}</p>
-            <p class="help help-gap-mid">Entrypoint: {{ inferredEntrypoint || 'none' }}</p>
           </div>
         </div>
 
+        </div>
         <div class="wizard-footer">
           <button class="btn" @click="prevStep" :disabled="step === 1">Back</button>
           <div class="wizard-footer-right">
@@ -197,6 +187,7 @@ const props = defineProps<{
   form: {
     id: string
     display_name: string
+    description: string
     build_strategy: string
     base_role: string
     blocks: string[]
@@ -444,11 +435,12 @@ function focusFirst() {
 .wizard-dialog {
   width: min(980px, 95vw);
   max-height: 88vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 1rem 1.25rem;
 }
 
 .wizard-header {
@@ -473,6 +465,10 @@ function focusFirst() {
   grid-template-columns: repeat(2, minmax(180px, 1fr));
 }
 
+.row.full {
+  grid-template-columns: 1fr;
+}
+
 .form-row {
   display: flex;
   gap: 0.75rem;
@@ -493,8 +489,14 @@ function focusFirst() {
 }
 
 .wizard-step input,
-.wizard-step select {
+.wizard-step select,
+.wizard-step textarea {
   width: 100%;
+}
+
+.wizard-step textarea {
+  resize: vertical;
+  min-height: 4rem;
 }
 
 .help {

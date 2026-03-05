@@ -10,11 +10,28 @@
       :rows="tableRows"
       :columns="tableColumns"
       route-base="/blocks"
+      id-key="id"
+      :on-view="handleView"
+      :on-edit="handleEdit"
       :show-delete="true"
       :deleting-id="deletingId"
       @create="openCreateModal"
-      @refresh="fetchBlocks"
+      @refresh="fetchItems"
       @delete="requestDelete"
+    />
+    <SpecDetailModal
+      :show="showSpecModal"
+      entity="blocks"
+      :id="specModalId"
+      @close="closeSpecModal"
+      @edit="openEditFromView"
+    />
+    <SpecEditModal
+      :show="showEditModal"
+      entity="blocks"
+      :id="editModalId"
+      @close="closeEditModal"
+      @saved="onEditSaved"
     />
     <BlockCreateFlowModal
       :show="showCreateModal"
@@ -25,7 +42,7 @@
       :show="pendingDeleteId !== null"
       :target-id="pendingDeleteId || ''"
       :loading="deletingId !== null"
-      entity-label="block"
+      :entity-label="entityLabel"
       @cancel="cancelDelete"
       @confirm="confirmDelete"
     />
@@ -39,8 +56,9 @@ import { blocks as blocksApi } from '@/api/endpoints'
 import BlockCreateFlowModal from '@/components/BlockCreateFlowModal.vue'
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue'
 import PageEntityTable from '@/components/PageEntityTable.vue'
-import { useEntityListPage } from '@/composables/useEntityListPage'
-import { useQueryModal } from '@/composables/useQueryModal'
+import SpecDetailModal from '@/components/SpecDetailModal.vue'
+import SpecEditModal from '@/components/SpecEditModal.vue'
+import { useEntityListPageWithModals } from '@/composables/useEntityListPageWithModals'
 
 const {
   loading,
@@ -48,16 +66,30 @@ const {
   errorMessage,
   deletingId,
   pendingDeleteId,
-  fetchItems: fetchBlocks,
+  fetchItems,
   requestDelete,
   cancelDelete,
   confirmDelete,
-} = useEntityListPage<BlockSummary>({
+  showCreateModal,
+  openCreateModal,
+  closeCreateModal,
+  showSpecModal,
+  specModalId,
+  showEditModal,
+  editModalId,
+  entityLabel,
+  handleView,
+  handleEdit,
+  openEditFromView,
+  closeSpecModal,
+  closeEditModal,
+  onEditSaved,
+} = useEntityListPageWithModals<BlockSummary>({
+  entity: 'blocks',
   list: () => blocksApi.list(),
   remove: (id) => blocksApi.remove(id),
   getId: (block) => block.id,
 })
-const { isOpen: showCreateModal, open: openCreateModal, close: closeCreateModal } = useQueryModal('create')
 
 const tableColumns = [
   { key: 'id', label: 'ID' },
@@ -76,10 +108,10 @@ const tableRows = computed(() =>
   })),
 )
 
-onMounted(fetchBlocks)
+onMounted(fetchItems)
 
 function onBlockCreated() {
   closeCreateModal()
-  fetchBlocks()
+  fetchItems()
 }
 </script>

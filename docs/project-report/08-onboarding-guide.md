@@ -11,8 +11,9 @@ This guide helps new open-source contributors understand StackWarden quickly and
 Prerequisites:
 
 - Python 3.10+
-- Docker with buildx
-- Optional NVIDIA runtime for GPU profile workflows
+- Docker with Buildx (required for builds)
+- Optional: NVIDIA Container Toolkit for GPU profile workflows
+- Optional: Docker Desktop (`docker sbom`) or [Syft](https://github.com/anchore/syft) for SBOM export (see [reference.md#prerequisites](../reference.md#prerequisites))
 
 Bootstrap:
 

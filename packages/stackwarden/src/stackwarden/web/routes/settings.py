@@ -7,12 +7,11 @@ import logging
 
 from fastapi import APIRouter, Header, HTTPException
 
-from stackwarden.config import AppConfig, tuple_layer_mode
+from stackwarden.config import AppConfig
 from stackwarden.domain.block_catalog import load_block_catalog
 from stackwarden.domain.hardware_catalog import load_hardware_catalog, save_hardware_catalog
 from stackwarden.domain.remote_catalog import RemoteCatalogSyncResult, sync_remote_catalog
 from stackwarden.domain.tuple_catalog import load_tuple_catalog
-from stackwarden.paths import get_catalog_path, get_logs_root
 from stackwarden.web.schemas import (
     BlockPresetCatalogDTO,
     HardwareCatalogDTO,
@@ -23,61 +22,23 @@ from stackwarden.web.schemas import (
 )
 from stackwarden.web.deps import reset_cached_dependencies
 from stackwarden.web.settings import WebSettings
+from stackwarden.web.util.config_dto import config_to_dto
 
 router = APIRouter(tags=["settings"])
 log = logging.getLogger(__name__)
 
 
-def _require_admin_token(header_token: str | None) -> None:
+def _require_admin_token(header_token: str | None, *, context: str = "catalog") -> None:
+    """Require admin token for protected mutations. Context is used in the disabled message."""
     settings = WebSettings()
     expected = settings.admin_token
     if not expected:
         raise HTTPException(
             status_code=403,
-            detail="Catalog mutation disabled: set STACKWARDEN_WEB_ADMIN_TOKEN to enable.",
+            detail=f"{context.capitalize()} mutation disabled: set STACKWARDEN_WEB_ADMIN_TOKEN to enable.",
         )
     if not header_token or not hmac.compare_digest(header_token.encode(), expected.encode()):
         raise HTTPException(status_code=403, detail="Invalid admin token.")
-
-
-def _require_config_admin_token(header_token: str | None) -> None:
-    """Require admin token for config mutations."""
-    settings = WebSettings()
-    expected = settings.admin_token
-    if not expected:
-        raise HTTPException(
-            status_code=403,
-            detail="Config mutation disabled: set STACKWARDEN_WEB_ADMIN_TOKEN to enable.",
-        )
-    if not header_token or not hmac.compare_digest(header_token.encode(), expected.encode()):
-        raise HTTPException(status_code=403, detail="Invalid admin token.")
-
-
-def _config_to_dto(
-    cfg: AppConfig,
-    sync_result: RemoteCatalogSyncResult | None = None,
-) -> SystemConfigDTO:
-    effective_catalog_path = str(cfg.catalog_path or get_catalog_path())
-    effective_log_dir = str(cfg.log_dir or get_logs_root())
-    return SystemConfigDTO(
-        catalog_path=effective_catalog_path,
-        log_dir=effective_log_dir,
-        default_profile=cfg.default_profile,
-        registry_allow=cfg.registry.allow,
-        registry_deny=cfg.registry.deny,
-        remote_catalog_enabled=cfg.remote_catalog_enabled,
-        remote_catalog_repo_url=cfg.remote_catalog_repo_url,
-        remote_catalog_branch=cfg.remote_catalog_branch,
-        remote_catalog_local_path=cfg.remote_catalog_local_path,
-        remote_catalog_local_overrides_path=cfg.remote_catalog_local_overrides_path,
-        remote_catalog_auto_pull=cfg.remote_catalog_auto_pull,
-        remote_catalog_last_sync_status=sync_result.status if sync_result else None,
-        remote_catalog_last_sync_detail=sync_result.detail if sync_result else None,
-        remote_catalog_last_sync_commit=sync_result.commit if sync_result else None,
-        auth_enabled=WebSettings().token is not None,
-        blocks_first_enabled=WebSettings().blocks_first_enabled,
-        tuple_layer_mode=tuple_layer_mode(),
-    )
 
 
 @router.get("/settings/hardware-catalogs", response_model=HardwareCatalogDTO)
@@ -144,7 +105,7 @@ async def update_settings_config(
     x_stackwarden_admin_token: str | None = Header(default=None, alias="X-StackWarden-Admin-Token"),
 ):
     try:
-        _require_config_admin_token(x_stackwarden_admin_token)
+        _require_admin_token(x_stackwarden_admin_token, context="config")
         cfg = AppConfig.load()
 
         if body.default_profile is not None:
@@ -181,7 +142,7 @@ async def update_settings_config(
 
         cfg.save()
         reset_cached_dependencies()
-        return _config_to_dto(cfg, sync_result=sync_result)
+        return config_to_dto(cfg, sync_result=sync_result)
     except HTTPException:
         raise
     except Exception:

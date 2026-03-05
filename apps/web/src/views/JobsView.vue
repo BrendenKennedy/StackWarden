@@ -99,6 +99,7 @@ import { ref, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { JobSummary, JobDetail } from '@/api/types'
 import { jobs as jobsApi } from '@/api/endpoints'
+import { toUserErrorMessage } from '@/utils/errors'
 import LogStream from '@/components/LogStream.vue'
 import JobBadge from '@/components/JobBadge.vue'
 import PageEntityTable from '@/components/PageEntityTable.vue'
@@ -139,8 +140,8 @@ async function fetchJobs() {
   errorMessage.value = null
   try {
     jobList.value = await jobsApi.list(100)
-  } catch (e: any) {
-    errorMessage.value = e?.message || String(e)
+  } catch (e: unknown) {
+    errorMessage.value = toUserErrorMessage(e)
   } finally {
     loading.value = false
   }
@@ -152,8 +153,8 @@ async function fetchJobDetail(id: string) {
   selectedJob.value = null
   try {
     selectedJob.value = await jobsApi.get(id)
-  } catch (e: any) {
-    selectedJobError.value = e?.message || String(e)
+  } catch (e: unknown) {
+    selectedJobError.value = toUserErrorMessage(e)
   } finally {
     selectedJobLoading.value = false
   }

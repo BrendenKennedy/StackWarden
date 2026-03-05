@@ -38,8 +38,3 @@ entrypoint:
     - "--port=8888"
     - "--no-browser"
     - "--allow-root"
-
-files:
-  copy:
-    - src: "notebooks/"
-      dst: "/workspace/notebooks"

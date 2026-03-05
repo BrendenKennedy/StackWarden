@@ -59,8 +59,17 @@
               </td>
               <td v-if="showActions" class="page-entity-table-actions-cell" :style="actionsColumnStyle">
                 <div class="page-entity-table-actions">
+                  <button
+                    v-if="showView && hasViewTarget(row) && onView"
+                    class="btn btn-icon"
+                    title="View"
+                    aria-label="View"
+                    @click="onView(row)"
+                  >
+                    <IconEye />
+                  </button>
                   <router-link
-                    v-if="showView && hasViewTarget(row)"
+                    v-else-if="showView && hasViewTarget(row)"
                     class="btn btn-icon"
                     :to="resolveViewTo(row)"
                     title="View"
@@ -68,8 +77,17 @@
                   >
                     <IconEye />
                   </router-link>
+                  <button
+                    v-if="showEdit && onEdit"
+                    class="btn btn-icon"
+                    title="Edit"
+                    aria-label="Edit"
+                    @click="onEdit(row)"
+                  >
+                    <IconPen />
+                  </button>
                   <router-link
-                    v-if="showEdit"
+                    v-else-if="showEdit"
                     class="btn btn-icon"
                     :to="`${routeBase}/${row[idKey]}/edit`"
                     title="Edit"
@@ -135,6 +153,10 @@ const props = withDefaults(defineProps<{
   columns: TableColumn[]
   routeBase?: string
   viewPathKey?: string
+  /** When provided, View button calls onView(row) instead of navigating. */
+  onView?: (row: RowData) => void
+  /** When provided, Edit button calls onEdit(row) instead of navigating. */
+  onEdit?: (row: RowData) => void
   idKey?: string
   showView?: boolean
   showEdit?: boolean

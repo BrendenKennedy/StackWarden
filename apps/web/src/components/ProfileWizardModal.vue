@@ -13,7 +13,7 @@
           <h3 id="profile-wizard-title">Guided Profile Setup</h3>
           <button class="btn" @click="$emit('cancel')">Close</button>
         </div>
-
+        <div class="wizard-scroll">
         <p class="wizard-subtitle" aria-live="polite">
           Step {{ step }} of {{ totalSteps }} — {{ stepLabel }}
         </p>
@@ -24,9 +24,9 @@
             <button class="btn btn-primary" :disabled="detectingHints" @click="autofillHardware">
               {{ detectingHints ? 'Detecting...' : 'Detect & Autofill Hardware' }}
             </button>
-            <p class="help">
-              Detection pre-fills fields from the StackWarden server host. You can still edit any value manually.
-            </p>
+            <div class="wizard-detail">
+              <p>Detection pre-fills fields from the StackWarden server host. You can still edit any value manually.</p>
+            </div>
           </div>
           <div v-if="dependencyIssues.length > 0" class="wizard-warning">
             Missing or inaccessible detection dependencies:
@@ -91,10 +91,8 @@
 
         <div v-if="currentStep === 'review'" class="wizard-step">
           <h4>Review</h4>
-          <p class="help">
-            Confirm identity and hardware summary before dry-run and confirm write.
-          </p>
-          <div class="wizard-warning">
+          <div class="wizard-detail">
+            <p>Confirm identity and hardware summary before dry-run and confirm write.</p>
             <strong>Tuple Preflight</strong>
             <ul class="compact-list">
               <li>Status: {{ tupleReadiness }}</li>
@@ -119,7 +117,7 @@
             spellcheck="false"
           />
           <p v-if="idError" class="field-error">{{ idError }}</p>
-          <div class="wizard-warning profile-summary-warning">
+          <div class="wizard-info profile-summary-warning">
             <strong>Summary</strong>
             <ul class="compact-list">
               <li>Arch: {{ form.arch || '-' }}</li>
@@ -130,6 +128,7 @@
           </div>
         </div>
 
+        </div>
         <div class="wizard-footer">
           <button class="btn" @click="prevStep" :disabled="step === 1">Back</button>
           <button v-if="step < totalSteps" class="btn btn-primary" @click="nextStep" :disabled="!canProceed">
@@ -170,6 +169,7 @@ import type {
   HardwareCatalog,
   ProfileCreatePayload,
 } from '@/api/types'
+import { formatProbeIssues } from '@/utils/probeWarnings'
 import { SPEC_ID_RE, sanitizeSpecIdInput } from '@/utils/specId'
 const props = defineProps<{
   show: boolean
@@ -381,51 +381,7 @@ const gpuFamilyOptions = computed(() =>
 const gpuModelOptions = computed(() =>
   (props.catalogs?.gpu_model || []).filter(v => !v.parent_id || v.parent_id === props.form.gpu.family_id),
 )
-const dependencyIssues = computed(() => {
-  const hints = props.hints
-  if (!hints) return []
-  const probes = hints.probes || []
-  const getProbe = (name: string) => probes.find(p => p.name === name)
-  const issues: Array<{ key: string; label: string; reason: string; docs: string }> = []
-
-  const nvidiaProbe = getProbe('nvidia_smi')
-  if (nvidiaProbe?.status === 'warn') {
-    const skipped = nvidiaProbe.message.includes('Skipped by capability/OS gate')
-    issues.push({
-      key: 'nvidia_smi',
-      label: 'nvidia-smi',
-      reason: skipped
-        ? 'Tool is not available on the server host PATH, so GPU/driver/CUDA facts cannot be read.'
-        : `Probe warning: ${nvidiaProbe.message || 'nvidia-smi could not run on this host.'}`,
-      docs: 'https://docs.nvidia.com/deploy/nvidia-smi/',
-    })
-  }
-
-  const dockerProbe = getProbe('docker')
-  if (dockerProbe?.status === 'warn') {
-    const skipped = dockerProbe.message.includes('Skipped by capability/OS gate')
-    issues.push({
-      key: 'docker',
-      label: 'Docker Engine',
-      reason: skipped
-        ? 'Docker CLI/socket was not detected, so runtime facts may be incomplete.'
-        : `Probe warning: ${dockerProbe.message || 'Docker daemon could not be queried.'}`,
-      docs: 'https://docs.docker.com/engine/install/ubuntu/',
-    })
-  }
-
-  if (hints.container_runtime === 'nvidia' && !hints.gpu) {
-    issues.push({
-      key: 'nvidia_toolkit',
-      label: 'NVIDIA Container Toolkit',
-      reason:
-        'Runtime is set to nvidia, but no GPU facts were detected. Verify toolkit/driver wiring and device visibility.',
-      docs: 'https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html',
-    })
-  }
-
-  return issues
-})
+const dependencyIssues = computed(() => formatProbeIssues(props.hints))
 
 async function autofillHardware() {
   let latestHints: DetectionHints | null | undefined
@@ -523,11 +479,12 @@ function focusFirst() {
 .wizard-dialog {
   width: min(820px, 92vw);
   max-height: 86vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 1rem 1.25rem;
 }
 
 .wizard-header {
@@ -587,16 +544,6 @@ function focusFirst() {
 .help {
   color: var(--text-muted);
   font-size: 0.8rem;
-}
-
-.wizard-warning {
-  background: #3b2e10;
-  border: 1px solid var(--warning);
-  border-radius: var(--radius);
-  padding: 0.5rem 0.75rem;
-  color: var(--warning);
-  font-size: 0.8rem;
-  margin-bottom: 0.65rem;
 }
 
 .hints-more {

@@ -136,7 +136,7 @@ describe('BlockWizardModal', () => {
     nextButton?.click()
     await nextTick()
     const text = document.body.textContent || ''
-    expect(text).toContain('Dependency defaults use latest compatible installs')
+    expect(text).toContain('Defaults use latest compatible installs')
     expect(text).toContain('Node Dependencies (npm/pnpm/yarn)')
     expect(text).toContain('Import requirements.txt')
     expect(text).toContain('Import package.json')

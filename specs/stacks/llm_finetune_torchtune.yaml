@@ -29,5 +29,5 @@ entrypoint:
 
 files:
   copy:
-    - src: "configs/finetune/"
+    - src: "specs/configs/finetune/"
       dst: "/workspace/configs"

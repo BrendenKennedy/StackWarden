@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { ApiError } from '@/api/client'
+import { toUserErrorMessage } from '@/utils/errors'
 import type { ValidationError as VError } from '@/api/types'
 import { useToast } from '@/composables/useToast'
 
@@ -38,7 +39,7 @@ export function useEntityCreateFlow<Payload, Result extends CreateResponse>(
         showToast(`${options.entityLabel} validation failed. Review fields and try again.`, 'error')
       }
     } catch (err: unknown) {
-      generalError.value = err instanceof Error ? err.message : String(err)
+      generalError.value = toUserErrorMessage(err)
       showToast(`Preview failed: ${generalError.value}`, 'error')
     } finally {
       previewing.value = false
@@ -62,7 +63,7 @@ export function useEntityCreateFlow<Payload, Result extends CreateResponse>(
         generalError.value = err.detail
         showToast(`Create failed: ${err.detail}`, 'error')
       } else {
-        generalError.value = err instanceof Error ? err.message : String(err)
+        generalError.value = toUserErrorMessage(err)
         showToast(`Create failed: ${generalError.value}`, 'error')
       }
       return null

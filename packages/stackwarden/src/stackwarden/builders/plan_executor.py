@@ -283,6 +283,7 @@ def _do_execute(
 
     _capture_manifest(record, profile, stack, plan, catalog)
     _capture_snapshots(record, profile, stack, plan, catalog)
+    _capture_sbom(record, catalog)
 
     if run_hooks:
         _run_hooks(record, profile, stack, catalog)
@@ -331,6 +332,24 @@ def _capture_snapshots(
         log.info("Spec snapshots saved: %s", art_dir)
     except Exception as exc:
         log.warning("Snapshot capture failed (non-fatal): %s", exc)
+
+
+def _capture_sbom(record: ArtifactRecord, catalog: CatalogStore) -> None:
+    """Best-effort SBOM export after a successful build.
+
+    Tries docker sbom, then syft. Failures are non-fatal.
+    """
+    try:
+        from stackwarden.runtime.sbom import export_sbom, SbomUnavailableError
+
+        path = export_sbom(record.tag, record.fingerprint)
+        record.sbom_path = str(path)
+        catalog.update_artifact(record)
+        log.info("SBOM saved: %s", path)
+    except SbomUnavailableError as exc:
+        log.debug("SBOM not available (no docker sbom or syft): %s", exc)
+    except Exception as exc:
+        log.warning("SBOM capture failed (non-fatal): %s", exc)
 
 
 def _run_hooks(

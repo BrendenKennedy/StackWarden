@@ -13,6 +13,7 @@ import type {
   PipInstallMode,
 } from '@/api/types'
 import { useEntityCreateFlow } from '@/composables/useEntityCreateFlow'
+import { toUserErrorMessage } from '@/utils/errors'
 
 type Options = {
   onCreated?: (id: string) => void
@@ -33,7 +34,7 @@ function profileOverlay(profile: PresetProfile): { env: Record<string, string> }
   if (profile === 'prod') {
     return { env: { PYTHONUNBUFFERED: '1', LOG_LEVEL: 'info', UVICORN_WORKERS: '2' } }
   }
-  return { env: { STACKSMITH_PROFILE: 'balanced' } }
+  return { env: { STACKWARDEN_PROFILE: 'balanced' } }
 }
 
 export function useBlockCreateFlow(options: Options = {}) {
@@ -63,6 +64,7 @@ export function useBlockCreateFlow(options: Options = {}) {
   const form = reactive({
     id: '',
     display_name: '',
+    description: '',
     tags: [] as string[],
     build_strategy: '',
     base_role: '',
@@ -134,6 +136,7 @@ export function useBlockCreateFlow(options: Options = {}) {
   function resetForNewSession() {
     form.id = ''
     form.display_name = ''
+    form.description = ''
     form.tags = []
     form.build_strategy = ''
     form.base_role = ''
@@ -185,7 +188,7 @@ export function useBlockCreateFlow(options: Options = {}) {
       }
       metadataLoaded.value = true
     } catch (err: unknown) {
-      flow.generalError.value = err instanceof Error ? err.message : String(err)
+      flow.generalError.value = toUserErrorMessage(err)
       metadataLoaded.value = false
     }
   }
@@ -208,6 +211,7 @@ export function useBlockCreateFlow(options: Options = {}) {
 
     if (!form.id) form.id = preset.id
     if (!form.display_name) form.display_name = preset.display_name
+    if (preset.description) form.description = preset.description
     form.tags = [...preset.tags]
     form.pip = preset.pip.map(p => ({
       name: p.name,
@@ -296,6 +300,7 @@ export function useBlockCreateFlow(options: Options = {}) {
       schema_version: 2,
       id: form.id,
       display_name: form.display_name,
+      description: (form.description || '').trim(),
       tags: form.tags.filter(Boolean),
       build_strategy: form.build_strategy || undefined,
       base_role: form.base_role || undefined,

@@ -14,13 +14,13 @@ This document explains the StackWarden file structure, why each directory exists
 
 Runtime surfaces that users or operators run directly.
 
-- `apps/api/`: API runtime surface wrappers and app-level API startup context.
 - `apps/web/`: Vue frontend app (UI source, tests, and web build tooling).
-- `apps/cli/` (optional): CLI surface docs/wrappers only (core CLI implementation remains in package code).
+
+CLI and API entry points are defined in `pyproject.toml` `[project.scripts]` and live in the `packages/stackwarden` package.
 
 Why it exists:
 
-- Keeps user-facing executables grouped in one place.
+- Keeps user-facing app source grouped in one place.
 - Provides a clean boundary between "apps we run" and "libraries we maintain."
 
 ## `packages/`
@@ -33,15 +33,28 @@ Why it exists:
 - Keeps package code isolated from app wrappers and repo tooling.
 - Supports standard Python packaging and testing workflows.
 
+## `services/`
+
+Standalone ML API services (FastAPI stubs).
+
+Each subdirectory is a self-contained service with a `main.py` entry point:
+`agentic_rag_api`, `asr_api`, `diffusion_api`, `embedding_api`, `flux_schnell_api`, `llm_api`, `ollama_chat`, `rag_api`, `tts_api`, `vision_api`.
+
+Why it exists:
+
+- Groups ML inference and model-serving endpoints separate from the core StackWarden package.
+- Each service can be deployed independently with its own container.
+
 ## `specs/`
 
-Authored YAML contracts and compatibility catalogs.
+Authored YAML contracts, compatibility catalogs, and runtime configs.
 
 - `specs/profiles/`
 - `specs/stacks/`
 - `specs/blocks/`
 - `specs/rules/`
 - `specs/templates/`
+- `specs/configs/`: runtime configuration files (finetune, NeMo, etc.)
 
 Why it exists:
 
@@ -71,9 +84,10 @@ Why it exists:
 
 ## `docs/`
 
-Project documentation and architecture references.
+Project documentation, architecture references, and example material.
 
-- high-level docs, ADRs, project reports, operational guidance, and examples docs.
+- High-level docs, ADRs, project reports, and operational guidance.
+- `docs/examples/`: example workspaces and reference scripts.
 
 Why it exists:
 
@@ -90,26 +104,19 @@ Why it exists:
 - Maintains a clear root test surface for Python/contract validation.
 - Keeps test discovery predictable in CI and local workflows.
 
-## `tools/`
-
-Compatibility entrypoints and developer utilities.
-
-Why it exists:
-
-- Preserves stable command paths for existing workflows.
-- Keeps legacy wrappers separate from canonical operational scripts in `ops/scripts/`.
-
 ## Directory Placement Rules
 
 Use these rules when adding files:
 
 - New Python module used by CLI/API/shared logic -> `packages/stackwarden/src/stackwarden/...`
 - New UI component/view/composable -> `apps/web/src/...`
-- New authored stack/profile/block/rule/template data -> `specs/...`
+- New ML API service -> `services/<service_name>/`
+- New authored stack/profile/block/rule/template/config data -> `specs/...`
 - New generated/compiled resolver output -> `generated/...`
-- New run/deploy shell script -> `ops/scripts/...` (optionally add thin wrapper in `tools/` if needed)
+- New run/deploy shell script or developer utility -> `ops/scripts/...`
 - New service unit/deployment file -> `ops/systemd/...`
 - New architecture or contributor docs -> `docs/...`
+- New example workspaces or reference material -> `docs/examples/`
 - New backend/unit/contract tests -> `tests/...`
 - New frontend unit/component tests -> `apps/web/tests/...`
 
@@ -117,16 +124,15 @@ Use these rules when adding files:
 
 - Do not put runtime/package source in `ops/`.
 - Do not put authored specs in `packages/`.
-- Do not add net-new operational scripts directly in `tools/` (use `ops/scripts/` and wrapper only if compatibility is required).
 - Do not place generated artifacts under `specs/`, `packages/`, or `apps/` (use `generated/` or ignored local output paths).
 
 ## Ownership Summary
 
-- `apps/`: experience/runtime surfaces
+- `apps/`: experience/runtime surfaces (Vue frontend)
 - `packages/`: core implementation
-- `specs/`: authored input contracts and catalogs
+- `services/`: ML API services (FastAPI stubs)
+- `specs/`: authored input contracts, catalogs, and configs
 - `generated/`: derived/generated outputs
-- `ops/`: execution/deploy mechanics
-- `tools/`: compatibility wrappers and developer utilities
-- `docs/`: knowledge and architecture
+- `ops/`: execution/deploy mechanics and developer utilities
+- `docs/`: knowledge, architecture, and examples
 - `tests/`: quality and regression guardrails

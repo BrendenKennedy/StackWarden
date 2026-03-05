@@ -9,6 +9,7 @@ import type {
   ValidationError as VError,
 } from '@/api/types'
 import { useEntityCreateFlow } from '@/composables/useEntityCreateFlow'
+import { toUserErrorMessage } from '@/utils/errors'
 
 type Options = {
   onCreated?: (id: string) => void
@@ -28,6 +29,7 @@ export function useStackCreateFlow(options: Options = {}) {
   const form = reactive({
     id: '',
     display_name: '',
+    description: '',
     build_strategy: '',
     base_role: '',
     blocks: [] as string[],
@@ -71,7 +73,7 @@ export function useStackCreateFlow(options: Options = {}) {
       }
       metadataLoaded.value = true
     } catch (err: unknown) {
-      flow.generalError.value = err instanceof Error ? err.message : String(err)
+      flow.generalError.value = toUserErrorMessage(err)
       metadataLoaded.value = false
     }
   }
@@ -100,6 +102,7 @@ export function useStackCreateFlow(options: Options = {}) {
       kind: 'stack_recipe',
       id: resolvedId,
       display_name: resolvedDisplayName,
+      description: (form.description || '').trim(),
       blocks: [...form.blocks],
       build_strategy: form.build_strategy,
       base_role: form.base_role,
@@ -141,7 +144,7 @@ export function useStackCreateFlow(options: Options = {}) {
       if (token !== composeRequestToken) {
         return
       }
-      flow.generalError.value = err instanceof Error ? err.message : String(err)
+      flow.generalError.value = toUserErrorMessage(err)
       dependencyConflicts.value = []
       tupleConflicts.value = []
       runtimeConflicts.value = []
@@ -159,6 +162,7 @@ export function useStackCreateFlow(options: Options = {}) {
   function resetForNewSession() {
     form.id = ''
     form.display_name = ''
+    form.description = ''
     form.build_strategy = ''
     form.base_role = ''
     form.blocks = []

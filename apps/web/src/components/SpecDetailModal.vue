@@ -1,11 +1,20 @@
 <template>
-  <div>
-    <h1 class="page-title">{{ title }}</h1>
-    <div class="card detail-actions">
-      <router-link class="btn" :to="listPath">Back</router-link>
-      <router-link class="btn btn-primary" :to="editPath">Edit</router-link>
-    </div>
-    <div class="card">
+  <Teleport to="body">
+  <div
+    v-if="show"
+    class="spec-modal-overlay"
+    @click.self="close"
+    @keydown="onKeydown"
+  >
+    <div ref="modalRef" class="spec-modal card" role="dialog" aria-modal="true" :aria-labelledby="`spec-modal-title-${entity}`">
+      <div class="spec-modal-header">
+        <h2 :id="`spec-modal-title-${entity}`" class="spec-modal-title">{{ title }}</h2>
+        <div class="spec-modal-actions">
+          <button v-if="id" class="btn btn-primary" @click="openEdit">Edit</button>
+          <button class="btn" @click="close">Close</button>
+        </div>
+      </div>
+
       <div v-if="loading" class="empty-state">Loading...</div>
       <div v-else-if="errorMessage" class="auth-warning">{{ errorMessage }}</div>
       <div v-else-if="!data" class="empty-state">No data found.</div>
@@ -73,28 +82,41 @@
       </div>
     </div>
   </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { blocks as blocksApi, profiles as profilesApi, stacks as stacksApi } from '@/api/endpoints'
 import { toUserErrorMessage } from '@/utils/errors'
+import { useModalFocusTrap } from '@/composables/useModalFocusTrap'
 
-const props = defineProps<{ entity: 'profiles' | 'stacks' | 'blocks'; id: string }>()
-const loading = ref(true)
+const props = defineProps<{
+  show: boolean
+  entity: 'profiles' | 'stacks' | 'blocks'
+  id: string | null
+}>()
+
+const emit = defineEmits<{
+  close: []
+  edit: []
+}>()
+
+const modalRef = ref<HTMLElement | null>(null)
+const { onKeydown } = useModalFocusTrap(modalRef, () => props.show, () => emit('close'))
+
+const loading = ref(false)
 const data = ref<any>(null)
 const errorMessage = ref<string | null>(null)
-const entity = computed(() => props.entity)
-const id = computed(() => props.id)
 
-const title = computed(() => `${entity.value.slice(0, -1)}: ${id.value}`)
-const listPath = computed(() => `/${entity.value}`)
-const editPath = computed(() => `/${entity.value}/${id.value}/edit`)
+const title = computed(() =>
+  props.id ? `${props.entity.slice(0, -1)}: ${props.id}` : '',
+)
 const pretty = computed(() => JSON.stringify(data.value || {}, null, 2))
 
 const overviewFields = computed(() => {
   const d = data.value || {}
-  if (entity.value === 'profiles') {
+  if (props.entity === 'profiles') {
     return [
       { key: 'id', label: 'ID', value: d.id },
       { key: 'display_name', label: 'Display Name', value: d.display_name },
@@ -107,10 +129,11 @@ const overviewFields = computed(() => {
       { key: 'gpu', label: 'GPU', value: d.gpu ? `${d.gpu.vendor}/${d.gpu.family}` : 'n/a' },
     ]
   }
-  if (entity.value === 'stacks') {
+  if (props.entity === 'stacks') {
     return [
       { key: 'id', label: 'ID', value: d.id },
       { key: 'display_name', label: 'Display Name', value: d.display_name },
+      { key: 'description', label: 'Description', value: d.description },
       { key: 'task', label: 'Task', value: d.task },
       { key: 'serve', label: 'Serve', value: d.serve },
       { key: 'api', label: 'API', value: d.api },
@@ -120,6 +143,7 @@ const overviewFields = computed(() => {
   return [
     { key: 'id', label: 'ID', value: d.id },
     { key: 'display_name', label: 'Display Name', value: d.display_name },
+    { key: 'description', label: 'Description', value: d.description },
     { key: 'build_strategy', label: 'Build Strategy', value: d.build_strategy || 'n/a' },
     { key: 'pip_count', label: 'Pip Count', value: d.pip_count },
     { key: 'apt_count', label: 'Apt Count', value: d.apt_count },
@@ -129,9 +153,9 @@ const overviewFields = computed(() => {
 const chipGroups = computed(() => {
   const d = data.value || {}
   const groups: Array<{ label: string; values: string[] }> = []
-  if (entity.value === 'profiles') {
+  if (props.entity === 'profiles') {
     groups.push({ label: 'Derived Capabilities', values: (d.derived_capabilities || []).map(String) })
-  } else if (entity.value === 'stacks') {
+  } else if (props.entity === 'stacks') {
     groups.push({ label: 'Env', values: (d.env || []).map(String) })
     groups.push({ label: 'Ports', values: (d.ports || []).map((p: unknown) => String(p)) })
   } else {
@@ -145,7 +169,7 @@ const chipGroups = computed(() => {
 const tableSections = computed(() => {
   const d = data.value || {}
   const tables: Array<{ label: string; columns: string[]; rows: Array<Record<string, unknown>> }> = []
-  if (entity.value === 'profiles' && Array.isArray(d.base_candidates) && d.base_candidates.length > 0) {
+  if (props.entity === 'profiles' && Array.isArray(d.base_candidates) && d.base_candidates.length > 0) {
     tables.push({
       label: 'Base Candidates',
       columns: ['name', 'tags', 'score_bias'],
@@ -156,7 +180,7 @@ const tableSections = computed(() => {
       })),
     })
   }
-  if (entity.value === 'stacks' && d.variants && typeof d.variants === 'object') {
+  if (props.entity === 'stacks' && d.variants && typeof d.variants === 'object') {
     const rows = Object.entries(d.variants).map(([key, val]: [string, any]) => ({
       name: key,
       type: val?.type,
@@ -173,7 +197,7 @@ const tableSections = computed(() => {
 const mapSections = computed(() => {
   const d = data.value || {}
   const sections: Array<{ label: string; entries: Array<{ key: string; value: unknown }> }> = []
-  if (entity.value === 'profiles') {
+  if (props.entity === 'profiles') {
     const disallow = d.constraints?.disallow || {}
     const require = d.constraints?.require || {}
     if (Object.keys(disallow).length > 0) {
@@ -188,7 +212,7 @@ const mapSections = computed(() => {
         entries: Object.entries(require).map(([k, v]) => ({ key: k, value: Array.isArray(v) ? v.join(', ') : v })),
       })
     }
-  } else if (entity.value === 'stacks' || entity.value === 'blocks') {
+  } else if (props.entity === 'stacks' || props.entity === 'blocks') {
     if (d.policy_overrides && typeof d.policy_overrides === 'object') {
       sections.push({
         label: 'Tuple Policy Overrides',
@@ -207,12 +231,14 @@ const mapSections = computed(() => {
 })
 
 async function fetchData() {
+  if (!props.id) return
   loading.value = true
   errorMessage.value = null
+  data.value = null
   try {
-    if (entity.value === 'profiles') data.value = await profilesApi.getSpec(id.value)
-    else if (entity.value === 'stacks') data.value = await stacksApi.getSpec(id.value)
-    else data.value = await blocksApi.getSpec(id.value)
+    if (props.entity === 'profiles') data.value = await profilesApi.getSpec(props.id)
+    else if (props.entity === 'stacks') data.value = await stacksApi.getSpec(props.id)
+    else data.value = await blocksApi.getSpec(props.id)
   } catch (err) {
     errorMessage.value = toUserErrorMessage(err)
   } finally {
@@ -226,20 +252,63 @@ function formatValue(value: unknown): string {
   return String(value)
 }
 
-onMounted(fetchData)
+function close() {
+  emit('close')
+}
+
+function openEdit() {
+  emit('edit')
+}
+
+watch(() => [props.show, props.entity, props.id] as const, ([show, , id]) => {
+  if (show && id) {
+    fetchData()
+  } else {
+    data.value = null
+    errorMessage.value = null
+  }
+}, { immediate: true })
 </script>
 
 <style scoped>
+.spec-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.spec-modal {
+  width: min(760px, 95vw);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.spec-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.spec-modal-title {
+  font-size: var(--font-size-lg);
+  margin: 0;
+}
+
+.spec-modal-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
 .details-layout {
   display: grid;
   gap: 1rem;
-}
-
-.detail-actions {
-  display: flex;
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
-  flex-wrap: wrap;
 }
 
 .details-section {

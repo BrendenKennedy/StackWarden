@@ -380,6 +380,7 @@ export interface StackCreatePayload {
   kind: 'stack_recipe'
   id: string
   display_name: string
+  description?: string
   blocks: string[]
   build_strategy?: string | null
   base_role?: string | null
@@ -398,6 +399,7 @@ export interface BlockCreatePayload {
   schema_version?: number
   id: string
   display_name: string
+  description?: string
   tags: string[]
   build_strategy?: string | null
   base_role?: string | null

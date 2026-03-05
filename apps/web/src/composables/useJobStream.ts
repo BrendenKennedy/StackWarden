@@ -1,4 +1,5 @@
 import { ref, onUnmounted, type Ref } from 'vue'
+import { toUserErrorMessage } from '@/utils/errors'
 
 export interface LogLine {
   ts: string
@@ -146,7 +147,7 @@ export function useJobStream(jobIdRef: Ref<string> | string) {
       if (token !== streamToken || controller.signal.aborted) return
       connected.value = false
       if (status.value !== 'succeeded' && status.value !== 'failed' && status.value !== 'canceled') {
-        error.value = err instanceof Error ? err.message : String(err)
+        error.value = toUserErrorMessage(err)
       }
     })
   }

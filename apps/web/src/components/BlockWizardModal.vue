@@ -13,15 +13,16 @@
           <h3 id="block-wizard-title">Guided Block Setup</h3>
           <button class="btn" @click="$emit('cancel')">Close</button>
         </div>
+        <div class="wizard-scroll">
         <p class="wizard-subtitle" aria-live="polite">
           Step {{ step }} of {{ totalSteps }} - {{ stepLabel }}
         </p>
 
         <div v-if="currentStep === 'preset'" class="wizard-step">
           <h4>Preset Selection</h4>
-          <p class="help">
-            Presets auto-apply a coherent, single-block baseline as soon as you select one. You can edit any field afterwards.
-          </p>
+          <div class="wizard-detail">
+            <p>Presets auto-apply a coherent baseline. You can edit any field afterwards. Preset mode applies mode-specific env/requirements on top of the selected preset.</p>
+          </div>
           <div class="featured-preset-wrap">
             <label>Featured Presets</label>
             <div class="featured-preset-list">
@@ -59,9 +60,7 @@
                   {{ preset.display_name }} ({{ preset.id }})
                 </option>
               </select>
-              <p class="help block-help-gap-sm">
-                Showing {{ filteredPresetCount }} of {{ totalPresetCount }} presets.
-              </p>
+              <p class="help block-help-gap-sm">Showing {{ filteredPresetCount }} of {{ totalPresetCount }} presets.</p>
               <p v-if="filteredPresetCount === 0" class="field-error">
                 No presets match your filter. Clear the filter or switch category.
               </p>
@@ -75,19 +74,15 @@
                 <option value="dev">Developer</option>
                 <option value="prod">Production</option>
               </select>
-              <p class="help">Applies mode-specific env/requirements on top of the selected preset.</p>
             </div>
           </div>
         </div>
 
         <div v-if="currentStep === 'runtime'" class="wizard-step">
           <h4>Dependencies and Runtime</h4>
-          <p class="help">
-            Dependency defaults use latest compatible installs. Switch to custom constraints only when you need explicit control.
-          </p>
-          <p class="help">
-            Custom version constraints are advanced usage. StackWarden validates syntax but does not guarantee cross-environment compatibility.
-          </p>
+          <div class="wizard-detail">
+            <p>Defaults use latest compatible installs. Custom constraints are advanced; StackWarden validates syntax but does not guarantee cross-environment compatibility.</p>
+          </div>
           <div class="dependency-group">
             <div class="dependency-group-header">
               <label class="wizard-label-inline">Tags</label>
@@ -245,9 +240,9 @@
 
         <div v-if="currentStep === 'review'" class="wizard-step">
           <h4>Review</h4>
-          <p class="help">
-            Confirm identity and review a summary before writing the block spec.
-          </p>
+          <div class="wizard-detail">
+            <p>Confirm identity and review the summary before writing the block spec.</p>
+          </div>
           <label :class="{ required: requiresField('display_name') }">Display Name</label>
           <input
             v-model="form.display_name"
@@ -270,7 +265,15 @@
           />
           <p v-if="idError" class="field-error">{{ idError }}</p>
 
-          <div class="wizard-warning block-summary-warning">
+          <label>Description</label>
+          <textarea
+            v-model="form.description"
+            name="description"
+            placeholder="What this block does and why it exists (human-readable)"
+            rows="3"
+          />
+
+          <div class="wizard-info block-summary-warning">
             <strong>Summary</strong>
             <ul class="compact-list">
               <li>{{ form.tags.length }} tag(s)</li>
@@ -283,6 +286,7 @@
           </div>
         </div>
 
+        </div>
         <div class="wizard-footer">
           <button class="btn" @click="prevStep" :disabled="step === 1">Back</button>
           <div class="wizard-footer-right">
@@ -310,6 +314,7 @@ import type {
   PipDependencyVersionMode,
 } from '@/api/types'
 import DynamicListEditor from '@/components/DynamicListEditor.vue'
+import { toUserErrorMessage } from '@/utils/errors'
 import { SPEC_ID_RE, sanitizeSpecIdInput } from '@/utils/specId'
 import {
   parseAptListText,
@@ -322,6 +327,7 @@ const props = defineProps<{
   form: {
     id: string
     display_name: string
+    description: string
     tags: string[]
     pip: Array<{
       name: string
@@ -552,7 +558,7 @@ async function onPipImportSelected(event: Event): Promise<void> {
     }
     importFeedback.value = `Pip import: added ${added}, skipped ${skipped}.`
   } catch (err) {
-    importFeedback.value = `Pip import failed: ${err instanceof Error ? err.message : String(err)}`
+    importFeedback.value = `Pip import failed: ${toUserErrorMessage(err)}`
   } finally {
     input.value = ''
   }
@@ -588,7 +594,7 @@ async function onNpmImportSelected(event: Event): Promise<void> {
     }
     importFeedback.value = `Node import: added ${added}, skipped ${skipped}.`
   } catch (err) {
-    importFeedback.value = `Node import failed: ${err instanceof Error ? err.message : String(err)}`
+    importFeedback.value = `Node import failed: ${toUserErrorMessage(err)}`
   } finally {
     input.value = ''
   }
@@ -621,7 +627,7 @@ async function onAptImportSelected(event: Event): Promise<void> {
     }
     importFeedback.value = `Apt import: added ${added}, skipped ${skipped}.`
   } catch (err) {
-    importFeedback.value = `Apt import failed: ${err instanceof Error ? err.message : String(err)}`
+    importFeedback.value = `Apt import failed: ${toUserErrorMessage(err)}`
   } finally {
     input.value = ''
   }
@@ -794,11 +800,12 @@ function focusFirst() {
 .wizard-dialog {
   width: min(980px, 95vw);
   max-height: 88vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 1rem 1.25rem;
 }
 
 .wizard-header {

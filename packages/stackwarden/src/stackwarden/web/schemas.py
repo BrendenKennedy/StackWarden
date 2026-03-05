@@ -659,6 +659,7 @@ class StackCreateRequest(BaseModel):
     kind: Literal["stack_recipe"] = "stack_recipe"
     id: str
     display_name: str
+    description: str = ""
     build_strategy: str | None = None
     blocks: list[str] = Field(default_factory=list)
     base_role: str | None = None
@@ -677,6 +678,7 @@ class BlockCreateRequest(BaseModel):
     schema_version: int = 1
     id: str
     display_name: str
+    description: str = ""
     tags: list[str] = Field(default_factory=list)
     build_strategy: str | None = None
     base_role: str | None = None

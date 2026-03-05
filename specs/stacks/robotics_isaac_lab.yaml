@@ -31,5 +31,5 @@ entrypoint:
 
 files:
   copy:
-    - src: "workspaces/robotics/"
+    - src: "docs/examples/workspaces/robotics/"
       dst: "/workspace"

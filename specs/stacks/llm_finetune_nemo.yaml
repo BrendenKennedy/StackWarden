@@ -29,5 +29,5 @@ entrypoint:
 
 files:
   copy:
-    - src: "configs/nemo/"
+    - src: "specs/configs/nemo/"
       dst: "/workspace/configs"

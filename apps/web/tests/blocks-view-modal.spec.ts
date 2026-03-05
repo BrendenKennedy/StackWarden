@@ -88,7 +88,7 @@ describe('BlocksView modal-first creation', () => {
     })
     await flushPromises()
     expect(wrapper.text()).toContain('Old Block')
-    const deleteButton = wrapper.findAll('button').find(b => b.text() === 'Delete')
+    const deleteButton = wrapper.findAll('button').find(b => b.attributes('title') === 'Delete' || b.attributes('aria-label') === 'Delete')
     expect(deleteButton).toBeDefined()
     await deleteButton!.trigger('click')
     await wrapper.get('.mock-confirm-delete').trigger('click')

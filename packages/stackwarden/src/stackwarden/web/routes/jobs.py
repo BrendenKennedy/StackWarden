@@ -26,12 +26,38 @@ from stackwarden.web.schemas import (
 from stackwarden.config import compatibility_strict_default, load_block, load_profile, load_stack
 from stackwarden.domain.variants import validate_variant_flags
 from stackwarden.resolvers.resolver import resolve
+from stackwarden.web.jobs.helpers import get_failure_context
 
 router = APIRouter(tags=["jobs"])
 
 _active_tasks: set[asyncio.Task] = set()
 _active_task_memory_gb: dict[asyncio.Task, float] = {}
 _task_lock = asyncio.Lock()
+
+
+def _enqueue_ensure_job(
+    record: JobRecord,
+    manager: JobManager,
+    requested_memory_gb: float,
+) -> EnsureResponseDTO:
+    """Create and track an ensure job task, returning the response DTO."""
+    task = asyncio.create_task(run_ensure_job(record, manager))
+    _active_tasks.add(task)
+    _active_task_memory_gb[task] = requested_memory_gb
+
+    def _cleanup(t: asyncio.Task) -> None:
+        _active_tasks.discard(t)
+        _active_task_memory_gb.pop(t, None)
+
+    task.add_done_callback(_cleanup)
+    return EnsureResponseDTO(job_id=record.job_id)
+
+
+def _requested_memory_gb_for_record(record: JobRecord) -> float:
+    """Compute requested memory GB from a job record's build_optimization."""
+    if record.build_optimization and record.build_optimization.get("estimated_build_memory_gb"):
+        return max(1.0, record.build_optimization["estimated_build_memory_gb"])
+    return 2.0
 
 
 @router.post("/ensure", response_model=EnsureResponseDTO)
@@ -80,16 +106,7 @@ async def ensure_build(
                 else {}
             ),
         )
-        task = asyncio.create_task(run_ensure_job(record, manager))
-        _active_tasks.add(task)
-        _active_task_memory_gb[task] = requested_memory_gb
-
-    def _cleanup(t: asyncio.Task) -> None:
-        _active_tasks.discard(t)
-        _active_task_memory_gb.pop(t, None)
-
-    task.add_done_callback(_cleanup)
-    return EnsureResponseDTO(job_id=record.job_id)
+    return _enqueue_ensure_job(record, manager, requested_memory_gb)
 
 
 @router.get("/jobs", response_model=list[JobSummaryDTO])
@@ -152,29 +169,7 @@ async def get_compatibility_fix(
             applicable=False,
             message=f"Job is not failed (status: {record.status.value})",
         )
-    error_message = record.error_message or ""
-    log_content = None
-    if record.log_path:
-        try:
-            with open(record.log_path, encoding="utf-8", errors="replace") as f:
-                log_content = f.read()
-        except OSError:
-            pass
-    base_image = None
-    try:
-        profile = load_profile(record.profile_id)
-        stack = load_stack(record.stack_id)
-        blocks = [load_block(bid) for bid in (stack.blocks or [])]
-        plan = resolve(
-            profile,
-            stack,
-            blocks=blocks,
-            variants=record.variants,
-            strict_mode=compatibility_strict_default(),
-        )
-        base_image = plan.decision.base_image
-    except Exception:
-        pass
+    error_message, log_content, base_image = get_failure_context(record)
 
     from stackwarden.domain.compatibility_fix import analyze_build_failure
 
@@ -208,19 +203,7 @@ async def retry_job(
         flags=record.flags,
         build_optimization=record.build_optimization,
     )
-    task = asyncio.create_task(run_ensure_job(new_record, manager))
-    _active_tasks.add(task)
-    requested_memory_gb = 2.0
-    if record.build_optimization and record.build_optimization.get("estimated_build_memory_gb"):
-        requested_memory_gb = max(1.0, record.build_optimization["estimated_build_memory_gb"])
-    _active_task_memory_gb[task] = requested_memory_gb
-
-    def _cleanup(t: asyncio.Task) -> None:
-        _active_tasks.discard(t)
-        _active_task_memory_gb.pop(t, None)
-
-    task.add_done_callback(_cleanup)
-    return EnsureResponseDTO(job_id=new_record.job_id)
+    return _enqueue_ensure_job(new_record, manager, _requested_memory_gb_for_record(record))
 
 
 @router.post("/jobs/{job_id}/retry-with-fix", response_model=RetryWithFixResponseDTO)
@@ -237,29 +220,7 @@ async def retry_with_fix(
             status_code=400,
             detail=f"Job is not failed (status: {record.status.value})",
         )
-    error_message = record.error_message or ""
-    log_content = None
-    if record.log_path:
-        try:
-            with open(record.log_path, encoding="utf-8", errors="replace") as f:
-                log_content = f.read()
-        except OSError:
-            pass
-    base_image = None
-    try:
-        profile = load_profile(record.profile_id)
-        stack = load_stack(record.stack_id)
-        blocks = [load_block(bid) for bid in (stack.blocks or [])]
-        plan = resolve(
-            profile,
-            stack,
-            blocks=blocks,
-            variants=record.variants,
-            strict_mode=compatibility_strict_default(),
-        )
-        base_image = plan.decision.base_image
-    except Exception:
-        pass
+    error_message, log_content, base_image = get_failure_context(record)
 
     from stackwarden.domain.compatibility_fix import analyze_build_failure, apply_compatibility_fix
 
@@ -281,18 +242,7 @@ async def retry_with_fix(
         flags=record.flags,
         build_optimization=record.build_optimization,
     )
-    task = asyncio.create_task(run_ensure_job(new_record, manager))
-    _active_tasks.add(task)
-    requested_memory_gb = 2.0
-    if record.build_optimization and record.build_optimization.get("estimated_build_memory_gb"):
-        requested_memory_gb = max(1.0, record.build_optimization["estimated_build_memory_gb"])
-    _active_task_memory_gb[task] = requested_memory_gb
-
-    def _cleanup(t: asyncio.Task) -> None:
-        _active_tasks.discard(t)
-        _active_task_memory_gb.pop(t, None)
-
-    task.add_done_callback(_cleanup)
+    _enqueue_ensure_job(new_record, manager, _requested_memory_gb_for_record(record))
     return RetryWithFixResponseDTO(
         job_id=new_record.job_id,
         applied=applied,

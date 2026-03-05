@@ -339,6 +339,7 @@ class StackSpec(BaseModel):
     schema_version: int = 1
     id: str
     display_name: str
+    description: str = ""
     task: TaskType
     serve: ServeType
     api: ApiType
@@ -384,6 +385,7 @@ class BlockSpec(BaseModel):
     schema_version: int = 1
     id: str
     display_name: str
+    description: str = ""
     tags: list[str] = Field(default_factory=list)
     build_strategy: BuildStrategy | None = None
     components: StackComponentsPartial = Field(default_factory=StackComponentsPartial)
@@ -422,6 +424,7 @@ class StackRecipeSpec(BaseModel):
     schema_version: int = 1
     id: str
     display_name: str
+    description: str = ""
     blocks: list[str] = Field(default_factory=list)
     build_strategy: BuildStrategy | None = None
     components: StackComponentsPartial = Field(default_factory=StackComponentsPartial)

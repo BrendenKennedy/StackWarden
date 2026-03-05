@@ -10,11 +10,28 @@
       :rows="tableRows"
       :columns="tableColumns"
       route-base="/stacks"
+      id-key="id"
+      :on-view="handleView"
+      :on-edit="handleEdit"
       :show-delete="true"
       :deleting-id="deletingId"
       @create="openCreateModal"
-      @refresh="fetchStacks"
+      @refresh="fetchItems"
       @delete="requestDelete"
+    />
+    <SpecDetailModal
+      :show="showSpecModal"
+      entity="stacks"
+      :id="specModalId"
+      @close="closeSpecModal"
+      @edit="openEditFromView"
+    />
+    <SpecEditModal
+      :show="showEditModal"
+      entity="stacks"
+      :id="editModalId"
+      @close="closeEditModal"
+      @saved="onEditSaved"
     />
     <StackCreateFlowModal
       :show="showCreateModal"
@@ -25,7 +42,7 @@
       :show="pendingDeleteId !== null"
       :target-id="pendingDeleteId || ''"
       :loading="deletingId !== null"
-      entity-label="stack"
+      :entity-label="entityLabel"
       @cancel="cancelDelete"
       @confirm="confirmDelete"
     />
@@ -39,8 +56,9 @@ import { stacks as stacksApi } from '@/api/endpoints'
 import StackCreateFlowModal from '@/components/StackCreateFlowModal.vue'
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue'
 import PageEntityTable from '@/components/PageEntityTable.vue'
-import { useEntityListPage } from '@/composables/useEntityListPage'
-import { useQueryModal } from '@/composables/useQueryModal'
+import SpecDetailModal from '@/components/SpecDetailModal.vue'
+import SpecEditModal from '@/components/SpecEditModal.vue'
+import { useEntityListPageWithModals } from '@/composables/useEntityListPageWithModals'
 
 const {
   loading,
@@ -48,16 +66,31 @@ const {
   errorMessage,
   deletingId,
   pendingDeleteId,
-  fetchItems: fetchStacks,
+  fetchItems,
   requestDelete,
   cancelDelete,
   confirmDelete,
-} = useEntityListPage<StackSummary>({
+  showCreateModal,
+  openCreateModal,
+  closeCreateModal,
+  showSpecModal,
+  specModalId,
+  showEditModal,
+  editModalId,
+  entityLabel,
+  handleView,
+  handleEdit,
+  openEditFromView,
+  closeSpecModal,
+  closeEditModal,
+  onEditSaved,
+} = useEntityListPageWithModals<StackSummary>({
+  entity: 'stacks',
   list: () => stacksApi.list(),
   remove: (id) => stacksApi.remove(id),
   getId: (stack) => stack.id,
 })
-const { isOpen: showCreateModal, open: openCreateModal, close: closeCreateModal } = useQueryModal('create')
+
 const tableColumns = [
   { key: 'id', label: 'ID' },
   { key: 'display_name', label: 'Display Name' },
@@ -75,10 +108,10 @@ const tableRows = computed(() =>
   })),
 )
 
-onMounted(fetchStacks)
+onMounted(fetchItems)
 
 function onStackCreated() {
   closeCreateModal()
-  fetchStacks()
+  fetchItems()
 }
 </script>

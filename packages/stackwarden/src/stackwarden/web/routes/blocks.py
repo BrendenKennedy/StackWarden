@@ -13,17 +13,12 @@ from stackwarden.application.create_flows import (
 from stackwarden.config import get_block_origin, get_blocks_dir, list_block_ids, load_block
 from stackwarden.domain.errors import BlockNotFoundError
 from stackwarden.web.schemas import BlockCreateRequest, BlockCreateResponse, BlockDetailDTO, BlockSummaryDTO
+from stackwarden.web.util.responses import validation_422
 from stackwarden.web.util.versioning import apply_version_headers, resolve_schema_version
 from stackwarden.web.util.write_yaml import serialize_for_yaml
 
 router = APIRouter(tags=["blocks"])
 log = logging.getLogger(__name__)
-
-
-def _validation_422(errors: list[dict[str, str]]):
-    from fastapi.responses import JSONResponse
-
-    return JSONResponse(status_code=422, content={"detail": errors})
 
 
 @router.get("/blocks", response_model=list[BlockSummaryDTO])
@@ -66,7 +61,7 @@ async def update_block(block_id: str, req: BlockCreateRequest):
     try:
         target = app_update_block(block_id, req)
     except AppValidationError as exc:
-        return _validation_422(exc.errors)
+        return validation_422(exc.errors)
     except AppNotFoundError as exc:
         raise HTTPException(status_code=404, detail=exc.message)
     return BlockCreateResponse(id=block_id, display_name=req.display_name, path=str(target))

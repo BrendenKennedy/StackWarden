@@ -35,7 +35,7 @@ export interface FlowHandle {
   loadMetadata: () => Promise<void>
   resetForNewSession: () => void
   previewYaml: () => Promise<void>
-  createEntity: () => Promise<boolean>
+  createEntity: () => Promise<{ id: string } | null>
 }
 
 const props = defineProps<{
@@ -79,14 +79,14 @@ async function onWizardComplete() {
 }
 
 async function doCreate() {
-  const created = await props.flow.createEntity()
-  if (!created) {
+  const result = await props.flow.createEntity()
+  if (!result) {
     showConfirm.value = false
     return
   }
   props.flow.resetForNewSession()
   showConfirm.value = false
-  emit('created', props.entityId)
+  emit('created', result.id)
 }
 </script>
 

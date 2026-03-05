@@ -21,7 +21,7 @@ class _Catalog:
 
 def test_verify_json(monkeypatch):
     runner = CliRunner()
-    monkeypatch.setattr("stackwarden.cli._get_catalog", lambda: _Catalog())
+    monkeypatch.setattr("stackwarden.cli.get_catalog", lambda: _Catalog())
     monkeypatch.setattr("stackwarden.runtime.docker_client.DockerClient", lambda: object())
     monkeypatch.setattr("stackwarden.domain.verify.verify_artifact", lambda *_, **__: _Report())
     out = runner.invoke(app, ["verify", "my-tag", "--json"])

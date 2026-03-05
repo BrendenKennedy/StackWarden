@@ -1,3 +1,4 @@
+import { createMemoryHistory, createRouter } from 'vue-router'
 import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 
@@ -30,8 +31,14 @@ describe('ProfilesView modal-first creation', () => {
   }
 
   it('opens create modal from Profiles page button', async () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/profiles', component: ProfilesView }],
+    })
+    router.push('/profiles')
+    await router.isReady()
     const wrapper = mount(ProfilesView, {
-      global: { stubs: globalStubs },
+      global: { plugins: [router], stubs: globalStubs },
     })
 
     await flushPromises()
@@ -40,6 +47,8 @@ describe('ProfilesView modal-first creation', () => {
     expect(wrapper.get('button.btn.btn-primary').attributes('aria-label')).toBe('Create New Profile')
     expect(wrapper.text()).not.toContain('MockCreateModal')
     await wrapper.get('button.btn.btn-primary').trigger('click')
+    await router.replace({ path: '/profiles', query: { create: '1' } })
+    await flushPromises()
     await flushPromises()
     expect(wrapper.text()).toContain('MockCreateModal')
   })
@@ -47,8 +56,14 @@ describe('ProfilesView modal-first creation', () => {
   it('shows API detail when profiles list fails', async () => {
     const { profiles } = await import('@/api/endpoints')
     ;(profiles.list as any).mockRejectedValueOnce(new ApiError(500, 'profiles failure'))
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/profiles', component: ProfilesView }],
+    })
+    router.push('/profiles')
+    await router.isReady()
     const wrapper = mount(ProfilesView, {
-      global: { stubs: globalStubs },
+      global: { plugins: [router], stubs: globalStubs },
     })
     await flushPromises()
     expect(wrapper.text()).toContain('profiles failure')
@@ -66,12 +81,18 @@ describe('ProfilesView modal-first creation', () => {
         gpu: { vendor: 'nvidia', family: 'ampere' },
       },
     ])
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/profiles', component: ProfilesView }],
+    })
+    router.push('/profiles')
+    await router.isReady()
     const wrapper = mount(ProfilesView, {
-      global: { stubs: globalStubs },
+      global: { plugins: [router], stubs: globalStubs },
     })
     await flushPromises()
     expect(wrapper.text()).toContain('Old Profile')
-    const deleteButton = wrapper.findAll('button').find(b => b.text() === 'Delete')
+    const deleteButton = wrapper.findAll('button').find(b => b.attributes('title') === 'Delete' || b.attributes('aria-label') === 'Delete')
     expect(deleteButton).toBeDefined()
     await deleteButton!.trigger('click')
     await wrapper.get('.mock-confirm-delete').trigger('click')

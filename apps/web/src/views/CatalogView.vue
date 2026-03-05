@@ -12,6 +12,7 @@
       route-base="/catalog"
       id-key="row_id"
       view-path-key="view_path"
+      :on-view="handleView"
       :show-edit="false"
       :show-delete="true"
       :deletable="(row) => !!row.artifact_id"
@@ -26,6 +27,14 @@
       @retry="retryCatalogJob"
     />
 
+    <ArtifactDetailModal
+      :show="showArtifactModal"
+      :artifact-id="artifactModalId"
+      @close="closeArtifactModal"
+      @deleted="fetchItems"
+    />
+
+    <Teleport to="body">
     <div v-if="showBuild" class="build-modal-overlay" @click.self="showBuild = false" @keydown="onKeydown">
       <div ref="buildDialogRef" class="build-modal card" role="dialog" aria-modal="true" aria-labelledby="catalog-build-title">
         <div class="build-modal-header">
@@ -35,7 +44,7 @@
         <p class="build-help">
           Choose a runtime profile and stack recipe. This is the final resolve/build step.
         </p>
-        <div class="form-row">
+        <div class="build-form-fields">
           <div class="form-group">
             <label>Build Profile</label>
             <select v-model="buildProfileId">
@@ -84,12 +93,14 @@
         <div v-if="buildError" class="catalog-message catalog-error">{{ buildError }}</div>
       </div>
     </div>
+    </Teleport>
 
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import type { CatalogItem, ProfileSummary, StackSummary } from '@/api/types'
 import {
   artifacts as artifactsApi,
@@ -99,12 +110,18 @@ import {
   profiles as profilesApi,
   stacks as stacksApi,
 } from '@/api/endpoints'
+import { toUserErrorMessage } from '@/utils/errors'
 import PageEntityTable from '@/components/PageEntityTable.vue'
+import ArtifactDetailModal from '@/components/ArtifactDetailModal.vue'
 import { useModalFocusTrap } from '@/composables/useModalFocusTrap'
+
+const router = useRouter()
 
 const items = ref<CatalogItem[]>([])
 const loading = ref(true)
 const showBuild = ref(false)
+const showArtifactModal = ref(false)
+const artifactModalId = ref<string | null>(null)
 const deletingId = ref<string | null>(null)
 const retryingId = ref<string | null>(null)
 const profilesList = ref<ProfileSummary[]>([])
@@ -156,8 +173,8 @@ async function fetchItems() {
   try {
     const rows = await catalogApi.items({})
     items.value = rows
-  } catch (e: any) {
-    buildError.value = e.message
+  } catch (e: unknown) {
+    buildError.value = toUserErrorMessage(e)
   } finally {
     loading.value = false
   }
@@ -175,11 +192,27 @@ async function deleteCatalogItem(rowId: string) {
   try {
     await artifactsApi.remove(row.artifact_id)
     await fetchItems()
-  } catch (e: any) {
-    buildError.value = e?.message || String(e)
+  } catch (e: unknown) {
+    buildError.value = toUserErrorMessage(e)
   } finally {
     deletingId.value = null
   }
+}
+
+function handleView(row: Record<string, string | number | null | undefined>) {
+  const artifactId = row.artifact_id
+  const jobId = row.job_id
+  if (artifactId) {
+    artifactModalId.value = String(artifactId)
+    showArtifactModal.value = true
+  } else if (jobId) {
+    router.push({ name: 'job-detail', params: { id: String(jobId) } })
+  }
+}
+
+function closeArtifactModal() {
+  showArtifactModal.value = false
+  artifactModalId.value = null
 }
 
 async function retryCatalogJob(jobId: string) {
@@ -189,8 +222,8 @@ async function retryCatalogJob(jobId: string) {
   try {
     await jobsApi.retry(jobId)
     await fetchItems()
-  } catch (e: any) {
-    buildError.value = e?.message || String(e)
+  } catch (e: unknown) {
+    buildError.value = toUserErrorMessage(e)
   } finally {
     retryingId.value = null
   }
@@ -219,8 +252,8 @@ async function startBuild() {
     })
     showBuild.value = false
     await fetchItems()
-  } catch (e: any) {
-    buildError.value = e.message
+  } catch (e: unknown) {
+    buildError.value = toUserErrorMessage(e)
   } finally {
     startingBuild.value = false
   }
@@ -245,8 +278,8 @@ async function refreshCompatibility() {
     compatibilitySuggestedFixes.value = report.suggested_fixes || []
     compatibilityDecisionTrace.value = report.decision_trace || []
     tupleDecision.value = report.tuple_decision || {}
-  } catch (e: any) {
-    compatibilityErrors.value = [e.message]
+  } catch (e: unknown) {
+    compatibilityErrors.value = [toUserErrorMessage(e)]
     compatibilityWarnings.value = []
     compatibilityInfo.value = []
     compatibilitySuggestedFixes.value = []
@@ -291,13 +324,31 @@ watch([buildProfileId, buildStackId], () => {
 .build-modal {
   width: min(760px, 95vw);
   max-height: 88vh;
+  overflow-x: hidden;
   overflow-y: auto;
+}
+
+.build-form-fields select {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .build-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.build-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.build-form-fields .form-group {
+  margin-bottom: 0;
 }
 
 .build-help {
