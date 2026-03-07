@@ -50,11 +50,11 @@ HELP_ENV = """
 Environment Variables
 --------------------
 
-  STACKWARDEN_DATA_DIR     Override data root (profiles, stacks, blocks, rules)
+  STACKWARDEN_DATA_DIR     Override data root (profiles, stacks, layers, rules)
   STACKWARDEN_COMPAT_STRICT  Set to 1/true for strict compatibility mode
   STACKWARDEN_TUPLE_LAYER_MODE  off | shadow | warn | enforce (default)
   NGC_API_KEY             Required for pulling NGC base images
-  EDITOR                  Editor for stackwarden profiles edit / stacks edit / blocks edit
+  EDITOR                  Editor for stackwarden profiles edit / stacks edit / layers edit
 """
 
 HELP_TROUBLESHOOTING = """

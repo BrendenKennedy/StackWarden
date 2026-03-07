@@ -1,0 +1,22 @@
+kind: layer
+schema_version: 2
+id: tensorrt_llm_serving_optimization
+display_name: "TensorRT-LLM Serving Optimization"
+stack_layer: optimization_compilation_layer
+block_kind: accelerator
+tags:
+  - optimization
+  - serving
+  - llm
+  - tensorrt
+  - nvidia
+env:
+  - "STACKWARDEN_TRTLLM_ENABLE=1"
+  - "STACKWARDEN_TRTLLM_MODE=explicit"
+requires:
+  gpu_vendor: nvidia
+  container_runtime: nvidia
+  cuda_runtime:
+    min: 12.4
+provides:
+  layer: optimization_compilation_layer

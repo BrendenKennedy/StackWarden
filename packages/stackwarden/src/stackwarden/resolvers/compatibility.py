@@ -1,13 +1,15 @@
-"""Deterministic compatibility evaluation for profile + stack (+blocks)."""
+"""Deterministic compatibility evaluation for profile + stack (+layers)."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 import logging
 
 from stackwarden.config import tuple_layer_mode
+from stackwarden.domain.hardware_catalog import load_hardware_catalog
 from stackwarden.domain.tuple_catalog import SupportedTuple, TupleCatalog, load_tuple_catalog
-from stackwarden.domain.models import BlockSpec, CompatibilityIssue, CompatibilityReport, Profile, StackSpec
+from stackwarden.domain.models import LayerSpec, CompatibilityIssue, CompatibilityReport, Profile, StackSpec
 from stackwarden.resolvers.rule_catalog import CompatibilityRule, CompatibilityRuleCatalog, load_rule_catalog
 
 logger = logging.getLogger(__name__)
@@ -15,9 +17,25 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class _Req:
-    block_id: str
+    layer_id: str
     key: str
     value: object
+
+
+@lru_cache(maxsize=1)
+def _hardware_catalog():
+    return load_hardware_catalog()
+
+
+def _resolve_hardware_id(kind: str, raw: object) -> str:
+    value = str(raw or "").strip().lower()
+    if not value:
+        return ""
+    try:
+        resolved, _ = _hardware_catalog().resolve(kind, value)
+    except Exception:  # noqa: BLE001 - keep compatibility path resilient
+        return value
+    return (resolved or value).strip().lower()
 
 
 def _to_float(v: object) -> float | None:
@@ -45,7 +63,7 @@ def _requirement_issue(
         message=message,
         rule_id=rule_id,
         rule_version=1,
-        source=req.block_id,
+        source=req.layer_id,
         field=field,
         fix_hint=fix_hint,
         confidence_context=confidence_context or {},
@@ -53,14 +71,16 @@ def _requirement_issue(
 
 
 def _handle_arch(req: _Req, profile: Profile, _: dict[str, str]) -> list[CompatibilityIssue]:
-    if str(req.value) == profile.arch.value:
+    expected = _resolve_hardware_id("arch", req.value)
+    actual = _resolve_hardware_id("arch", profile.arch.value)
+    if not actual or not expected or expected == actual:
         return []
     return [
         _requirement_issue(
             req,
             code="ARCH_MISMATCH",
-            message=f"Block '{req.block_id}' requires arch '{req.value}', profile is '{profile.arch.value}'",
-            rule_id="block-requires-arch",
+            message=f"Layer '{req.layer_id}' requires arch '{expected}', profile is '{actual}'",
+            rule_id="layer-requires-arch",
             field=f"requires.{req.key}",
         )
     ]
@@ -73,40 +93,40 @@ def _handle_os(req: _Req, profile: Profile, _: dict[str, str]) -> list[Compatibi
         _requirement_issue(
             req,
             code="OS_MISMATCH",
-            message=f"Block '{req.block_id}' requires os '{req.value}', profile is '{profile.os}'",
-            rule_id="block-requires-os",
+            message=f"Layer '{req.layer_id}' requires os '{req.value}', profile is '{profile.os}'",
+            rule_id="layer-requires-os",
             field="requires.os",
         )
     ]
 
 
 def _handle_os_family(req: _Req, profile: Profile, _: dict[str, str]) -> list[CompatibilityIssue]:
-    actual = (profile.os_family_id or profile.os_family or profile.os).lower()
-    expected = str(req.value).lower()
+    actual = _resolve_hardware_id("os_family", profile.os_family_id or profile.os_family or profile.os)
+    expected = _resolve_hardware_id("os_family", req.value)
     if not actual or actual == expected:
         return []
     return [
         _requirement_issue(
             req,
             code="OS_FAMILY_MISMATCH",
-            message=f"Block '{req.block_id}' requires os_family_id '{expected}', profile has '{actual}'",
-            rule_id="block-requires-os-family-id",
+            message=f"Layer '{req.layer_id}' requires os_family_id '{expected}', profile has '{actual}'",
+            rule_id="layer-requires-os-family-id",
             field="requires.os_family_id",
         )
     ]
 
 
 def _handle_os_version(req: _Req, profile: Profile, _: dict[str, str]) -> list[CompatibilityIssue]:
-    actual = (profile.os_version_id or profile.os_version or "").lower()
-    expected = str(req.value).lower()
+    actual = _resolve_hardware_id("os_version", profile.os_version_id or profile.os_version)
+    expected = _resolve_hardware_id("os_version", req.value)
     if not actual or actual == expected:
         return []
     return [
         _requirement_issue(
             req,
             code="OS_VERSION_MISMATCH",
-            message=f"Block '{req.block_id}' requires os_version_id '{expected}', profile has '{actual}'",
-            rule_id="block-requires-os-version-id",
+            message=f"Layer '{req.layer_id}' requires os_version_id '{expected}', profile has '{actual}'",
+            rule_id="layer-requires-os-version-id",
             field="requires.os_version_id",
         )
     ]
@@ -121,8 +141,8 @@ def _handle_gpu_vendor(req: _Req, profile: Profile, _: dict[str, str]) -> list[C
         _requirement_issue(
             req,
             code="GPU_VENDOR_MISMATCH",
-            message=f"Block '{req.block_id}' requires gpu vendor '{expected}', profile has '{actual}'",
-            rule_id=f"block-requires-{req.key.replace('_', '-')}",
+            message=f"Layer '{req.layer_id}' requires gpu vendor '{expected}', profile has '{actual}'",
+            rule_id=f"layer-requires-{req.key.replace('_', '-')}",
             field=f"requires.{req.key}",
         )
     ]
@@ -137,8 +157,8 @@ def _handle_gpu_family(req: _Req, profile: Profile, _: dict[str, str]) -> list[C
         _requirement_issue(
             req,
             code="GPU_FAMILY_MISMATCH",
-            message=f"Block '{req.block_id}' requires gpu family '{expected}', profile has '{actual}'",
-            rule_id="block-requires-gpu-family-id",
+            message=f"Layer '{req.layer_id}' requires gpu family '{expected}', profile has '{actual}'",
+            rule_id="layer-requires-gpu-family-id",
             field="requires.gpu_family_id",
         )
     ]
@@ -153,8 +173,8 @@ def _handle_runtime(req: _Req, profile: Profile, _: dict[str, str]) -> list[Comp
         _requirement_issue(
             req,
             code="RUNTIME_MISMATCH",
-            message=f"Block '{req.block_id}' requires runtime '{expected}', profile has '{actual}'",
-            rule_id="block-requires-container-runtime",
+            message=f"Layer '{req.layer_id}' requires runtime '{expected}', profile has '{actual}'",
+            rule_id="layer-requires-container-runtime",
             field="requires.container_runtime",
         )
     ]
@@ -169,10 +189,10 @@ def _handle_driver_min(req: _Req, profile: Profile, field_conf: dict[str, str]) 
         _requirement_issue(
             req,
             code="DRIVER_TOO_OLD",
-            message=f"Block '{req.block_id}' needs driver >= {need}, detected {have}",
-            rule_id="block-requires-driver-min",
+            message=f"Layer '{req.layer_id}' needs driver >= {need}, detected {have}",
+            rule_id="layer-requires-driver-min",
             field="requires.driver_min",
-            fix_hint="Upgrade host driver or choose a compatible block version",
+            fix_hint="Upgrade host driver or choose a compatible layer version",
             confidence_context={"driver_version": field_conf.get("driver_version", "unknown")},
         )
     ]
@@ -189,8 +209,8 @@ def _handle_cuda_runtime(req: _Req, profile: Profile, _: dict[str, str]) -> list
                 _requirement_issue(
                     req,
                     code="CUDA_RANGE_UNSUPPORTED",
-                    message=f"Block '{req.block_id}' requires cuda >= {min_v}, profile has {profile_cuda}",
-                    rule_id="block-requires-cuda-min",
+                    message=f"Layer '{req.layer_id}' requires cuda >= {min_v}, profile has {profile_cuda}",
+                    rule_id="layer-requires-cuda-min",
                     field="requires.cuda_runtime.min",
                 )
             )
@@ -199,8 +219,8 @@ def _handle_cuda_runtime(req: _Req, profile: Profile, _: dict[str, str]) -> list
                 _requirement_issue(
                     req,
                     code="CUDA_RANGE_UNSUPPORTED",
-                    message=f"Block '{req.block_id}' requires cuda <= {max_v}, profile has {profile_cuda}",
-                    rule_id="block-requires-cuda-max",
+                    message=f"Layer '{req.layer_id}' requires cuda <= {max_v}, profile has {profile_cuda}",
+                    rule_id="layer-requires-cuda-max",
                     field="requires.cuda_runtime.max",
                 )
             )
@@ -212,8 +232,8 @@ def _handle_cuda_runtime(req: _Req, profile: Profile, _: dict[str, str]) -> list
                 _requirement_issue(
                     req,
                     code="CUDA_VARIANT_UNSUPPORTED",
-                    message=f"Block '{req.block_id}' requires one of {sorted(allowed)}, profile has '{actual}'",
-                    rule_id="block-requires-cuda-variant",
+                    message=f"Layer '{req.layer_id}' requires one of {sorted(allowed)}, profile has '{actual}'",
+                    rule_id="layer-requires-cuda-variant",
                     field="requires.cuda_runtime",
                 )
             )
@@ -239,14 +259,14 @@ def evaluate_compatibility(
     profile: Profile,
     stack: StackSpec,
     *,
-    blocks: list[BlockSpec] | None = None,
+    layers: list[LayerSpec] | None = None,
     strict_mode: bool = False,
     tuple_mode: str | None = None,
     tuple_catalog: TupleCatalog | None = None,
     rule_catalog: CompatibilityRuleCatalog | None = None,
 ) -> CompatibilityReport:
     """Evaluate compatibility and return structured diagnostics."""
-    block_specs = blocks or []
+    layer_specs = layers or []
     errors: list[CompatibilityIssue] = []
     warnings: list[CompatibilityIssue] = []
     info: list[CompatibilityIssue] = []
@@ -258,28 +278,48 @@ def evaluate_compatibility(
 
     trace.append(f"profile={profile.id} schema={profile.schema_version}")
     trace.append(f"stack={stack.id} schema={stack.schema_version}")
-    trace.append(f"blocks={','.join(stack.blocks) if stack.blocks else '<none>'}")
+    trace.append(f"layers={','.join(stack.layers) if stack.layers else '<none>'}")
     trace.append(
         "derived_capabilities="
         + (",".join(profile.derived_capabilities) if profile.derived_capabilities else "<none>")
     )
     trace.append(f"tuple_layer_mode={layer_mode}")
+    certification = _stack_certification(stack)
+    trace.append(f"stack_certification={certification}")
 
-    for b in block_specs:
-        for k, v in (b.requires or {}).items():
-            requirements.append(_Req(block_id=b.id, key=k, value=v))
-        for other in b.incompatible_with:
-            if other in stack.blocks:
+    if certification == "dgx_certified" and not _is_dgx_profile(profile):
+        warnings.append(
+            CompatibilityIssue(
+                code="DGX_CERTIFIED_STACK_BEST_EFFORT",
+                severity="warning",
+                message=(
+                    "Selected stack is DGX-certified, but current profile is not classified as DGX. "
+                    "Build remains allowed in best-effort mode."
+                ),
+                source=stack.id,
+                field="requirements.constraints.stackwarden_certification",
+                fix_hint="Use a DGX profile for certified behavior, or continue with explicit best-effort expectations.",
+            )
+        )
+        suggested_fixes.append(
+            "For certified behavior, switch to a DGX profile; otherwise proceed with best-effort portability mode."
+        )
+
+    for layer in layer_specs:
+        for k, v in (layer.requires or {}).items():
+            requirements.append(_Req(layer_id=layer.id, key=k, value=v))
+        for other in layer.incompatible_with:
+            if other in stack.layers:
                 errors.append(
                     CompatibilityIssue(
-                        code="BLOCK_CONFLICT",
+                        code="LAYER_CONFLICT",
                         severity="error",
-                        message=f"Block '{b.id}' is incompatible with '{other}'",
-                        rule_id="block-incompatible-with",
+                        message=f"Layer '{layer.id}' is incompatible with '{other}'",
+                        rule_id="layer-incompatible-with",
                         rule_version=1,
-                        source=b.id,
+                        source=layer.id,
                         field="incompatible_with",
-                        fix_hint=f"Remove either '{b.id}' or '{other}' from stack blocks",
+                        fix_hint=f"Remove either '{layer.id}' or '{other}' from stack layers",
                     )
                 )
 
@@ -312,7 +352,7 @@ def evaluate_compatibility(
             message=mismatch_msg,
             source="tuple_catalog",
             field="profile",
-            fix_hint="Adjust profile hardware facts or choose a tuple-supported profile/block combination.",
+            fix_hint="Adjust profile hardware facts or choose a tuple-supported profile/layer combination.",
         )
         if layer_mode == "enforce":
             errors.append(mismatch_issue)
@@ -343,12 +383,13 @@ def evaluate_compatibility(
             )
         )
     else:
-        suggested_fixes.append("Review block requirements and select compatible block/profile combinations.")
+        suggested_fixes.append("Review layer requirements and select compatible layer/profile combinations.")
 
     effective_caps = list(dict.fromkeys(profile.derived_capabilities or []))
     summary = {
-        "stack_blocks": stack.blocks,
-        "block_requirements": [{r.key: r.value, "block_id": r.block_id} for r in requirements],
+        "stack_layers": stack.layers,
+        "stack_certification": certification,
+        "layer_requirements": [{r.key: r.value, "layer_id": r.layer_id} for r in requirements],
         "profile_restrictions": profile.constraints.model_dump(mode="json"),
         "effective_capabilities": effective_caps,
         "unknown_confidence_fields": sorted([k for k, v in field_conf.items() if v == "unknown"]),
@@ -373,17 +414,38 @@ def _profile_cuda(profile: Profile) -> float | None:
     return _to_float(f"{profile.cuda.major}.{profile.cuda.minor}")
 
 
+def _stack_certification(stack: StackSpec) -> str:
+    constraints = dict(stack.requirements.constraints or {})
+    token = str(constraints.get("stackwarden_certification") or "").strip().lower()
+    if token in {"dgx_certified", "generic_best_effort"}:
+        return token
+    return "generic_best_effort"
+
+
+def _is_dgx_profile(profile: Profile) -> bool:
+    profile_id = str(profile.id or "").strip().lower()
+    if profile_id.startswith("dgx_"):
+        return True
+    tags = {str(tag).strip().lower() for tag in (profile.tags or [])}
+    if "dgx" in tags or "dgx-spark" in tags:
+        return True
+    labels = {str(k).strip().lower(): str(v).strip().lower() for k, v in (profile.labels or {}).items()}
+    if labels.get("optimization_scope") == "curated_authoritative":
+        return True
+    return False
+
+
 def _profile_tuple_facts(profile: Profile) -> dict[str, str]:
-    gpu_vendor = (profile.gpu.vendor_id or profile.gpu.vendor or "").strip().lower()
+    gpu_vendor = _resolve_hardware_id("gpu_vendor", profile.gpu.vendor_id or profile.gpu.vendor)
     if not gpu_vendor:
         gpu_vendor = "cpu"
     return {
-        "arch": profile.arch.value.lower(),
-        "os_family_id": (profile.os_family_id or profile.os_family or profile.os or "").strip().lower(),
-        "os_version_id": (profile.os_version_id or profile.os_version or "").strip().lower(),
+        "arch": _resolve_hardware_id("arch", profile.arch.value),
+        "os_family_id": _resolve_hardware_id("os_family", profile.os_family_id or profile.os_family or profile.os),
+        "os_version_id": _resolve_hardware_id("os_version", profile.os_version_id or profile.os_version),
         "container_runtime": profile.container_runtime.value.lower(),
         "gpu_vendor_id": gpu_vendor,
-        "gpu_family_id": (profile.gpu.family_id or profile.gpu.family or "").strip().lower(),
+        "gpu_family_id": _resolve_hardware_id("gpu_family", profile.gpu.family_id or profile.gpu.family),
     }
 
 
@@ -489,7 +551,7 @@ def _evaluate_tuple_resolution(
         "trace": trace,
         "suggested_fixes": [
             "Update profile arch/runtime/GPU fields to align with supported tuples.",
-            "Choose blocks with requirements compatible with your target profile tuple.",
+            "Choose layers with requirements compatible with your target profile tuple.",
         ],
     }
 

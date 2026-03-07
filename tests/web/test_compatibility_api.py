@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 def client(tmp_path, monkeypatch):
     (tmp_path / "stacks").mkdir()
     (tmp_path / "profiles").mkdir()
-    (tmp_path / "blocks").mkdir()
+    (tmp_path / "layers").mkdir()
     (tmp_path / "rules").mkdir()
     monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
 
@@ -72,6 +72,7 @@ def client(tmp_path, monkeypatch):
                 "build_strategy": "overlay",
                 "components": {"base_role": "python", "pip": [], "apt": []},
                 "entrypoint": {"cmd": ["python", "-V"]},
+                "requirements": {"constraints": {"stackwarden_certification": "dgx_certified"}},
             },
             sort_keys=False,
         ),
@@ -87,10 +88,17 @@ def client(tmp_path, monkeypatch):
         },
     ):
         from stackwarden.web.app import create_app
+        from stackwarden.web.deps import reset_cached_dependencies
         from stackwarden.web.settings import WebSettings
 
+        reset_cached_dependencies()
         app = create_app(WebSettings(token=None, dev=True))
-        yield TestClient(app)
+        with TestClient(app) as test_client:
+            test_client.post(
+                "/api/auth/setup",
+                json={"username": "admin", "password": "dev-password-123"},
+            )
+            yield test_client
 
 
 def test_compatibility_preview_includes_rule_metadata(client):
@@ -104,8 +112,10 @@ def test_compatibility_preview_includes_rule_metadata(client):
     assert body["errors"][0]["code"] == "RUNTIME_MISMATCH"
     assert body["errors"][0]["rule_id"] == "runtime-hard"
     assert body["errors"][0]["rule_version"] == 1
+    assert any(w["code"] == "DGX_CERTIFIED_STACK_BEST_EFFORT" for w in body["warnings"])
     assert "requirements_summary" in body
     assert "effective_capabilities" in body["requirements_summary"]
+    assert body["requirements_summary"]["stack_certification"] == "dgx_certified"
     assert "tuple_decision" in body
 
 
@@ -113,10 +123,10 @@ def test_compatibility_preview_uses_env_strict_default(client, monkeypatch):
     captured: dict[str, bool] = {}
 
     monkeypatch.setattr("stackwarden.web.routes.compatibility.load_profile", lambda _id: object())
-    monkeypatch.setattr("stackwarden.web.routes.compatibility.load_stack", lambda _id: type("S", (), {"blocks": []})())
-    monkeypatch.setattr("stackwarden.web.routes.compatibility.load_block", lambda _id: object())
+    monkeypatch.setattr("stackwarden.web.routes.compatibility.load_stack", lambda _id: type("S", (), {"layers": []})())
+    monkeypatch.setattr("stackwarden.web.routes.compatibility.load_layer", lambda _id: object())
 
-    def _fake_eval(_profile, _stack, *, blocks, strict_mode):
+    def _fake_eval(_profile, _stack, *, layers, strict_mode):
         captured["strict_mode"] = strict_mode
         return type("R", (), {"model_dump": lambda self, mode="json": {
             "compatible": True,

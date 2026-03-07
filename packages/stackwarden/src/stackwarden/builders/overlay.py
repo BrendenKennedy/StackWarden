@@ -107,6 +107,7 @@ def render_dockerfile(
         pip_wheelhouse_path=pip_wheelhouse_path,
         npm_install_commands=npm_install_commands,
         copy_items=[{"src": c.src, "dst": c.dst} for c in stack.files.copy_items],
+        optimization_env=(plan.decision.build_optimization.optimization_env if plan.decision.build_optimization else {}),
         env=stack.env,
         expose_ports=stack.ports,
         entrypoint_cmd_json=json.dumps(stack.entrypoint.cmd),

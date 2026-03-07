@@ -1,0 +1,18 @@
+kind: layer
+schema_version: 2
+id: prometheus_observability
+display_name: "Prometheus Observability"
+stack_layer: observability_operations_layer
+block_kind: runtime
+tags:
+  - observability
+  - monitoring
+  - metrics
+components:
+  pip:
+    - name: prometheus-client
+      version: ">=0.21,<1.0"
+ports:
+  - 9090
+provides:
+  layer: observability_operations_layer

@@ -1,0 +1,27 @@
+kind: layer
+schema_version: 2
+id: hunyuan3d2_runtime
+display_name: "Hunyuan3D-2 Runtime"
+stack_layer: inference_engine_layer
+block_kind: runtime
+tags:
+  - hunyuan
+  - 3d
+  - generation
+  - diffusion
+components:
+  pip:
+    - name: diffusers
+      version: ">=0.32,<0.35"
+    - name: transformers
+      version: ">=4.55,<4.60"
+    - name: accelerate
+      version: ">=0.26,<1.0"
+    - name: safetensors
+      version: ">=0.4,<1.0"
+    - name: huggingface-hub
+      version: ">=0.26,<1.0"
+requires:
+  gpu_vendor: nvidia
+provides:
+  layer: inference_engine_layer

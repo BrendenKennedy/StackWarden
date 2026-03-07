@@ -55,7 +55,8 @@ This preserves behavior parity for build/pull and lifecycle transitions across s
 ## Input Contracts
 
 - CLI arguments and options are validated at command entry and mapped to core inputs.
-- API payloads use Pydantic DTO contracts (`packages/stackwarden/src/stackwarden/web/schemas.py`) and normalized error response formats.
+- API payloads use transport DTO contracts (`packages/stackwarden/src/stackwarden/web/schemas.py`) and normalized error response formats.
+- Create-flow orchestration consumes application request models (`packages/stackwarden/src/stackwarden/application/create_request_models.py`) to avoid direct non-web coupling to transport DTO modules.
 
 ## Persistence Contracts
 

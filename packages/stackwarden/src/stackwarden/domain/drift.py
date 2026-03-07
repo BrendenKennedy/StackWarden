@@ -20,6 +20,8 @@ class DriftReason(str, Enum):
     TEMPLATE_HASH_CHANGED = "template_hash_changed"
     STACK_SCHEMA_CHANGED = "stack_schema_changed"
     PROFILE_SCHEMA_CHANGED = "profile_schema_changed"
+    # Legacy reason value retained for compatibility while layer-first naming
+    # becomes canonical in internal code paths.
     BLOCK_SCHEMA_CHANGED = "block_schema_changed"
     BUILDER_VERSION_CHANGED = "builder_version_changed"
     LABELS_MISSING = "labels_missing"
@@ -64,9 +66,15 @@ def detect_drift(
     if live_profile_schema and expected_profile_schema and live_profile_schema != expected_profile_schema:
         reasons.append(DriftReason.PROFILE_SCHEMA_CHANGED)
 
-    live_block_schema = labels.get("stackwarden.block_schema_version", "")
-    expected_block_schema = plan.artifact.labels.get("stackwarden.block_schema_version", "")
-    if live_block_schema and expected_block_schema and live_block_schema != expected_block_schema:
+    live_layer_schema = labels.get(
+        "stackwarden.layer_schema_version",
+        labels.get("stackwarden.block_schema_version", ""),
+    )
+    expected_layer_schema = plan.artifact.labels.get(
+        "stackwarden.layer_schema_version",
+        plan.artifact.labels.get("stackwarden.block_schema_version", ""),
+    )
+    if live_layer_schema and expected_layer_schema and live_layer_schema != expected_layer_schema:
         reasons.append(DriftReason.BLOCK_SCHEMA_CHANGED)
 
     if catalog_record:
@@ -85,10 +93,15 @@ def detect_drift(
             if DriftReason.PROFILE_SCHEMA_CHANGED not in reasons:
                 reasons.append(DriftReason.PROFILE_SCHEMA_CHANGED)
         try:
-            expected_block_ver = int(expected_block_schema) if expected_block_schema else 1
+            expected_layer_ver = int(expected_layer_schema) if expected_layer_schema else 1
         except (ValueError, TypeError):
-            expected_block_ver = 1
-        if getattr(catalog_record, "block_schema_version", 1) != expected_block_ver:
+            expected_layer_ver = 1
+        catalog_layer_schema = getattr(
+            catalog_record,
+            "layer_schema_version",
+            getattr(catalog_record, "block_schema_version", 1),
+        )
+        if catalog_layer_schema != expected_layer_ver:
             if DriftReason.BLOCK_SCHEMA_CHANGED not in reasons:
                 reasons.append(DriftReason.BLOCK_SCHEMA_CHANGED)
 

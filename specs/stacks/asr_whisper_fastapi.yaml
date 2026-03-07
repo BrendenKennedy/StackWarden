@@ -2,9 +2,13 @@ kind: stack_recipe
 schema_version: 2
 id: asr_whisper_fastapi
 display_name: "Speech Recognition (Whisper) + FastAPI"
-blocks:
+layers:
+  - ubuntu_24_04_runtime
+  - pytorch_core_compute
   - fastapi
   - whisper_asr
+  - sdpa_attention_optimization
+  - torch_compile_optimization
   - cudnn
 
 components:

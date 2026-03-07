@@ -95,6 +95,7 @@ const {
 const tableColumns = [
   { key: 'id', label: 'ID' },
   { key: 'display_name', label: 'Display Name' },
+  { key: 'certification', label: 'Certification', badge: true },
   { key: 'source', label: 'Source' },
   { key: 'variants_count', label: 'Variants' },
 ]
@@ -105,6 +106,7 @@ const tableRows = computed(() =>
     source: s.source === 'remote'
       ? `remote${s.source_repo_owner ? ` (${s.source_repo_owner})` : ''}`
       : (s.source || 'local'),
+    certification: s.certification === 'dgx_certified' ? 'dgx_certified' : 'generic_best_effort',
     variants_count: Object.keys(s.variants || {}).length,
   })),
 )

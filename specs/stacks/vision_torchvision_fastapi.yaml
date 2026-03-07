@@ -1,0 +1,37 @@
+kind: stack_recipe
+schema_version: 2
+id: vision_torchvision_fastapi
+display_name: "Vision TorchVision + FastAPI"
+layers:
+  - ubuntu_24_04_runtime
+  - nccl_accelerator
+  - pytorch_core_compute
+  - torchvision_vision_runtime
+  - sdpa_attention_optimization
+  - torch_compile_optimization
+  - fastapi
+  - prometheus_observability
+build_strategy: overlay
+components:
+  base_role: pytorch
+  apt:
+    - git
+    - curl
+env:
+  - PYTHONUNBUFFERED=1
+ports:
+  - 8000
+entrypoint:
+  cmd:
+    - python
+    - "-m"
+    - uvicorn
+    - app.main:app
+    - "--host"
+    - "0.0.0.0"
+    - "--port"
+    - "8000"
+files:
+  copy:
+    - src: "services/vision_api/"
+      dst: "/app"

@@ -1,0 +1,21 @@
+kind: layer
+schema_version: 2
+id: ultralytics_vision_runtime
+display_name: "Ultralytics Vision Runtime"
+stack_layer: inference_engine_layer
+block_kind: runtime
+tags:
+  - vision
+  - detector
+  - segmentation
+  - yolo
+components:
+  pip:
+    - name: ultralytics
+      version: ">=8.3,<9.0"
+    - name: opencv-python-headless
+      version: ">=4.10,<5.0"
+requires:
+  gpu_vendor: nvidia
+provides:
+  layer: inference_engine_layer

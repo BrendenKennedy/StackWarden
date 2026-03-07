@@ -14,7 +14,7 @@ from stackwarden.web.schemas import ArtifactDetailDTO, ArtifactSummaryDTO
 
 router = APIRouter(tags=["artifacts"])
 
-_ALLOWED_FILES = frozenset({"manifest", "profile", "stack", "plan", "sbom", "verify"})
+_ALLOWED_FILES = frozenset({"manifest", "profile", "stack", "plan", "optimization", "sbom", "verify"})
 
 
 @router.get("/artifacts", response_model=list[ArtifactSummaryDTO])

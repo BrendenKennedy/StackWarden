@@ -60,8 +60,8 @@
                 <rect x="13" y="13" width="7" height="7" rx="1.5" />
               </svg>
             </div>
-            <p class="kpi-label">Blocks</p>
-            <p class="kpi-value">{{ blockCount }}</p>
+            <p class="kpi-label">Layers</p>
+            <p class="kpi-value">{{ layerCount }}</p>
           </article>
           <article class="inventory-visual-card">
             <div class="hardware-icon">
@@ -167,8 +167,8 @@
             <p class="host-detail-value">{{ systemConfig?.tuple_layer_mode || '-' }}</p>
           </article>
           <article class="host-detail-card">
-            <p class="host-detail-label">Remote Catalog</p>
-            <p class="host-detail-value">{{ systemConfig?.remote_catalog_enabled ? 'enabled' : 'disabled' }}</p>
+            <p class="host-detail-label">Catalog Local Path</p>
+            <p class="host-detail-value">{{ systemConfig?.catalog_local_path || '-' }}</p>
           </article>
           <article class="host-detail-card">
             <p class="host-detail-label">Default Profile</p>
@@ -234,14 +234,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import type { DetectionHints, JobSummary, SystemConfig } from '@/api/types'
-import { blocks, jobs, profiles, stacks, system } from '@/api/endpoints'
+import { layers, jobs, profiles, stacks, system } from '@/api/endpoints'
 import LogStream from '@/components/LogStream.vue'
 import { toUserErrorMessage } from '@/utils/errors'
 
 const loading = ref(true)
 const refreshing = ref(false)
 
-const blockCount = ref(0)
+const layerCount = ref(0)
 const stackCount = ref(0)
 const profileCount = ref(0)
 const jobsList = ref<JobSummary[]>([])
@@ -310,19 +310,19 @@ async function fetchData() {
   sectionErrors.value = { inventory: null, jobs: null, system: null }
 
   const [inventoryResult, jobsResult, systemResult] = await Promise.allSettled([
-    Promise.all([blocks.list(), stacks.list(), profiles.list()]),
+    Promise.all([layers.list(), stacks.list(), profiles.list()]),
     jobs.list(200),
     Promise.all([system.health(), system.detectionHints(), system.config()]),
   ])
 
   if (inventoryResult.status === 'fulfilled') {
-    const [blockRows, stackRows, profileRows] = inventoryResult.value
-    blockCount.value = blockRows.length
+    const [layerRows, stackRows, profileRows] = inventoryResult.value
+    layerCount.value = layerRows.length
     stackCount.value = stackRows.length
     profileCount.value = profileRows.length
   } else {
     sectionErrors.value.inventory = toUserErrorMessage(inventoryResult.reason)
-    blockCount.value = 0
+    layerCount.value = 0
     stackCount.value = 0
     profileCount.value = 0
   }

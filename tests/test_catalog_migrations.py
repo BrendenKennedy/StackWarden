@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import create_engine, text, inspect as sa_inspect
+from sqlalchemy import create_engine, text
 
 from stackwarden.catalog.migrations import _column_exists, _index_exists, run_migrations
 
@@ -59,3 +59,26 @@ class TestRunMigrations:
     def test_creates_fingerprint_index(self, engine):
         run_migrations(engine)
         assert _index_exists(engine, "artifacts", "idx_artifacts_fingerprint_unique") is True
+
+    def test_backfills_layer_schema_version_from_legacy_block_column(self, engine):
+        with engine.begin() as conn:
+            conn.execute(text(
+                "ALTER TABLE artifacts ADD COLUMN block_schema_version INTEGER DEFAULT 1"
+            ))
+            conn.execute(text(
+                "ALTER TABLE artifacts ADD COLUMN layer_schema_version INTEGER DEFAULT 1"
+            ))
+            conn.execute(text(
+                "INSERT INTO artifacts (id, fingerprint, tag, block_schema_version, layer_schema_version) "
+                "VALUES (1, 'fp-1', 'tag-1', 2, 1)"
+            ))
+
+        run_migrations(engine)
+
+        with engine.begin() as conn:
+            row = conn.execute(text(
+                "SELECT layer_schema_version, block_schema_version FROM artifacts WHERE id = 1"
+            )).first()
+        assert row is not None
+        assert row[0] == 2
+        assert row[1] == 2

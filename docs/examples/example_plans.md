@@ -1,73 +1,50 @@
 # Example Plans
 
-## Diffusion on DGX Spark
+Illustrative `stackwarden plan` outputs for common situations.
 
-```
-$ stackwarden plan --profile dgx_spark --stack diffusion_fastapi
+## DGX Spark + Diffusion
 
-╭────────────────────────── StackWarden Plan ───────────────────────────╮
-│ Plan: plan_46d159906e84ea3c                                          │
-╰──────────────────────────────────────────────────────────────────────╯
-  Profile: dgx_spark
-  Stack:   diffusion_fastapi
-  Base:    nvcr.io/nvidia/pytorch:24.06-py3
-  Builder: overlay
-  Tag:     local/stackwarden:diffusion_fastapi-dgx_spark-cuda12.5-python_api-fastapi-46d159906e84
-  FP:      46d159906e84ea3c0447f91a...
-
-Steps (2):
-  1. pull nvcr.io/nvidia/pytorch:24.06-py3
-  2. build_overlay -> local/stackwarden:diffusion_fastapi-dgx_spark-cuda12.5-python_api-fastapi-46d159906e84
+```bash
+stackwarden plan --profile dgx_spark --stack diffusion_fastapi
 ```
 
-The resolver selected `nvcr.io/nvidia/pytorch:24.06-py3` as the base because:
-- The stack's `base_role` is `pytorch`, which matches the candidate name
-- DGX Spark profile gives this candidate a `score_bias` of 100
-- No compatibility issues detected (all dependencies are ARM64-compatible)
+Expected characteristics:
 
-## vLLM on DGX Spark
+- resolved NVIDIA base image for the selected `base_role`
+- `overlay` build strategy
+- deterministic fingerprint and tag
+- concise step list (pull + overlay build)
 
-```
-$ stackwarden plan --profile dgx_spark --stack llm_vllm
+## DGX Spark + vLLM
 
-╭────────────────────────── StackWarden Plan ───────────────────────────╮
-│ Plan: plan_a1b2c3d4e5f6a7b8                                         │
-╰──────────────────────────────────────────────────────────────────────╯
-  Profile: dgx_spark
-  Stack:   llm_vllm_fastapi
-  Base:    nvcr.io/nvidia/pytorch:24.06-py3
-  Builder: overlay
-  Tag:     local/stackwarden:llm_vllm_fastapi-dgx_spark-cuda12.5-vllm-fastapi-a1b2c3d4e5f6
-  FP:      a1b2c3d4e5f6a7b8...
-
-Steps (2):
-  1. pull nvcr.io/nvidia/pytorch:24.06-py3
-  2. build_overlay -> local/stackwarden:llm_vllm_fastapi-dgx_spark-cuda12.5-vllm-fastapi-a1b2c3d4e5f6
+```bash
+stackwarden plan --profile dgx_spark --stack llm_vllm
 ```
 
-## Mismatch Example: x86-only package on ARM64
+Expected characteristics:
 
-If a stack includes `xformers` (which has limited ARM64 support):
+- DGX-certified stack warning behavior is explicit for non-DGX paths
+- tuple/compatibility decision metadata appears when enabled
+- deterministic output shape suitable for CI parsing (`--json`)
 
-```
-$ stackwarden plan --profile dgx_spark --stack diffusion_with_xformers
+## Warning Path Example
 
-  ...
-  Warnings:
-    - xformers has limited ARM64 support; torch SDPA will be used instead
-```
-
-The plan still generates (it's a warning, not an error), but the user is alerted to the potential issue.
-
-## Incompatible Stack
-
-If a profile disallows a serve type:
-
-```
-$ stackwarden plan --profile restricted_profile --stack triton_stack
-
-Error: Stack is incompatible with profile:
-  - serve type 'triton' is disallowed by profile 'restricted_profile'
+```bash
+stackwarden plan --profile dgx_spark --stack <stack_with_partial_arch_support>
 ```
 
-The resolver raises an `IncompatibleStackError` and the plan is not generated.
+Expected characteristics:
+
+- plan can still succeed
+- warnings clearly explain degraded/alternative execution assumptions
+
+## Hard Incompatibility Example
+
+```bash
+stackwarden plan --profile restricted_profile --stack triton_stack
+```
+
+Expected characteristics:
+
+- compatibility error returned before build
+- explicit reason list (for example, profile-disallowed serve/runtime)

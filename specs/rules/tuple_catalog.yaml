@@ -25,8 +25,22 @@ tuples:
       cuda_min: 12.5
       cuda_max: 12.5
     base_image: nvcr.io/nvidia/pytorch:24.08-py3
-    notes: Reference x86 CUDA 12.5 path.
-    tags: [golden, x86, cuda12.5]
+    notes: Generic x86 CUDA 12.5 path.
+    tags: [golden, x86, cuda12.5, generic]
+  - id: dgx_h100_cuda125_ubuntu2204
+    status: supported
+    selector:
+      arch: amd64
+      os_family_id: ubuntu
+      os_version_id: ubuntu_22_04
+      container_runtime: nvidia
+      gpu_vendor_id: nvidia
+      gpu_family_id: hopper
+      cuda_min: 12.5
+      cuda_max: 12.5
+    base_image: nvcr.io/nvidia/pytorch:24.08-py3
+    notes: Authoritative DGX H100 baseline on Ubuntu 22.04 (Hopper, CUDA 12.5).
+    tags: [golden, dgx, dgx-h100, hopper, cuda12.5, authoritative]
   - id: arm_nvidia_cuda124_ubuntu2204
     status: experimental
     selector:
@@ -76,7 +90,7 @@ tuples:
       cuda_max: 13.0
     base_image: nvcr.io/nvidia/pytorch:25.03-py3
     notes: DGX Spark Blackwell GB10 primary path. CUDA 13.0 + arm64 Ubuntu 24.04.
-    tags: [golden, arm, cuda13.0, blackwell, dgx-spark]
+    tags: [golden, arm, cuda13.0, blackwell, dgx-spark, authoritative]
   - id: arm_nvidia_cuda130_ubuntu2404_pull
     status: supported
     selector:
@@ -89,7 +103,7 @@ tuples:
       cuda_max: 13.0
     base_image: nvcr.io/nvidia/pytorch:25.03-py3
     notes: DGX Spark pull-only path for pre-built images.
-    tags: [golden, arm, cuda13.0, blackwell, dgx-spark, pull]
+    tags: [golden, arm, cuda13.0, blackwell, dgx-spark, pull, authoritative]
   - id: arm_cpu_runc_linux
     status: experimental
     selector:

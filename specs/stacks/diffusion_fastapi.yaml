@@ -1,25 +1,26 @@
 schema_version: 2
+kind: stack_recipe
 id: diffusion_fastapi
 display_name: "Diffusion (PyTorch) + FastAPI"
 task: diffusion
 serve: python_api
 api: fastapi
-blocks:
+layers:
+  - ubuntu_24_04_runtime
+  - pytorch_core_compute
   - fastapi
+  - sdpa_attention_optimization
+  - torch_compile_optimization
   - cudnn
 build_strategy: overlay
 
 components:
   base_role: pytorch
   pip:
-    - name: "fastapi"
-      version: "==0.115.*"
-    - name: "uvicorn"
-      version: "[standard]==0.30.*"
     - name: "diffusers"
-      version: ">=0.30,<0.33"
+      version: ">=0.32,<0.35"
     - name: "transformers"
-      version: ">=4.40,<4.48"
+      version: ">=4.55,<4.60"
   apt:
     - "git"
     - "curl"

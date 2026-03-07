@@ -1,0 +1,18 @@
+kind: layer
+schema_version: 2
+id: nccl_accelerator
+display_name: "NCCL Accelerator Runtime"
+stack_layer: driver_accelerator_layer
+block_kind: accelerator
+tags:
+  - cuda
+  - accelerator
+  - distributed
+components:
+  pip:
+    - name: nvidia-nccl-cu12
+      version: ">=2.23,<3.0"
+requires:
+  gpu_vendor: nvidia
+provides:
+  layer: driver_accelerator_layer

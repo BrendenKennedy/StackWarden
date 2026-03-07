@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import re
 from pathlib import Path
 
 import yaml
@@ -11,12 +10,12 @@ from pydantic import ValidationError as PydanticValidationError
 
 from stackwarden.domain.composition import compose_stack
 from stackwarden.domain.errors import (
-    BlockNotFoundError,
+    LayerNotFoundError,
     ProfileNotFoundError,
     StackNotFoundError,
     StackWardenError,
 )
-from stackwarden.domain.models import BlockSpec, Profile, StackRecipeSpec, StackSpec
+from stackwarden.domain.models import LayerSpec, Profile, StackRecipeSpec, StackSpec
 from stackwarden.paths import get_config_path
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -67,12 +66,11 @@ def unmark_profile_deleted(profile_id: str) -> None:
     _save_deleted_profile_ids(ids)
 
 
-def _configured_remote_data_dir() -> Path | None:
+def _configured_catalog_local_path() -> Path | None:
     data = _load_config_data()
-    remote = data.get("remote_catalog", {}) or {}
-    enabled = bool(remote.get("enabled"))
-    local_path = str(remote.get("local_path") or "").strip()
-    if enabled and local_path:
+    catalog_cfg = data.get("catalog", {}) or {}
+    local_path = str(catalog_cfg.get("local_path") or "").strip()
+    if local_path:
         return Path(local_path).expanduser()
     return None
 
@@ -81,9 +79,9 @@ def _data_dir() -> Path:
     override = os.environ.get("STACKWARDEN_DATA_DIR")
     if override:
         return Path(override)
-    configured_remote = _configured_remote_data_dir()
-    if configured_remote:
-        return configured_remote
+    configured_local = _configured_catalog_local_path()
+    if configured_local:
+        return configured_local
     return _DEFAULT_DATA_DIR
 
 
@@ -91,13 +89,8 @@ def _configured_local_overrides_dir() -> Path | None:
     if os.environ.get("STACKWARDEN_DATA_DIR"):
         return None
     data = _load_config_data()
-    remote = data.get("remote_catalog", {}) or {}
-    enabled = bool(remote.get("enabled"))
-    if not enabled:
-        return None
-    local_overrides = str(
-        remote.get("local_overrides_path", "~/.local/share/stackwarden/local-catalog")
-    ).strip()
+    catalog_cfg = data.get("catalog", {}) or {}
+    local_overrides = str(catalog_cfg.get("local_overrides_path") or "").strip()
     if not local_overrides:
         return None
     return Path(local_overrides).expanduser()
@@ -111,8 +104,8 @@ def _stacks_dir() -> Path:
     return _data_dir() / "stacks"
 
 
-def _blocks_dir() -> Path:
-    return _data_dir() / "blocks"
+def _layers_dir() -> Path:
+    return _data_dir() / "layers"
 
 
 def _templates_dir() -> Path:
@@ -142,7 +135,7 @@ def _tuple_catalog_path() -> Path:
 
 def _tuple_catalog_roots() -> list[Path]:
     """Rules roots for tuple_catalog.yaml in merge order (default-first so bundled is base).
-    Remote and local overlay onto bundled, matching profiles/stacks/blocks complement behavior.
+    Remote and local overlay onto bundled, matching profiles/stacks/layers complement behavior.
     """
     roots = _spec_roots("rules")
     return list(reversed(roots))
@@ -190,35 +183,17 @@ def _spec_origin_with_cfg(kind: str, name: str, cfg: "AppConfig") -> dict[str, s
     if not path:
         return None
     local_overrides = _configured_local_overrides_dir()
-    remote_data = _configured_remote_data_dir()
     source = "local"
     if local_overrides and path.is_relative_to(local_overrides.resolve()):
         source = "local"
-    elif remote_data and path.is_relative_to(remote_data.resolve()):
-        source = "remote"
     elif path.is_relative_to(_DEFAULT_DATA_DIR.resolve()):
         source = "bundled"
-
-    repo_url = cfg.remote_catalog_repo_url if source == "remote" else None
-    repo_owner = _repo_owner_from_url(repo_url) if repo_url else None
     return {
         "source": source,
         "source_path": str(path),
-        "source_repo_url": repo_url or "",
-        "source_repo_owner": repo_owner or "",
+        "source_repo_url": "",
+        "source_repo_owner": "",
     }
-
-
-def _repo_owner_from_url(url: str | None) -> str | None:
-    if not url:
-        return None
-    cleaned = url.strip()
-    if cleaned.startswith("git@"):
-        # e.g. git@github.com:owner/repo.git
-        m = re.match(r"^git@[^:]+:([^/]+)/[^/]+(?:\.git)?$", cleaned)
-        return m.group(1) if m else None
-    m = re.match(r"^(?:https?://)?[^/]+/([^/]+)/[^/]+(?:\.git)?$", cleaned)
-    return m.group(1) if m else None
 
 
 def list_profile_ids() -> list[str]:
@@ -238,9 +213,9 @@ def list_stack_ids() -> list[str]:
     return sorted(ids)
 
 
-def list_block_ids() -> list[str]:
+def list_layer_ids() -> list[str]:
     ids: set[str] = set()
-    for d in _spec_roots("blocks"):
+    for d in _spec_roots("layers"):
         if d.is_dir():
             ids.update(p.stem for p in d.glob("*.yaml"))
     return sorted(ids)
@@ -280,8 +255,8 @@ def load_stack(stack_id: str) -> StackSpec:
             return StackSpec.model_validate(data)
         if kind == "stack_recipe":
             recipe = StackRecipeSpec.model_validate(data)
-            blocks = [load_block(block_id) for block_id in recipe.blocks]
-            return compose_stack(recipe, blocks)
+            layers = [load_layer(layer_id) for layer_id in recipe.layers]
+            return compose_stack(recipe, layers)
         raise StackWardenError(
             f"Invalid stack '{stack_id}': unknown kind {kind!r}. "
             "Expected one of: stack, stack_recipe."
@@ -301,25 +276,25 @@ def load_stack_spec_raw(stack_id: str) -> dict:
         return yaml.safe_load(f) or {}
 
 
-def load_block(block_id: str) -> BlockSpec:
-    path = _find_spec_path("blocks", block_id, ".yaml")
+def load_layer(layer_id: str) -> LayerSpec:
+    path = _find_spec_path("layers", layer_id, ".yaml")
     if not path:
-        raise BlockNotFoundError(block_id)
+        raise LayerNotFoundError(layer_id)
     with open(path, encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
     try:
         kind = data.get("kind")
         if kind is None:
             raise StackWardenError(
-                f"Invalid block '{block_id}': missing kind. Expected 'kind: block'."
+                f"Invalid layer '{layer_id}': missing kind. Expected 'kind: layer'."
             )
-        if kind != "block":
+        if kind != "layer":
             raise StackWardenError(
-                f"Invalid block '{block_id}': unknown kind {kind!r}. Expected 'block'."
+                f"Invalid layer '{layer_id}': unknown kind {kind!r}. Expected 'layer'."
             )
-        return BlockSpec.model_validate(data)
+        return LayerSpec.model_validate(data)
     except PydanticValidationError as exc:
-        raise StackWardenError(f"Invalid block '{block_id}': {exc}") from exc
+        raise StackWardenError(f"Invalid layer '{layer_id}': {exc}") from exc
 
 
 def templates_dir() -> Path:
@@ -356,6 +331,15 @@ def compatibility_strict_default() -> bool:
     return os.environ.get("STACKWARDEN_COMPAT_STRICT", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def strict_host_optimization_default() -> bool:
+    raw = os.environ.get("STACKWARDEN_OPT_STRICT_HOST", "").strip().lower()
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    return AppConfig.load().optimization_strict_host_specific
+
+
 def tuple_layer_mode() -> str:
     cfg = AppConfig.load()
     if cfg.tuple_layer_mode and cfg.tuple_layer_mode.strip():
@@ -384,12 +368,12 @@ def get_profiles_dir() -> Path:
     return _profiles_dir()
 
 
-def get_blocks_dir() -> Path:
-    """Public accessor — same directory that :func:`load_block` reads from."""
+def get_layers_dir() -> Path:
+    """Public accessor — same directory that :func:`load_layer` reads from."""
     local_overrides = _configured_local_overrides_dir()
     if local_overrides:
-        return local_overrides / "blocks"
-    return _blocks_dir()
+        return local_overrides / "layers"
+    return _layers_dir()
 
 
 def get_profile_origin(profile_id: str) -> dict[str, str] | None:
@@ -400,8 +384,8 @@ def get_stack_origin(stack_id: str) -> dict[str, str] | None:
     return _spec_origin("stacks", stack_id)
 
 
-def get_block_origin(block_id: str) -> dict[str, str] | None:
-    return _spec_origin("blocks", block_id)
+def get_layer_origin(layer_id: str) -> dict[str, str] | None:
+    return _spec_origin("layers", layer_id)
 
 
 def get_profile_origins(profile_ids: list[str]) -> dict[str, dict[str, str]]:
@@ -414,9 +398,9 @@ def get_stack_origins(stack_ids: list[str]) -> dict[str, dict[str, str]]:
     return {sid: (_spec_origin_with_cfg("stacks", sid, cfg) or {}) for sid in stack_ids}
 
 
-def get_block_origins(block_ids: list[str]) -> dict[str, dict[str, str]]:
+def get_layer_origins(layer_ids: list[str]) -> dict[str, dict[str, str]]:
     cfg = AppConfig.load()
-    return {bid: (_spec_origin_with_cfg("blocks", bid, cfg) or {}) for bid in block_ids}
+    return {lid: (_spec_origin_with_cfg("layers", lid, cfg) or {}) for lid in layer_ids}
 
 
 # ---------------------------------------------------------------------------
@@ -439,28 +423,15 @@ class AppConfig:
             allow=reg.get("allow", []),
             deny=reg.get("deny", []),
         )
-        remote = data.get("remote_catalog", {}) or {}
-        self.remote_catalog_enabled: bool = bool(remote.get("enabled", False))
-        self.remote_catalog_repo_url: str | None = (
-            str(remote.get("repo_url", "")).strip() or None
+        catalog = data.get("catalog", {}) or {}
+        self.catalog_local_path: str | None = str(catalog.get("local_path") or "").strip() or None
+        self.catalog_local_overrides_path: str | None = (
+            str(catalog.get("local_overrides_path") or "").strip() or None
         )
-        self.remote_catalog_branch: str = (
-            str(remote.get("branch", "main")).strip() or "main"
+        optimization = data.get("optimization", {}) or {}
+        self.optimization_strict_host_specific: bool = bool(
+            optimization.get("strict_host_specific", True)
         )
-        self.remote_catalog_local_path: str = (
-            str(remote.get("local_path", "~/.local/share/stackwarden/remote-catalog")).strip()
-            or "~/.local/share/stackwarden/remote-catalog"
-        )
-        self.remote_catalog_local_overrides_path: str = (
-            str(
-                remote.get(
-                    "local_overrides_path",
-                    "~/.local/share/stackwarden/local-catalog",
-                )
-            ).strip()
-            or "~/.local/share/stackwarden/local-catalog"
-        )
-        self.remote_catalog_auto_pull: bool = bool(remote.get("auto_pull", True))
 
     @classmethod
     def load(cls) -> AppConfig:
@@ -476,13 +447,12 @@ class AppConfig:
                 "allow": list(self.registry.allow),
                 "deny": list(self.registry.deny),
             },
-            "remote_catalog": {
-                "enabled": self.remote_catalog_enabled,
-                "repo_url": self.remote_catalog_repo_url,
-                "branch": self.remote_catalog_branch,
-                "local_path": self.remote_catalog_local_path,
-                "local_overrides_path": self.remote_catalog_local_overrides_path,
-                "auto_pull": self.remote_catalog_auto_pull,
+            "catalog": {
+                "local_path": self.catalog_local_path,
+                "local_overrides_path": self.catalog_local_overrides_path,
+            },
+            "optimization": {
+                "strict_host_specific": self.optimization_strict_host_specific,
             },
         }
 

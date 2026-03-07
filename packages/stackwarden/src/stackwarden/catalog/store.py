@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import time
 from pathlib import Path
@@ -33,6 +32,22 @@ if TYPE_CHECKING:
     )
 
 log = logging.getLogger(__name__)
+
+
+def _resolve_layer_schema_value(record: object) -> int:
+    raw_layer = getattr(record, "layer_schema_version", None)
+    raw_block = getattr(record, "block_schema_version", None)
+    layer = int(raw_layer or 0)
+    block = int(raw_block or 0)
+    if layer > 1:
+        return layer
+    if block > 1:
+        return block
+    if layer > 0:
+        return layer
+    if block > 0:
+        return block
+    return 1
 
 
 class CatalogStore:
@@ -159,7 +174,8 @@ class CatalogStore:
                     template_hash=record.template_hash,
                     stack_schema_version=record.stack_schema_version,
                     profile_schema_version=record.profile_schema_version,
-                    block_schema_version=record.block_schema_version,
+                    layer_schema_version=_resolve_layer_schema_value(record),
+                    block_schema_version=_resolve_layer_schema_value(record),
                     manifest_path=record.manifest_path,
                     sbom_path=record.sbom_path,
                     profile_snapshot_path=record.profile_snapshot_path,
@@ -410,7 +426,7 @@ def _row_to_record(row: ArtifactRow) -> "ArtifactRecord":
         template_hash=row.template_hash,
         stack_schema_version=row.stack_schema_version or 1,
         profile_schema_version=getattr(row, "profile_schema_version", 1) or 1,
-        block_schema_version=getattr(row, "block_schema_version", 1) or 1,
+        layer_schema_version=_resolve_layer_schema_value(row),
         manifest_path=row.manifest_path,
         sbom_path=row.sbom_path,
         profile_snapshot_path=row.profile_snapshot_path,

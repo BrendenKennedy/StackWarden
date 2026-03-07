@@ -1,0 +1,22 @@
+kind: layer
+schema_version: 2
+id: grpc_serving
+display_name: "gRPC Serving Layer"
+stack_layer: serving_layer
+block_kind: api
+tags:
+  - serving
+  - grpc
+  - api
+components:
+  pip:
+    - name: grpcio
+      version: ">=1.66,<2.0"
+    - name: grpcio-tools
+      version: ">=1.66,<2.0"
+    - name: protobuf
+      version: ">=5.28,<6.0"
+ports:
+  - 50051
+provides:
+  layer: serving_layer

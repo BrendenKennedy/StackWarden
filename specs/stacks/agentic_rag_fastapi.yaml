@@ -1,21 +1,24 @@
 kind: stack_recipe
 schema_version: 2
 id: agentic_rag_fastapi
-display_name: "Agentic RAG (LangChain Agents + ChromaDB + FastAPI)"
-blocks:
+display_name: "Agentic RAG + FastAPI"
+task: rag
+serve: python_api
+api: fastapi
+layers:
+  - ubuntu_24_04_runtime
+  - nccl_accelerator
+  - pytorch_core_compute
+  - sentence_transformers_embedding
+  - sdpa_attention_optimization
+  - torch_compile_optimization
   - fastapi
   - agent_orchestration
-  - langchain_rag
-  - chromadb_vectorstore
-  - sentence_transformers_embedding
+  - celery_orchestration
+  - otel_observability
 
 components:
   base_role: pytorch
-  pip:
-    - name: fastapi
-      version: "==0.115.*"
-    - name: uvicorn
-      version: "[standard]==0.30.*"
   apt:
     - git
     - curl

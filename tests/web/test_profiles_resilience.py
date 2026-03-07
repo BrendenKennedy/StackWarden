@@ -13,16 +13,23 @@ from fastapi.testclient import TestClient
 def client(tmp_path):
     (tmp_path / "stacks").mkdir()
     (tmp_path / "profiles").mkdir()
-    (tmp_path / "blocks").mkdir()
+    (tmp_path / "layers").mkdir()
     with patch.dict(
         os.environ,
         {"STACKWARDEN_DATA_DIR": str(tmp_path), "STACKWARDEN_WEB_DEV": "true"},
     ):
         from stackwarden.web.app import create_app
+        from stackwarden.web.deps import reset_cached_dependencies
         from stackwarden.web.settings import WebSettings
 
+        reset_cached_dependencies()
         app = create_app(WebSettings(token=None, dev=True))
-        yield TestClient(app), tmp_path
+        with TestClient(app) as test_client:
+            test_client.post(
+                "/api/auth/setup",
+                json={"username": "admin", "password": "dev-password-123"},
+            )
+            yield test_client, tmp_path
 
 
 def test_list_profiles_skips_malformed_records(client):
@@ -97,16 +104,17 @@ def test_list_stacks_skips_malformed_records(client):
     assert resp.headers.get("X-StackWarden-Stacks-Skipped") == "1"
 
 
-def test_list_blocks_skips_malformed_records(client):
+def test_list_layers_skips_malformed_records(client):
     c, root = client
-    blocks_dir = root / "blocks"
-    (blocks_dir / "good.yaml").write_text(
+    layers_dir = root / "layers"
+    (layers_dir / "good.yaml").write_text(
         "\n".join(
             [
                 "schema_version: 2",
-                "kind: block",
+                "kind: layer",
                 "id: good",
                 "display_name: Good",
+                "stack_layer: serving_layer",
                 "tags: []",
                 "build_strategy: overlay",
                 "components:",
@@ -116,10 +124,10 @@ def test_list_blocks_skips_malformed_records(client):
             ]
         )
     )
-    (blocks_dir / "bad.yaml").write_text("schema_version: 2\nid: bad\ncomponents: 1")
+    (layers_dir / "bad.yaml").write_text("schema_version: 2\nid: bad\ncomponents: 1")
 
-    resp = c.get("/api/blocks")
+    resp = c.get("/api/layers")
     assert resp.status_code == 200
     assert [r["id"] for r in resp.json()] == ["good"]
-    assert resp.headers.get("X-StackWarden-Blocks-Skipped") == "1"
+    assert resp.headers.get("X-StackWarden-Layers-Skipped") == "1"
 

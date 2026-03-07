@@ -1,6 +1,6 @@
 # StackWarden End-to-End Project Report
 
-This documentation set explains StackWarden from first principles through implementation details across the CLI, Web API, and Web UI. It is written for operators, integrators, and open-source contributors who need a fast but accurate understanding of how the system works and why it is designed this way.
+This set explains StackWarden architecture from first principles through implementation details across CLI, Web API, and Web UI. It is written for contributors and integrators who need an accurate current-state view.
 
 ## Read This First
 

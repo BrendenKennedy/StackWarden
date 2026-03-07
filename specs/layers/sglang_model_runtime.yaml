@@ -1,0 +1,18 @@
+kind: layer
+schema_version: 2
+id: sglang_model_runtime
+display_name: "SGLang Model Runtime"
+stack_layer: inference_engine_layer
+block_kind: runtime
+tags:
+  - runtime
+  - llm
+  - inference
+components:
+  pip:
+    - name: sglang
+      version: ">=0.4,<0.7"
+requires:
+  gpu_vendor: nvidia
+provides:
+  layer: inference_engine_layer

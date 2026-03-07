@@ -50,3 +50,17 @@ def test_application_layer_not_coupled_to_web_utilities() -> None:
         assert not any(mod.startswith("stackwarden.web.util") for mod in imports), (
             f"{path} imports web utilities directly"
         )
+
+
+def test_only_allowlisted_modules_import_web_schemas() -> None:
+    """Keep transport DTO imports from spreading across internal layers."""
+    allowlist: set[str] = set()
+
+    for path in PACKAGE_ROOT.glob("**/*.py"):
+        rel = str(path.relative_to(PACKAGE_ROOT)).replace("\\", "/")
+        if rel.startswith("web/"):
+            continue
+        imports = _imports_for(path)
+        if "stackwarden.web.schemas" not in imports:
+            continue
+        assert rel in allowlist, f"{path} imports stackwarden.web.schemas but is not allowlisted"

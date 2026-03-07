@@ -91,35 +91,6 @@
           </template>
         </template>
 
-        <template v-else-if="selectedSectionId === 'remote-catalog'">
-          <p class="settings-description">
-            Configure a git repo containing `specs/profiles/`, `specs/stacks/`, `specs/blocks/`, and `specs/rules/`.
-          </p>
-          <div class="detail-grid settings-detail-grid">
-            <dt>Enable Remote Catalog</dt>
-            <dd><input type="checkbox" v-model="remoteEnabled" /></dd>
-            <dt>Repository URL</dt>
-            <dd><input type="text" v-model="remoteRepoUrl" placeholder="https://github.com/org/stackwarden-data.git" /></dd>
-            <dt>Branch</dt>
-            <dd><input type="text" v-model="remoteBranch" placeholder="main" /></dd>
-            <dt>Local Checkout Path</dt>
-            <dd><input type="text" v-model="remoteLocalPath" placeholder="~/.local/share/stackwarden/remote-catalog" /></dd>
-            <dt>Local Overrides Path</dt>
-            <dd><input type="text" v-model="remoteLocalOverridesPath" placeholder="~/.local/share/stackwarden/local-catalog" /></dd>
-            <dt>Auto Pull During Ensure</dt>
-            <dd><input type="checkbox" v-model="remoteAutoPull" /></dd>
-          </div>
-          <div class="settings-actions">
-            <button class="btn" @click="saveRemoteConfig" :disabled="savingRemoteConfig">
-              {{ savingRemoteConfig ? 'Saving...' : 'Save Remote Config' }}
-            </button>
-            <button class="btn" @click="saveAndPullRemote" :disabled="savingRemoteConfig">
-              {{ savingRemoteConfig ? 'Syncing...' : 'Save + Pull Now' }}
-            </button>
-          </div>
-          <p v-if="remoteSyncMessage" class="settings-muted-text">{{ remoteSyncMessage }}</p>
-        </template>
-
         <template v-else-if="selectedSectionId === 'environment-mode'">
           <p class="settings-muted-text">
             API/UI access now uses secure server-side sessions with admin username/password login.
@@ -335,7 +306,6 @@ type SettingsSectionId =
   | 'environment-mode'
   | 'profile-defaults'
   | 'server-configuration'
-  | 'remote-catalog'
   | 'tuple-catalog'
   | 'host-facts'
   | 'build-logs'
@@ -345,7 +315,6 @@ const settingsSections: Array<{ id: SettingsSectionId; label: string; subtitle: 
   { id: 'environment-mode', label: 'Account & Security', subtitle: 'Session account controls and service lifecycle actions.' },
   { id: 'profile-defaults', label: 'Profile Defaults', subtitle: 'Default profile preselection for new catalog builds.' },
   { id: 'server-configuration', label: 'Server Configuration', subtitle: 'Core paths, registry policy, and tuple behavior.' },
-  { id: 'remote-catalog', label: 'Remote Catalog', subtitle: 'Configure remote specs repository and sync behavior.' },
   { id: 'tuple-catalog', label: 'Tuple Catalog', subtitle: 'Compatibility matrix status and tuple entries.' },
   { id: 'host-facts', label: 'Host Facts', subtitle: 'Hardware/runtime detection output and confidence.' },
   { id: 'build-logs', label: 'Build Logs', subtitle: 'Recent build jobs and streaming logs.' },
@@ -372,20 +341,12 @@ const profilesEmpty = ref(false)
 const useDefaultProfile = ref(false)
 const defaultProfileSelection = ref('')
 const savingDefaultProfile = ref(false)
-const remoteEnabled = ref(false)
-const remoteRepoUrl = ref('')
-const remoteBranch = ref('main')
-const remoteLocalPath = ref('~/.local/share/stackwarden/remote-catalog')
-const remoteLocalOverridesPath = ref('~/.local/share/stackwarden/local-catalog')
-const remoteAutoPull = ref(true)
-const savingRemoteConfig = ref(false)
 const recyclingServices = ref(false)
 const changingPassword = ref(false)
 const loggingOut = ref(false)
 const currentPasswordInput = ref('')
 const newPasswordInput = ref('')
 const confirmPasswordInput = ref('')
-const remoteSyncMessage = ref('')
 const selectedSectionId = ref<SettingsSectionId>('environment-mode')
 const dependencyIssues = computed(() => formatProbeIssues(detectionHints.value))
 const selectedSectionMeta = computed(() =>
@@ -422,12 +383,6 @@ onMounted(async () => {
     profilesEmpty.value = profiles.length === 0
     useDefaultProfile.value = !!cfg.default_profile
     defaultProfileSelection.value = cfg.default_profile || ''
-    remoteEnabled.value = !!cfg.remote_catalog_enabled
-    remoteRepoUrl.value = cfg.remote_catalog_repo_url || ''
-    remoteBranch.value = cfg.remote_catalog_branch || 'main'
-    remoteLocalPath.value = cfg.remote_catalog_local_path || '~/.local/share/stackwarden/remote-catalog'
-    remoteLocalOverridesPath.value = cfg.remote_catalog_local_overrides_path || '~/.local/share/stackwarden/local-catalog'
-    remoteAutoPull.value = cfg.remote_catalog_auto_pull ?? true
     detectionHints.value = hints
     tupleCatalog.value = tuples
   } catch (e) {
@@ -480,35 +435,6 @@ async function refreshDetectionHints() {
   }
 }
 
-async function updateRemoteConfig(syncNow = false) {
-  savingRemoteConfig.value = true
-  try {
-    const updated = await settings.updateConfig(
-      {
-        remote_catalog_enabled: remoteEnabled.value,
-        remote_catalog_repo_url: remoteRepoUrl.value.trim() || null,
-        remote_catalog_branch: remoteBranch.value.trim() || 'main',
-        remote_catalog_local_path: remoteLocalPath.value.trim() || '~/.local/share/stackwarden/remote-catalog',
-        remote_catalog_local_overrides_path:
-          remoteLocalOverridesPath.value.trim() || '~/.local/share/stackwarden/local-catalog',
-        remote_catalog_auto_pull: remoteAutoPull.value,
-        sync_now: syncNow,
-      },
-    )
-    config.value = updated
-    remoteSyncMessage.value = updated.remote_catalog_last_sync_detail || ''
-    showToast(syncNow ? 'Remote catalog synced' : 'Remote config saved', 'success')
-  } catch (err) {
-    showToast(`Remote config update failed: ${toUserErrorMessage(err)}`, 'error')
-  } finally {
-    savingRemoteConfig.value = false
-  }
-}
-
-async function saveRemoteConfig() {
-  await updateRemoteConfig(false)
-}
-
 async function saveTupleLayerMode() {
   savingTupleMode.value = true
   try {
@@ -543,10 +469,6 @@ async function saveDefaultProfile() {
   } finally {
     savingDefaultProfile.value = false
   }
-}
-
-async function saveAndPullRemote() {
-  await updateRemoteConfig(true)
 }
 
 async function recycleServicesFromUi() {

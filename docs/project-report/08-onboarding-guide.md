@@ -2,7 +2,7 @@
 
 ## Audience and Goal
 
-This guide helps new open-source contributors understand StackWarden quickly and make safe, meaningful changes within their first day.
+This guide helps contributors get productive quickly while staying architecture-safe.
 
 ## First-Day Setup
 
@@ -42,7 +42,7 @@ make test-stress-e2e
 
 Before editing code, understand this flow:
 
-1. User intent is authored in stacks/blocks.
+1. User intent is authored in stacks/layers.
 2. Profile captures host facts and constraints.
 3. Resolver derives deterministic compatible plan.
 4. Ensure executes build/pull and writes catalog lifecycle state.
@@ -71,7 +71,7 @@ Surfaces:
 
 Specs and data:
 
-- `specs/profiles/`, `specs/stacks/`, `specs/blocks/`, `specs/rules/`, `specs/templates/`
+- `specs/profiles/`, `specs/stacks/`, `specs/layers/`, `specs/rules/`, `specs/templates/`
 - `ops/scripts/` for operational shell workflows
 - `ops/systemd/` for service unit deployment artifacts
 

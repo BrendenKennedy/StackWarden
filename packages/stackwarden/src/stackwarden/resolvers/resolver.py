@@ -16,7 +16,7 @@ from stackwarden.domain.enums import BuildStrategy
 from stackwarden.domain.errors import IncompatibleStackError
 from stackwarden.domain.hashing import fingerprint, generate_tag
 from stackwarden.domain.models import (
-    BlockSpec,
+    LayerSpec,
     DecisionRationale,
     Plan,
     PlanArtifact,
@@ -34,16 +34,47 @@ from stackwarden.resolvers.scoring import select_base, select_base_detailed
 from stackwarden.resolvers.validators import validate_profile, validate_stack
 
 
+def _split_image_ref(image_ref: str) -> tuple[str, str | None]:
+    value = image_ref.strip()
+    if not value:
+        return "", None
+    if ":" in value:
+        name, tag = value.rsplit(":", 1)
+        if "/" in tag:
+            return value, None
+        return name, tag
+    return value, None
+
+
+def _stack_with_tuple_hints(stack: StackSpec, tuple_decision: dict[str, object]) -> StackSpec:
+    base_hint = str(tuple_decision.get("base_image_hint") or "").strip()
+    wheelhouse_hint = str(tuple_decision.get("wheelhouse_hint") or "").strip()
+    if not base_hint and not wheelhouse_hint:
+        return stack
+
+    overrides = dict(stack.policy_overrides or {})
+    if base_hint:
+        base_image, base_tag = _split_image_ref(base_hint)
+        if base_image:
+            overrides["base_image"] = base_image
+        if base_tag:
+            overrides["base_tag"] = base_tag
+    if wheelhouse_hint:
+        overrides["pip_wheelhouse_path_hint"] = wheelhouse_hint
+    return stack.model_copy(update={"policy_overrides": overrides})
+
+
 def resolve(
     profile: Profile,
     stack: StackSpec,
     *,
-    blocks: list[BlockSpec] | None = None,
+    layers: list[LayerSpec] | None = None,
     base_digest: str | None = None,
     template_hash: str | None = None,
     variants: dict[str, str] | None = None,
     explain: bool = False,
     strict_mode: bool = False,
+    strict_host_optimization: bool = False,
     tuple_mode: str | None = None,
     tuple_catalog: TupleCatalog | None = None,
     rule_catalog: CompatibilityRuleCatalog | None = None,
@@ -77,7 +108,7 @@ def resolve(
     compat = evaluate_compatibility(
         profile,
         stack,
-        blocks=blocks,
+        layers=layers,
         strict_mode=strict_mode,
         tuple_mode=tuple_mode,
         tuple_catalog=tuple_catalog,
@@ -102,39 +133,44 @@ def resolve(
 
     # 4. Select base candidate
     rationale: DecisionRationale | None = None
+    effective_stack = _stack_with_tuple_hints(stack, compat.tuple_decision)
     if explain:
-        candidate, chosen_tag, breakdowns, selected_reason = select_base_detailed(profile, stack)
+        candidate, chosen_tag, breakdowns, selected_reason = select_base_detailed(profile, effective_stack)
         rationale = _build_rationale(
-            profile, stack, breakdowns, selected_reason, warnings, errors,
+            profile, effective_stack, breakdowns, selected_reason, warnings, errors,
             variants, base_digest, compat_report=compat.model_dump(mode="json"),
         )
     else:
-        candidate, chosen_tag = select_base(profile, stack)
+        candidate, chosen_tag = select_base(profile, effective_stack)
     base_image = f"{candidate.name}:{chosen_tag}"
 
     # 5. Compute fingerprint + tag
     fp = fingerprint(
-        profile, stack, base_image, base_digest, template_hash,
+        profile, effective_stack, base_image, base_digest, template_hash,
         variants=variants,
     )
-    tag = generate_tag(stack, profile, fp)
+    tag = generate_tag(effective_stack, profile, fp)
 
     # 6. Build metadata labels
     labels = {
         "stackwarden.profile": profile.id,
-        "stackwarden.stack": stack.id,
+        "stackwarden.stack": effective_stack.id,
         "stackwarden.fingerprint": fp,
         "stackwarden.base_digest": base_digest or "",
-        "stackwarden.schema_version": str(stack.schema_version),
+        "stackwarden.schema_version": str(effective_stack.schema_version),
         "stackwarden.profile_schema_version": str(profile.schema_version),
-        "stackwarden.block_schema_version": str(max((b.schema_version for b in (blocks or [])), default=1)),
+        "stackwarden.layer_schema_version": str(max((layer.schema_version for layer in (layers or [])), default=1)),
+        # Legacy compatibility label kept during Blocks->Layers migration.
+        "stackwarden.block_schema_version": str(max((layer.schema_version for layer in (layers or [])), default=1)),
         "stackwarden.template_hash": template_hash or "",
-        "stackwarden.build_strategy": stack.build_strategy.value,
-        "stackwarden.pip_install_mode": stack.components.pip_install_mode,
-        "stackwarden.pip_wheelhouse_path": stack.components.pip_wheelhouse_path,
+        "stackwarden.build_strategy": effective_stack.build_strategy.value,
+        "stackwarden.pip_install_mode": effective_stack.components.pip_install_mode,
+        "stackwarden.pip_wheelhouse_path": effective_stack.components.pip_wheelhouse_path,
         "stackwarden.tuple_id": str(compat.tuple_decision.get("tuple_id", "")),
         "stackwarden.tuple_status": str(compat.tuple_decision.get("status", "")),
         "stackwarden.tuple_mode": str(compat.tuple_decision.get("mode", "")),
+        "stackwarden.tuple_base_image_hint": str(compat.tuple_decision.get("base_image_hint", "")),
+        "stackwarden.tuple_wheelhouse_hint": str(compat.tuple_decision.get("wheelhouse_hint", "")),
         "stackwarden.builder_version": _builder_version,
         "stackwarden.created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -144,10 +180,22 @@ def resolve(
         )
 
     # 7. Build steps
-    optimization = compute_build_optimization(profile, stack)
+    try:
+        optimization = compute_build_optimization(
+            profile,
+            effective_stack,
+            layers=layers,
+            strict_host_specific=strict_host_optimization,
+        )
+    except ValueError as exc:
+        raise IncompatibleStackError([str(exc)]) from exc
     warnings.extend(optimization.warnings)
     build_args = {"PYTHON_VERSION": profile.defaults.python}
     build_args.update(optimization.build_args)
+    wheelhouse_hint = str(compat.tuple_decision.get("wheelhouse_hint") or "").strip()
+    if wheelhouse_hint:
+        build_args["STACKWARDEN_PIP_WHEELHOUSE_PATH_HINT"] = wheelhouse_hint
+        labels["stackwarden.pip_wheelhouse_path_hint"] = wheelhouse_hint
     if variants:
         for k, v in variants.items():
             build_args[f"VARIANT_{k.upper()}"] = str(v)
@@ -161,9 +209,24 @@ def resolve(
         },
         separators=(",", ":"),
     )
+    labels["stackwarden.host_optimization"] = json.dumps(
+        {
+            "policy": optimization.policy,
+            "strict_host_specific": optimization.strict_host_specific,
+            "host_signature": optimization.host_signature,
+            "gpu_family": optimization.gpu_family,
+            "gpu_compute_capability": optimization.gpu_compute_capability,
+            "driver_version": optimization.driver_version,
+            "torch_dtype": optimization.torch_dtype,
+            "attention_backend": optimization.attention_backend,
+            "torch_compile_enabled": optimization.torch_compile_enabled,
+            "tf32_enabled": optimization.tf32_enabled,
+        },
+        separators=(",", ":"),
+    )
 
     steps = _build_steps(
-        stack,
+        effective_stack,
         base_image,
         tag,
         labels,

@@ -2,10 +2,10 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 
-import BlocksView from '../src/views/BlocksView.vue'
+import LayersView from '../src/views/LayersView.vue'
 
 vi.mock('@/api/endpoints', () => ({
-  blocks: {
+  layers: {
     list: vi.fn().mockResolvedValue([]),
     remove: vi.fn().mockResolvedValue({ deleted: true, id: 'b-old' }),
   },
@@ -16,10 +16,10 @@ async function flushPromises() {
   await Promise.resolve()
 }
 
-describe('BlocksView modal-first creation', () => {
+describe('LayersView modal-first creation', () => {
   const globalStubs = {
     RouterLink: true,
-    BlockCreateFlowModal: {
+    LayerCreateFlowModal: {
       template: '<div v-if="show">MockBlockCreateModal</div>',
       props: ['show'],
     },
@@ -32,11 +32,11 @@ describe('BlocksView modal-first creation', () => {
   it('renders create button and keeps modal hidden by default', async () => {
     const router = createRouter({
       history: createMemoryHistory(),
-      routes: [{ path: '/blocks', component: BlocksView }],
+      routes: [{ path: '/layers', component: LayersView }],
     })
-    router.push('/blocks')
+    router.push('/layers')
     await router.isReady()
-    const wrapper = mount(BlocksView, {
+    const wrapper = mount(LayersView, {
       global: {
         plugins: [router],
         stubs: globalStubs,
@@ -45,17 +45,19 @@ describe('BlocksView modal-first creation', () => {
 
     await flushPromises()
     expect(wrapper.text()).not.toContain('MockBlockCreateModal')
-    expect(wrapper.get('button.btn.btn-primary').attributes('aria-label')).toBe('Create New Block')
+    const createButton = wrapper.findAll('button')
+      .find((b) => b.attributes('aria-label') === 'Create New Layer')
+    expect(createButton).toBeDefined()
   })
 
   it('opens modal from query flag', async () => {
     const router = createRouter({
       history: createMemoryHistory(),
-      routes: [{ path: '/blocks', component: BlocksView }],
+      routes: [{ path: '/layers', component: LayersView }],
     })
-    router.push('/blocks?create=1')
+    router.push('/layers?create=1')
     await router.isReady()
-    const wrapper = mount(BlocksView, {
+    const wrapper = mount(LayersView, {
       global: {
         plugins: [router],
         stubs: globalStubs,
@@ -66,34 +68,34 @@ describe('BlocksView modal-first creation', () => {
   })
 
   it('deletes a block from the table', async () => {
-    const { blocks } = await import('@/api/endpoints')
-    ;(blocks.list as any).mockResolvedValueOnce([
+    const { layers } = await import('@/api/endpoints')
+    ;(layers.list as any).mockResolvedValueOnce([
       {
         id: 'b-old',
-        display_name: 'Old Block',
+        display_name: 'Old Layer',
         tags: ['api'],
       },
     ])
     const router = createRouter({
       history: createMemoryHistory(),
-      routes: [{ path: '/blocks', component: BlocksView }],
+      routes: [{ path: '/layers', component: LayersView }],
     })
-    router.push('/blocks')
+    router.push('/layers')
     await router.isReady()
-    const wrapper = mount(BlocksView, {
+    const wrapper = mount(LayersView, {
       global: {
         plugins: [router],
         stubs: globalStubs,
       },
     })
     await flushPromises()
-    expect(wrapper.text()).toContain('Old Block')
+    expect(wrapper.text()).toContain('Old Layer')
     const deleteButton = wrapper.findAll('button').find(b => b.attributes('title') === 'Delete' || b.attributes('aria-label') === 'Delete')
     expect(deleteButton).toBeDefined()
     await deleteButton!.trigger('click')
     await wrapper.get('.mock-confirm-delete').trigger('click')
     await flushPromises()
-    expect(blocks.remove).toHaveBeenCalledWith('b-old')
-    expect(wrapper.text()).not.toContain('Old Block')
+    expect(layers.remove).toHaveBeenCalledWith('b-old')
+    expect(wrapper.text()).not.toContain('Old Layer')
   })
 })

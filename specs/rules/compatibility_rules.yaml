@@ -54,3 +54,48 @@ rules:
       code: FLASH_ATTN_OPT_PATH
       severity: info
       message: Hopper-class GPU detected; optimized attention path can be enabled.
+
+  - id: blackwell-sdpa-compile-optimization
+    version: 1
+    enabled: true
+    strict_hard: false
+    when:
+      gpu_family: blackwell
+    outcome:
+      code: BLACKWELL_OPT_PATH
+      severity: info
+      message: Blackwell GPU detected; prefer PyTorch SDPA and torch.compile optimization path.
+
+  - id: nvidia-finetune-accelerator-guidance
+    version: 1
+    enabled: true
+    strict_hard: false
+    when:
+      gpu_vendor: nvidia
+    outcome:
+      code: NVIDIA_FINETUNE_ACCELERATOR_PATH
+      severity: info
+      message: NVIDIA profile detected; optional LLM fine-tune accelerator layers (for example Unsloth) can be selected explicitly for compatible training workflows.
+
+  - id: cpu-finetune-accelerator-warning
+    version: 1
+    enabled: true
+    strict_hard: false
+    when:
+      gpu_vendor: cpu
+    outcome:
+      code: FINETUNE_ACCELERATOR_UNSUPPORTED
+      severity: warning
+      message: CPU profile detected; NVIDIA-gated fine-tune accelerator layers will be incompatible.
+      fix_hint: Use generic fine-tune layers or switch to a compatible NVIDIA profile.
+
+  - id: nvidia-serving-accelerator-guidance
+    version: 1
+    enabled: true
+    strict_hard: false
+    when:
+      gpu_vendor: nvidia
+    outcome:
+      code: NVIDIA_SERVING_ACCELERATOR_PATH
+      severity: info
+      message: NVIDIA profile detected; serving accelerators (vLLM, SGLang, TensorRT-LLM) are available as explicit opt-in layers.

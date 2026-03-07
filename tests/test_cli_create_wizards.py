@@ -18,16 +18,16 @@ def test_profiles_wizard_json(monkeypatch):
     assert '"id": "p1"' in out.output
 
 
-def test_blocks_wizard_json(monkeypatch):
+def test_layers_wizard_json(monkeypatch):
     runner = CliRunner()
     monkeypatch.setattr(
-        "stackwarden.ui.wizard_entities.run_block_create_wizard",
-        lambda **_: CreateWizardResult(entity="block", id="b1", valid=True, yaml="id: b1\n"),
+        "stackwarden.ui.wizard_entities.run_layer_create_wizard",
+        lambda **_: CreateWizardResult(entity="layer", id="l1", valid=True, yaml="id: l1\n"),
     )
-    out = runner.invoke(app, ["blocks", "wizard", "--preset", "vllm", "--non-interactive", "--dry-run", "--json"])
+    out = runner.invoke(app, ["layers", "wizard", "--preset", "vllm_model_runtime", "--non-interactive", "--dry-run", "--json"])
     assert out.exit_code == 0, out.output
-    assert '"entity": "block"' in out.output
-    assert '"id": "b1"' in out.output
+    assert '"entity": "layer"' in out.output
+    assert '"id": "l1"' in out.output
 
 
 def test_stacks_wizard_json(monkeypatch):

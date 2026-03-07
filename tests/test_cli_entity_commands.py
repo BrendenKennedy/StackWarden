@@ -73,37 +73,57 @@ def test_profiles_entity_commands(monkeypatch, tmp_path):
     assert edit_result.exit_code == 0, edit_result.output
 
 
-def test_stacks_and_blocks_entity_commands(monkeypatch, tmp_path):
+def test_stacks_and_layers_entity_commands(monkeypatch, tmp_path):
     monkeypatch.setenv("STACKWARDEN_DATA_DIR", str(tmp_path))
     runner = CliRunner()
 
-    block_file = tmp_path / "input-block.yaml"
+    profile_file = tmp_path / "input-profile.yaml"
     _write_yaml(
-        block_file,
+        profile_file,
         {
-            "kind": "block",
             "schema_version": 1,
-            "id": "entity_block",
-            "display_name": "Entity Block",
-            "block_kind": "api",
-            "components": {
-                "base_role": "python",
-                "pip": [{"name": "fastapi", "version": "==0.115.*"}],
-                "apt": [],
-            },
-            "env": [],
+            "id": "entity_profile",
+            "display_name": "Entity Profile",
+            "arch": "amd64",
+            "os": "linux",
+            "container_runtime": "nvidia",
+            "cuda": {"major": 12, "minor": 4, "variant": "cuda12.4"},
+            "gpu": {"vendor": "nvidia", "family": "test"},
+            "capabilities": ["cuda"],
+            "base_candidates": [{"name": "python", "tags": ["3.12-slim"], "score_bias": 10}],
+            "constraints": {"disallow": {}, "require": {}},
+            "defaults": {"python": "3.10", "user": "root", "workdir": "/workspace"},
+        },
+    )
+    assert runner.invoke(app, ["profiles", "create", "--file", str(profile_file)]).exit_code == 0
+
+    layer_file = tmp_path / "input-layer.yaml"
+    _write_yaml(
+        layer_file,
+        {
+            "kind": "layer",
+            "schema_version": 2,
+            "id": "entity_layer",
+            "display_name": "Entity Layer",
+            "stack_layer": "serving_layer",
+            "tags": ["api"],
+            "pip": [{"name": "fastapi", "version": "==0.115.*", "version_mode": "custom"}],
+            "npm": [],
+            "apt": [],
+            "apt_constraints": {},
+            "env": {},
             "ports": [8000],
-            "entrypoint": {"cmd": ["python", "-m", "uvicorn", "app.main:app"]},
-            "files": {"copy": []},
+            "entrypoint_cmd": ["python", "-m", "uvicorn", "app.main:app"],
+            "copy_items": [],
             "variants": {},
         },
     )
-    create_block = runner.invoke(app, ["blocks", "create", "--file", str(block_file)])
-    assert create_block.exit_code == 0, create_block.output
+    create_layer = runner.invoke(app, ["layers", "create", "--file", str(layer_file)])
+    assert create_layer.exit_code == 0, create_layer.output
 
-    block_show = runner.invoke(app, ["blocks", "show", "--id", "entity_block", "--json"])
-    assert block_show.exit_code == 0, block_show.output
-    assert '"id": "entity_block"' in block_show.output
+    layer_show = runner.invoke(app, ["layers", "show", "--id", "entity_layer", "--json"])
+    assert layer_show.exit_code == 0, layer_show.output
+    assert '"id": "entity_layer"' in layer_show.output
 
     stack_file = tmp_path / "input-stack.yaml"
     _write_yaml(
@@ -113,17 +133,10 @@ def test_stacks_and_blocks_entity_commands(monkeypatch, tmp_path):
             "schema_version": 1,
             "id": "entity_stack",
             "display_name": "Entity Stack",
-            "blocks": ["entity_block"],
+            "layers": ["entity_layer"],
             "build_strategy": "overlay",
-            "components": {
-                "base_role": "python",
-                "pip": [{"name": "fastapi", "version": "==0.115.*"}],
-                "apt": [],
-            },
-            "env": [],
-            "ports": [8000],
-            "entrypoint": {"cmd": ["python", "-m", "uvicorn", "app.main:app"]},
-            "files": {"copy": []},
+            "target_profile_id": "entity_profile",
+            "copy_items": [],
             "variants": {},
         },
     )
@@ -164,23 +177,24 @@ def test_check_and_migrate_commands(monkeypatch, tmp_path):
         },
     )
     stack_file = tmp_path / "input-stack.yaml"
-    block_file = tmp_path / "input-block.yaml"
+    layer_file = tmp_path / "input-layer.yaml"
     _write_yaml(
-        block_file,
+        layer_file,
         {
-            "kind": "block",
-            "schema_version": 1,
-            "id": "check_block",
-            "display_name": "Check Block",
-            "components": {
-                "base_role": "python",
-                "pip": [{"name": "fastapi", "version": "==0.115.*"}],
-                "apt": [],
-            },
-            "env": [],
+            "kind": "layer",
+            "schema_version": 2,
+            "id": "check_layer",
+            "display_name": "Check Layer",
+            "stack_layer": "serving_layer",
+            "tags": ["api"],
+            "pip": [{"name": "fastapi", "version": "==0.115.*", "version_mode": "custom"}],
+            "npm": [],
+            "apt": [],
+            "apt_constraints": {},
+            "env": {},
             "ports": [8000],
-            "entrypoint": {"cmd": ["python", "-m", "uvicorn", "app.main:app"]},
-            "files": {"copy": []},
+            "entrypoint_cmd": ["python", "-m", "uvicorn", "app.main:app"],
+            "copy_items": [],
             "variants": {},
         },
     )
@@ -191,18 +205,15 @@ def test_check_and_migrate_commands(monkeypatch, tmp_path):
             "schema_version": 1,
             "id": "check_stack",
             "display_name": "Check Stack",
-            "blocks": ["check_block"],
+            "layers": ["check_layer"],
             "build_strategy": "overlay",
-            "components": {"base_role": "python", "pip": [], "apt": []},
-            "env": [],
-            "ports": [8000],
-            "entrypoint": {"cmd": ["python", "-m", "uvicorn", "app.main:app"]},
-            "files": {"copy": []},
+            "target_profile_id": "check_profile",
+            "copy_items": [],
             "variants": {},
         },
     )
     assert runner.invoke(app, ["profiles", "create", "--file", str(profile_file)]).exit_code == 0
-    assert runner.invoke(app, ["blocks", "create", "--file", str(block_file)]).exit_code == 0
+    assert runner.invoke(app, ["layers", "create", "--file", str(layer_file)]).exit_code == 0
     assert runner.invoke(app, ["stacks", "create", "--file", str(stack_file)]).exit_code == 0
 
     check_result = runner.invoke(

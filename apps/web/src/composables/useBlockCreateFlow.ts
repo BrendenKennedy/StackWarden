@@ -1,9 +1,9 @@
 import { computed, reactive, ref, watch } from 'vue'
-import { blocks as blocksApi, meta as metaApi, settings as settingsApi } from '@/api/endpoints'
+import { layers as layersApi, meta as metaApi, settings as settingsApi } from '@/api/endpoints'
 import type {
-  BlockCreatePayload,
-  BlockPreset,
-  BlockPresetCatalog,
+  LayerCreatePayload,
+  LayerPreset,
+  LayerPresetCatalog,
   CreateContractsResponse,
   DependencyVersionMode,
   EnumsMeta,
@@ -12,6 +12,7 @@ import type {
   PipDependencyVersionMode,
   PipInstallMode,
 } from '@/api/types'
+import { resolveCreateSchemaVersion } from '@/api/schemaVersions'
 import { useEntityCreateFlow } from '@/composables/useEntityCreateFlow'
 import { toUserErrorMessage } from '@/utils/errors'
 
@@ -42,7 +43,7 @@ export function useBlockCreateFlow(options: Options = {}) {
     task: [], serve: [], api: [], arch: [], build_strategy: [], container_runtime: [],
   })
   const createContracts = ref<CreateContractsResponse | null>(null)
-  const blockCatalog = ref<BlockPresetCatalog | null>(null)
+  const layerCatalog = ref<LayerPresetCatalog | null>(null)
   const metadataLoaded = ref(false)
   const metadataWarnings = ref<string[]>([])
 
@@ -97,9 +98,9 @@ export function useBlockCreateFlow(options: Options = {}) {
 
   const envEntries = ref<{ key: string; value: string }[]>([])
 
-  const categories = computed(() => blockCatalog.value?.categories || [])
+  const categories = computed(() => layerCatalog.value?.categories || [])
   const availablePresets = computed(() => {
-    const rows = blockCatalog.value?.presets || []
+    const rows = layerCatalog.value?.presets || []
     const deduped = new Map<string, typeof rows[number]>()
     for (const preset of rows) {
       const key = preset.id.replace(VARIANT_SUFFIX_RE, '')
@@ -173,13 +174,13 @@ export function useBlockCreateFlow(options: Options = {}) {
       Object.assign(enums, enumData)
       createContracts.value = contracts
       try {
-        blockCatalog.value = await settingsApi.blockCatalog()
+        layerCatalog.value = await settingsApi.layerCatalog()
       } catch (catalogErr: unknown) {
         metadataWarnings.value.push(
-          `block-catalog: ${catalogErr instanceof Error ? catalogErr.message : String(catalogErr)}`,
+          `layer-catalog: ${catalogErr instanceof Error ? catalogErr.message : String(catalogErr)}`,
         )
         // Keep wizard usable even when preset API is unavailable.
-        blockCatalog.value = {
+        layerCatalog.value = {
           schema_version: 1,
           revision: 0,
           categories: [],
@@ -193,10 +194,10 @@ export function useBlockCreateFlow(options: Options = {}) {
     }
   }
 
-  function selectedPreset(): BlockPreset | null {
+  function selectedPreset(): LayerPreset | null {
     const id = selectedPresetId.value
     if (!id) return null
-    return (blockCatalog.value?.presets || []).find(p => p.id === id) || null
+    return (layerCatalog.value?.presets || []).find(p => p.id === id) || null
   }
 
   watch([selectedPresetId, selectedProfile], () => {
@@ -235,7 +236,7 @@ export function useBlockCreateFlow(options: Options = {}) {
     setEnvFromObject({ ...presetEnv, ...overlay.env })
   }
 
-  function buildPayload(): BlockCreatePayload {
+  function buildPayload(): LayerCreatePayload {
     const parseWheelVersion = (wheelPath: string): string | null => {
       const fileName = wheelPath.trim().split('/').pop() || ''
       if (!fileName.endsWith('.whl')) return null
@@ -273,7 +274,7 @@ export function useBlockCreateFlow(options: Options = {}) {
       throw new Error('Wheel mode selected but no valid wheel file path was provided.')
     }
     if (wheelDirs.length > 1) {
-      throw new Error('Multiple wheel locations detected across pip dependencies. Use a single wheel location for this block.')
+      throw new Error('Multiple wheel locations detected across pip dependencies. Use a single wheel location for this layer.')
     }
     const apt = form.apt.map(pkg => pkg.trim()).filter(Boolean)
     const aptConstraints = Object.fromEntries(
@@ -297,7 +298,7 @@ export function useBlockCreateFlow(options: Options = {}) {
       .filter((dep): dep is NonNullable<typeof dep> => dep !== null)
 
     return {
-      schema_version: 2,
+      schema_version: resolveCreateSchemaVersion('layer', createContracts.value),
       id: form.id,
       display_name: form.display_name,
       description: (form.description || '').trim(),
@@ -322,18 +323,18 @@ export function useBlockCreateFlow(options: Options = {}) {
     }
   }
 
-  const flow = useEntityCreateFlow<BlockCreatePayload, { id: string }>({
-    entityLabel: 'Block',
+  const flow = useEntityCreateFlow<LayerCreatePayload, { id: string }>({
+    entityLabel: 'Layer',
     buildPayload,
-    dryRun: (payload) => blocksApi.dryRun(payload),
-    create: (payload) => blocksApi.create(payload),
+    dryRun: (payload) => layersApi.dryRun(payload),
+    create: (payload) => layersApi.create(payload),
     onCreated: options.onCreated,
   })
 
   return {
     enums,
     createContracts,
-    blockCatalog,
+    layerCatalog,
     metadataLoaded,
     metadataWarnings,
     selectedCategory,
@@ -351,7 +352,7 @@ export function useBlockCreateFlow(options: Options = {}) {
     creating: flow.creating,
     loadMetadata,
     previewYaml: flow.previewYaml,
-    createBlock: flow.createEntity,
+    createLayer: flow.createEntity,
     resetForNewSession,
   }
 }

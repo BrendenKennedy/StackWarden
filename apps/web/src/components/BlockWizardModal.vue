@@ -5,12 +5,12 @@
         class="wizard-dialog modal-wizard"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="block-wizard-title"
+        aria-labelledby="layer-wizard-title"
         ref="dialogRef"
         @keydown="onKeydown"
       >
         <div class="wizard-header">
-          <h3 id="block-wizard-title">Guided Block Setup</h3>
+          <h3 id="layer-wizard-title">Guided Layer Setup</h3>
           <button class="btn" @click="$emit('cancel')">Close</button>
         </div>
         <div class="wizard-scroll">
@@ -241,14 +241,14 @@
         <div v-if="currentStep === 'review'" class="wizard-step">
           <h4>Review</h4>
           <div class="wizard-detail">
-            <p>Confirm identity and review the summary before writing the block spec.</p>
+            <p>Confirm identity and review the summary before writing the layer spec.</p>
           </div>
           <label :class="{ required: requiresField('display_name') }">Display Name</label>
           <input
             v-model="form.display_name"
             name="display_name"
             type="text"
-            placeholder="My Block"
+            placeholder="My Layer"
             @input="onDisplayNameInput"
           />
 
@@ -258,7 +258,7 @@
             name="id"
             @input="onIdInput"
             type="text"
-            placeholder="my-block"
+            placeholder="my-layer"
             maxlength="64"
             autocapitalize="off"
             spellcheck="false"
@@ -269,7 +269,7 @@
           <textarea
             v-model="form.description"
             name="description"
-            placeholder="What this block does and why it exists (human-readable)"
+            placeholder="What this layer does and why it exists (human-readable)"
             rows="3"
           />
 
@@ -306,7 +306,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import type {
-  BlockPresetCatalog,
+  LayerPresetCatalog,
   CreateContractsResponse,
   DependencyVersionMode,
   NpmInstallScope,
@@ -350,7 +350,7 @@ const props = defineProps<{
   }
   envEntries: Array<{ key: string; value: string }>
   contracts: CreateContractsResponse | null
-  blockCatalog: BlockPresetCatalog | null
+  layerCatalog: LayerPresetCatalog | null
   selectedCategory: string
   searchTerm: string
   selectedPresetId: string
@@ -381,10 +381,10 @@ const stepLabel = computed(() => {
   return map[currentStep.value] || 'Review'
 })
 
-const categories = computed(() => props.blockCatalog?.categories || [])
+const categories = computed(() => props.layerCatalog?.categories || [])
 const categoryCounts = computed(() => {
   const counts = new Map<string, number>()
-  for (const preset of props.blockCatalog?.presets || []) {
+  for (const preset of props.layerCatalog?.presets || []) {
     counts.set(preset.category, (counts.get(preset.category) || 0) + 1)
   }
   return counts
@@ -402,7 +402,7 @@ function variantRank(id: string): number {
   return 5
 }
 const availablePresets = computed(() => {
-  const rows = props.blockCatalog?.presets || []
+  const rows = props.layerCatalog?.presets || []
   const deduped = new Map<string, typeof rows[number]>()
   for (const preset of rows) {
     const key = preset.id.replace(VARIANT_SUFFIX_RE, '')
@@ -424,7 +424,7 @@ const availablePresets = computed(() => {
   })
 })
 const totalPresetCount = computed(() => {
-  const rows = props.blockCatalog?.presets || []
+  const rows = props.layerCatalog?.presets || []
   const dedupedKeys = new Set(rows.map(p => p.id.replace(VARIANT_SUFFIX_RE, '')))
   return dedupedKeys.size
 })
@@ -694,7 +694,10 @@ watch(
 )
 
 function requiresField(field: string): boolean {
-  const required = new Set(props.contracts?.block?.required_fields || [])
+  const required = new Set(
+    props.contracts?.layer?.required_fields
+    || [],
+  )
   return required.has(field)
 }
 
@@ -725,7 +728,7 @@ function suggestedIdFromDisplayName(value: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '')
-  const candidate = compact && /^[a-z]/.test(compact) ? compact : `b_${compact || 'block'}`
+  const candidate = compact && /^[a-z]/.test(compact) ? compact : `l_${compact || 'layer'}`
   return sanitizeSpecIdInput(candidate)
 }
 

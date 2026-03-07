@@ -15,13 +15,29 @@ from stackwarden.web.schemas import CudaDTO, DetectionHintsDTO, DetectionProbeDT
 def client(tmp_path):
     (tmp_path / "stacks").mkdir()
     (tmp_path / "profiles").mkdir()
-    (tmp_path / "blocks").mkdir()
-    with patch.dict(os.environ, {"STACKWARDEN_DATA_DIR": str(tmp_path), "STACKWARDEN_WEB_DEV": "true"}):
+    (tmp_path / "layers").mkdir()
+    xdg_config_home = tmp_path / "xdg-config"
+    xdg_config_home.mkdir(parents=True, exist_ok=True)
+    with patch.dict(
+        os.environ,
+        {
+            "STACKWARDEN_DATA_DIR": str(tmp_path),
+            "STACKWARDEN_WEB_DEV": "true",
+            "XDG_CONFIG_HOME": str(xdg_config_home),
+        },
+    ):
         from stackwarden.web.app import create_app
+        from stackwarden.web.deps import reset_cached_dependencies
         from stackwarden.web.settings import WebSettings
 
+        reset_cached_dependencies()
         app = create_app(WebSettings(token=None, dev=True))
-        yield TestClient(app)
+        with TestClient(app) as test_client:
+            test_client.post(
+                "/api/auth/setup",
+                json={"username": "admin", "password": "dev-password-123"},
+            )
+            yield test_client
 
 
 def test_detection_hints_returns_payload(client, monkeypatch):
@@ -87,9 +103,12 @@ def test_create_contracts_shape(client):
     assert body["schema_version"] == 1
     assert "profile" in body
     assert "stack" in body
-    assert "block" in body
+    assert "layer" in body
     assert "required_fields" in body["profile"]
     assert "id" in body["profile"]["required_fields"]
+    assert body["profile"]["defaults"]["schema_version"] == 1
+    assert body["stack"]["defaults"]["schema_version"] == 1
+    assert body["layer"]["defaults"]["schema_version"] == 2
     assert body["profile"]["fields"]["id"]["pattern"]
     assert "linux" in body["profile"]["fields"]["os"]["enum_values"]
 
@@ -99,6 +118,9 @@ def test_create_contracts_v2_shape(client):
     assert resp.status_code == 200
     body = resp.json()
     assert body["schema_version"] == 2
+    assert body["profile"]["defaults"]["schema_version"] == 2
+    assert body["stack"]["defaults"]["schema_version"] == 2
+    assert body["layer"]["defaults"]["schema_version"] == 2
     assert "base_candidates" not in body["profile"]["required_fields"]
 
 
@@ -107,6 +129,9 @@ def test_create_contracts_v3_declarative_fields_and_notes(client):
     assert resp.status_code == 200
     body = resp.json()
     assert body["schema_version"] == 3
+    assert body["profile"]["defaults"]["schema_version"] == 3
+    assert body["stack"]["defaults"]["schema_version"] == 3
+    assert body["layer"]["defaults"]["schema_version"] == 2
 
     profile_fields = body["profile"]["fields"]
     stack_fields = body["stack"]["fields"]
@@ -136,20 +161,21 @@ def test_create_contracts_v3_declarative_fields_and_notes(client):
     ):
         assert key in stack_fields
         assert stack_fields[key]["note"]
-    assert "blocks" in stack_fields
-    assert "primary intent" in stack_fields["blocks"]["note"].lower()
+    assert "layers" in stack_fields
+    assert "primary intent" in stack_fields["layers"]["note"].lower()
 
-    block_fields = body["block"]["fields"]
-    assert "build_strategy" in block_fields
-    assert "requires" in block_fields
-    assert "npm[].package_manager" in block_fields
-    assert "pip[].version_mode" in block_fields
-    assert "pip_install_mode" in block_fields
-    assert "pip_wheelhouse_path" in block_fields
-    assert "npm_install_mode" in block_fields
-    assert "apt_constraints" in block_fields
-    assert "apt_install_mode" in block_fields
-    assert body["block"]["defaults"]["requires.os"] == "linux"
+    layer_fields = body["layer"]["fields"]
+    assert "stack_layer" in layer_fields
+    assert "build_strategy" in layer_fields
+    assert "requires" in layer_fields
+    assert "npm[].package_manager" in layer_fields
+    assert "pip[].version_mode" in layer_fields
+    assert "pip_install_mode" in layer_fields
+    assert "pip_wheelhouse_path" in layer_fields
+    assert "npm_install_mode" in layer_fields
+    assert "apt_constraints" in layer_fields
+    assert "apt_install_mode" in layer_fields
+    assert body["layer"]["defaults"]["requires.os"] == "linux"
 
 
 def test_remote_detection_deferred(client):
@@ -187,10 +213,10 @@ def test_settings_tuple_catalog_endpoint(client):
     assert "tuples" in body
 
 
-def test_app_requires_token_outside_dev(tmp_path):
+def test_app_starts_without_token_outside_dev(tmp_path):
     with patch.dict(os.environ, {"STACKWARDEN_DATA_DIR": str(tmp_path), "STACKWARDEN_WEB_DEV": "true"}):
         from stackwarden.web.app import create_app
         from stackwarden.web.settings import WebSettings
 
-        with pytest.raises(RuntimeError):
-            create_app(WebSettings(token=None, dev=False))
+        app = create_app(WebSettings(token=None, dev=False))
+        assert app is not None

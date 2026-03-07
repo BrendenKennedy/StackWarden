@@ -11,12 +11,16 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from stackwarden.contracts import (
+    DEFAULT_LAYER_CREATE_SCHEMA_VERSION,
+    DEFAULT_PROFILE_CREATE_SCHEMA_VERSION,
+    DEFAULT_STACK_CREATE_SCHEMA_VERSION,
+)
 from stackwarden.domain.models import (
     ArtifactRecord,
-    BlockSpec,
+    LayerSpec,
     Plan,
     Profile,
-    StackRecipeSpec,
     StackSpec,
 )
 from stackwarden.domain.verify import VerifyReport
@@ -133,6 +137,8 @@ class StackSummaryDTO(BaseModel):
     task: str
     serve: str
     api: str
+    certification: Literal["dgx_certified", "generic_best_effort"] = "generic_best_effort"
+    certification_note: str = ""
     variants: dict[str, VariantDefDTO]
     source: str | None = None
     source_path: str | None = None
@@ -141,6 +147,11 @@ class StackSummaryDTO(BaseModel):
 
     @classmethod
     def from_domain(cls, s: StackSpec, origin: dict[str, str] | None = None) -> StackSummaryDTO:
+        constraints = dict(s.requirements.constraints or {})
+        certification = str(constraints.get("stackwarden_certification") or "").strip().lower()
+        if certification not in {"dgx_certified", "generic_best_effort"}:
+            certification = "generic_best_effort"
+        note = str(constraints.get("stackwarden_certification_note") or "").strip()
         variants = {
             k: VariantDefDTO(type=v.type, options=v.options, default=v.default)
             for k, v in s.variants.items()
@@ -151,6 +162,8 @@ class StackSummaryDTO(BaseModel):
             task=s.task.value,
             serve=s.serve.value,
             api=s.api.value,
+            certification=certification,  # type: ignore[arg-type]
+            certification_note=note,
             variants=variants,
             source=(origin or {}).get("source"),
             source_path=(origin or {}).get("source_path"),
@@ -174,9 +187,10 @@ class StackDetailDTO(StackSummaryDTO):
         )
 
 
-class BlockSummaryDTO(BaseModel):
+class LayerSummaryDTO(BaseModel):
     id: str
     display_name: str
+    stack_layer: str = ""
     tags: list[str]
     requires_keys: list[str] = Field(default_factory=list)
     source: str | None = None
@@ -185,10 +199,11 @@ class BlockSummaryDTO(BaseModel):
     source_repo_owner: str | None = None
 
     @classmethod
-    def from_domain(cls, b: BlockSpec, origin: dict[str, str] | None = None) -> "BlockSummaryDTO":
+    def from_domain(cls, b: LayerSpec, origin: dict[str, str] | None = None) -> "LayerSummaryDTO":
         return cls(
             id=b.id,
             display_name=b.display_name,
+            stack_layer=b.stack_layer,
             tags=b.tags,
             requires_keys=sorted(list((b.requires or {}).keys())),
             source=(origin or {}).get("source"),
@@ -198,7 +213,7 @@ class BlockSummaryDTO(BaseModel):
         )
 
 
-class BlockDetailDTO(BlockSummaryDTO):
+class LayerDetailDTO(LayerSummaryDTO):
     build_strategy: str | None = None
     ports: list[int]
     env: list[str]
@@ -211,8 +226,8 @@ class BlockDetailDTO(BlockSummaryDTO):
     provides: dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
-    def from_domain(cls, b: BlockSpec, origin: dict[str, str] | None = None) -> "BlockDetailDTO":
-        base = BlockSummaryDTO.from_domain(b, origin=origin)
+    def from_domain(cls, b: LayerSpec, origin: dict[str, str] | None = None) -> "LayerDetailDTO":
+        base = LayerSummaryDTO.from_domain(b, origin=origin)
         return cls(
             **base.model_dump(),
             build_strategy=b.build_strategy.value if b.build_strategy else None,
@@ -316,6 +331,33 @@ class PlanRequestDTO(BaseModel):
 class CompatibilityPreviewRequestDTO(BaseModel):
     profile_id: str
     stack_id: str
+
+
+class LayerOptionsClassifyRequestDTO(BaseModel):
+    selected_layers: list[str] = Field(default_factory=list)
+    inference_type: str | None = None
+    inference_profile: str | None = None
+    target_profile_id: str
+
+
+class LayerOptionDTO(BaseModel):
+    id: str
+    display_name: str
+    stack_layer: str
+    tags: list[str] = Field(default_factory=list)
+    tier: Literal["recommended", "compatible", "incompatible"]
+    score: int = 0
+    reasons: list[str] = Field(default_factory=list)
+    selected: bool = False
+
+
+class LayerOptionGroupDTO(BaseModel):
+    stack_layer: str
+    options: list[LayerOptionDTO] = Field(default_factory=list)
+
+
+class LayerOptionsClassifyResponseDTO(BaseModel):
+    groups: list[LayerOptionGroupDTO] = Field(default_factory=list)
 
 class PlanStepDTO(BaseModel):
     type: str
@@ -488,19 +530,12 @@ class CatalogItemDTO(BaseModel):
 
 class SystemConfigDTO(BaseModel):
     catalog_path: str | None = None
+    catalog_local_path: str | None = None
+    catalog_local_overrides_path: str | None = None
     log_dir: str | None = None
     default_profile: str | None = None
     registry_allow: list[str] = Field(default_factory=list)
     registry_deny: list[str] = Field(default_factory=list)
-    remote_catalog_enabled: bool = False
-    remote_catalog_repo_url: str | None = None
-    remote_catalog_branch: str = "main"
-    remote_catalog_local_path: str | None = None
-    remote_catalog_local_overrides_path: str | None = None
-    remote_catalog_auto_pull: bool = True
-    remote_catalog_last_sync_status: str | None = None
-    remote_catalog_last_sync_detail: str | None = None
-    remote_catalog_last_sync_commit: str | None = None
     auth_enabled: bool = False
     blocks_first_enabled: bool = True
     tuple_layer_mode: str = "enforce"
@@ -510,14 +545,9 @@ class SettingsConfigUpdateRequestDTO(BaseModel):
     default_profile: str | None = None
     registry_allow: list[str] | None = None
     registry_deny: list[str] | None = None
-    remote_catalog_enabled: bool | None = None
-    remote_catalog_repo_url: str | None = None
-    remote_catalog_branch: str | None = None
-    remote_catalog_local_path: str | None = None
-    remote_catalog_local_overrides_path: str | None = None
-    remote_catalog_auto_pull: bool | None = None
+    catalog_local_path: str | None = None
+    catalog_local_overrides_path: str | None = None
     tuple_layer_mode: str | None = None
-    sync_now: bool = False
 
 
 class AuthSessionStatusDTO(BaseModel):
@@ -603,24 +633,24 @@ class HardwareCatalogUpsertRequestDTO(BaseModel):
     item: HardwareCatalogItemDTO
 
 
-class BlockPresetPipDepDTO(BaseModel):
+class LayerPresetPipDepDTO(BaseModel):
     name: str
     version: str = ""
 
 
-class BlockPresetCategoryDTO(BaseModel):
+class LayerPresetCategoryDTO(BaseModel):
     id: str
     label: str
     description: str = ""
 
 
-class BlockPresetDTO(BaseModel):
+class LayerPresetDTO(BaseModel):
     id: str
     display_name: str
     description: str = ""
     category: str
     tags: list[str] = Field(default_factory=list)
-    pip: list[BlockPresetPipDepDTO] = Field(default_factory=list)
+    pip: list[LayerPresetPipDepDTO] = Field(default_factory=list)
     apt: list[str] = Field(default_factory=list)
     env: dict[str, str] = Field(default_factory=dict)
     ports: list[int] = Field(default_factory=list)
@@ -630,11 +660,11 @@ class BlockPresetDTO(BaseModel):
     layers: list[str] = Field(default_factory=list)
 
 
-class BlockPresetCatalogDTO(BaseModel):
+class LayerPresetCatalogDTO(BaseModel):
     schema_version: int = 1
     revision: int = 1
-    categories: list[BlockPresetCategoryDTO] = Field(default_factory=list)
-    presets: list[BlockPresetDTO] = Field(default_factory=list)
+    categories: list[LayerPresetCategoryDTO] = Field(default_factory=list)
+    presets: list[LayerPresetDTO] = Field(default_factory=list)
 
 
 class RemoteDetectionRequestDTO(BaseModel):
@@ -694,13 +724,14 @@ class VariantDefCreateDTO(BaseModel):
     default: str | bool
 
 class StackCreateRequest(BaseModel):
-    schema_version: int = 1
+    schema_version: int = DEFAULT_STACK_CREATE_SCHEMA_VERSION
     kind: Literal["stack_recipe"] = "stack_recipe"
     id: str
     display_name: str
     description: str = ""
     build_strategy: str | None = None
-    blocks: list[str] = Field(default_factory=list)
+    target_profile_id: str | None = None
+    layers: list[str] = Field(default_factory=list)
     base_role: str | None = None
     copy_items: list[CopyItemCreateDTO] = Field(default_factory=list)
     variants: dict[str, VariantDefCreateDTO] = Field(default_factory=dict)
@@ -712,12 +743,33 @@ class StackCreateRequest(BaseModel):
     fix_suggestions: list[str] = Field(default_factory=list)
     decision_trace: list[str] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def _validate_target_profile(self) -> "StackCreateRequest":
+        from_constraints = str(self.requirements.constraints.get("target_profile_id", "")).strip()
+        candidate = (self.target_profile_id or "").strip() or from_constraints
+        if not candidate:
+            raise ValueError("target_profile_id is required for stack creation.")
+        self.target_profile_id = candidate
+        # Keep requirements constraints normalized for downstream compatibility checks.
+        self.requirements.constraints["target_profile_id"] = candidate
+        return self
 
-class BlockCreateRequest(BaseModel):
-    schema_version: int = 1
+
+class LayerCreateRequest(BaseModel):
+    schema_version: int = DEFAULT_LAYER_CREATE_SCHEMA_VERSION
     id: str
     display_name: str
     description: str = ""
+    stack_layer: Literal[
+        "system_runtime_layer",
+        "driver_accelerator_layer",
+        "core_compute_layer",
+        "inference_engine_layer",
+        "optimization_compilation_layer",
+        "serving_layer",
+        "application_orchestration_layer",
+        "observability_operations_layer",
+    ]
     tags: list[str] = Field(default_factory=list)
     build_strategy: str | None = None
     base_role: str | None = None
@@ -804,7 +856,7 @@ class ProfileConstraintsCreateDTO(BaseModel):
 
 
 class ProfileCreateRequest(BaseModel):
-    schema_version: int = 1
+    schema_version: int = DEFAULT_PROFILE_CREATE_SCHEMA_VERSION
     id: str
     display_name: str
     arch: str
@@ -854,7 +906,7 @@ class DryRunResponse(BaseModel):
     errors: list[dict[str, str]] = Field(default_factory=list)
 
 
-class BlockCreateResponse(BaseModel):
+class LayerCreateResponse(BaseModel):
     id: str
     display_name: str
     path: str
@@ -957,4 +1009,4 @@ class CreateContractsResponseDTO(BaseModel):
     schema_version: int = 2
     profile: CreateContractDTO
     stack: CreateContractDTO
-    block: CreateContractDTO
+    layer: CreateContractDTO

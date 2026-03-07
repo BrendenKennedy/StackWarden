@@ -26,6 +26,7 @@ catalogLayer --> artifactOutput
 
 - CLI (`packages/stackwarden/src/stackwarden/cli.py`) and API routes (`packages/stackwarden/src/stackwarden/web/routes/*`) accept user input, apply transport-level validation and UX concerns, and call shared core behavior.
 - Web UI (`apps/web/src`) renders workflows and uses API contracts, without embedding core resolver logic.
+- Layers-first terminology is canonical across surfaces (`layers` commands/routes/views); block-era paths remain compatibility shims only.
 
 ## Core Domain and Application
 

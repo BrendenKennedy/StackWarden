@@ -45,7 +45,7 @@ async def run_ensure_job(record: JobRecord, manager: JobManager) -> None:
     tail_task = asyncio.create_task(_tail_log(job_id, log_path, manager))
 
     try:
-        result_record, _plan = await asyncio.to_thread(
+        result_record, resolved_plan = await asyncio.to_thread(
             _run_ensure_sync,
             record.profile_id,
             record.stack_id,
@@ -60,6 +60,11 @@ async def run_ensure_job(record: JobRecord, manager: JobManager) -> None:
             log.info("Job %s was canceled during execution", job_id)
             _publish(manager, job_id, "status", "canceled")
         elif result_record.status == ArtifactStatus.BUILT:
+            record.build_optimization = (
+                resolved_plan.decision.build_optimization.model_dump(mode="json")
+                if resolved_plan and resolved_plan.decision.build_optimization
+                else record.build_optimization
+            )
             record.status = JobStatus.SUCCEEDED
             record.ended_at = datetime.now(timezone.utc)
             record.result_artifact_id = result_record.id
@@ -72,6 +77,11 @@ async def run_ensure_job(record: JobRecord, manager: JobManager) -> None:
             }))
             _publish(manager, job_id, "status", "succeeded")
         else:
+            record.build_optimization = (
+                resolved_plan.decision.build_optimization.model_dump(mode="json")
+                if resolved_plan and resolved_plan.decision.build_optimization
+                else record.build_optimization
+            )
             record.status = JobStatus.FAILED
             record.ended_at = datetime.now(timezone.utc)
             record.result_artifact_id = result_record.id

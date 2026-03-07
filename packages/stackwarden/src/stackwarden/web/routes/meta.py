@@ -6,7 +6,14 @@ import logging
 
 from fastapi import APIRouter, Query, Response
 
-from stackwarden.contracts import ALLOWED_BUILD_STRATEGIES, SPEC_ID_PATTERN
+from stackwarden.contracts import (
+    ALLOWED_BUILD_STRATEGIES,
+    DEFAULT_LAYER_CREATE_SCHEMA_VERSION,
+    DEFAULT_PROFILE_CREATE_SCHEMA_VERSION,
+    DEFAULT_STACK_CREATE_SCHEMA_VERSION,
+    SPEC_ID_PATTERN,
+    STACK_LAYER_IDS,
+)
 from stackwarden.domain.enums import (
     ApiType,
     Arch,
@@ -52,6 +59,11 @@ async def get_create_contracts(response: Response, schema: str | None = Query(de
                 "container_runtime",
             ]
             profile_defaults = {
+                "schema_version": (
+                    DEFAULT_PROFILE_CREATE_SCHEMA_VERSION
+                    if requested >= 3
+                    else 2
+                ),
                 "os": "linux",
                 "container_runtime": "nvidia",
                 "gpu.vendor": "nvidia",
@@ -137,6 +149,7 @@ async def get_create_contracts(response: Response, schema: str | None = Query(de
                 "base_candidates",
             ]
             profile_defaults = {
+                "schema_version": 1,
                 "os": "linux",
                 "container_runtime": "nvidia",
                 "cuda.variant": "runtime",
@@ -172,12 +185,22 @@ async def get_create_contracts(response: Response, schema: str | None = Query(de
             required_fields=[
                 "id",
                 "display_name",
-                "blocks",
+                "target_profile_id",
+                "layers",
             ],
-            defaults={},
+            defaults={
+                "schema_version": (
+                    DEFAULT_STACK_CREATE_SCHEMA_VERSION
+                    if requested >= 3
+                    else max(requested, 1)
+                )
+            },
             fields={
                 "id": FieldConstraintDTO(pattern=SPEC_ID_PATTERN),
                 "kind": FieldConstraintDTO(enum_values=["stack_recipe"]),
+                "target_profile_id": FieldConstraintDTO(
+                    note="Required hardware profile id this stack is designed for."
+                ),
                 "build_strategy": FieldConstraintDTO(enum_values=_ALLOWED_BUILD_STRATEGIES),
                 "intent": FieldConstraintDTO(
                     note="Intent object: outcome and summary for declarative planning."
@@ -201,22 +224,27 @@ async def get_create_contracts(response: Response, schema: str | None = Query(de
                     note="Ordered derivation rationale, including normalization decisions."
                 ),
                 "base_role": FieldConstraintDTO(
-                    note="Optional override; usually inferred from selected blocks."
+                    note="Optional override; usually inferred from selected layers."
                 ),
-                "blocks": FieldConstraintDTO(
+                "layers": FieldConstraintDTO(
                     min_items=1,
-                    note="Primary intent contract: users declare desired functionality via block selection and order.",
+                    note="Primary intent contract: users declare desired functionality via layer selection and order.",
                 ),
             },
         )
 
-        block_contract = CreateContractDTO(
-            required_fields=["id", "display_name"],
+        layer_contract = CreateContractDTO(
+            required_fields=["id", "display_name", "stack_layer"],
             defaults={
+                "schema_version": DEFAULT_LAYER_CREATE_SCHEMA_VERSION,
                 "requires.os": "linux",
             },
             fields={
                 "id": FieldConstraintDTO(pattern=SPEC_ID_PATTERN),
+                "stack_layer": FieldConstraintDTO(
+                    enum_values=list(STACK_LAYER_IDS),
+                    note="Explicit stack layer ownership for this layer.",
+                ),
                 "build_strategy": FieldConstraintDTO(enum_values=_ALLOWED_BUILD_STRATEGIES),
                 "tags": FieldConstraintDTO(note="Recommended from presets; fully editable."),
                 "pip[].version_mode": FieldConstraintDTO(
@@ -258,8 +286,8 @@ async def get_create_contracts(response: Response, schema: str | None = Query(de
                         "driver_min, cuda_runtime."
                     )
                 ),
-                "incompatible_with": FieldConstraintDTO(note="List of block ids that cannot be used together."),
-                "provides": FieldConstraintDTO(note="Optional capability map advertised by this block."),
+                "incompatible_with": FieldConstraintDTO(note="List of layer ids that cannot be used together."),
+                "provides": FieldConstraintDTO(note="Optional capability map advertised by this layer."),
             },
         )
 
@@ -267,7 +295,7 @@ async def get_create_contracts(response: Response, schema: str | None = Query(de
             schema_version=requested,
             profile=profile_contract,
             stack=stack_contract,
-            block=block_contract,
+            layer=layer_contract,
         )
     except Exception:
         log.exception("Failed to serve /meta/create-contracts")

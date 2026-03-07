@@ -282,6 +282,7 @@ def _do_execute(
         raise CancellationRequestedError("Build canceled after builder execution")
 
     _capture_manifest(record, profile, stack, plan, catalog)
+    _capture_optimization_manifest(record, plan, catalog)
     _capture_snapshots(record, profile, stack, plan, catalog)
     _capture_sbom(record, catalog)
 
@@ -310,6 +311,47 @@ def _capture_manifest(
         log.info("Manifest saved: %s", path)
     except Exception as exc:
         log.warning("Manifest capture failed (non-fatal): %s", exc)
+
+
+def _capture_optimization_manifest(
+    record: ArtifactRecord,
+    plan: Plan,
+    catalog: CatalogStore,
+) -> None:
+    """Persist deterministic build-time optimization payload for this artifact."""
+    try:
+        from stackwarden.domain.hashing import canonical_json
+        from stackwarden.domain.snapshots import artifact_dir
+
+        optimization = (
+            plan.decision.build_optimization.model_dump(mode="json")
+            if plan.decision.build_optimization
+            else {}
+        )
+        payload = {
+            "profile_id": plan.profile_id,
+            "stack_id": plan.stack_id,
+            "fingerprint": plan.artifact.fingerprint,
+            "base_image": plan.decision.base_image,
+            "base_digest": plan.decision.base_digest,
+            "build_optimization": optimization,
+            "labels": {
+                "stackwarden.build_optimization": plan.artifact.labels.get(
+                    "stackwarden.build_optimization", ""
+                ),
+                "stackwarden.host_optimization": plan.artifact.labels.get(
+                    "stackwarden.host_optimization", ""
+                ),
+            },
+        }
+        out_dir = artifact_dir(record.fingerprint)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        path = out_dir / "optimization.json"
+        path.write_text(canonical_json(payload))
+        catalog.update_artifact(record)
+        log.info("Optimization manifest saved: %s", path)
+    except Exception as exc:
+        log.warning("Optimization manifest capture failed (non-fatal): %s", exc)
 
 
 def _capture_snapshots(
@@ -388,7 +430,13 @@ def _make_record(plan: Plan, status: ArtifactStatus) -> ArtifactRecord:
     host_id = socket.gethostname()
     stack_schema_version = int(plan.artifact.labels.get("stackwarden.schema_version", "1") or "1")
     profile_schema_version = int(plan.artifact.labels.get("stackwarden.profile_schema_version", "1") or "1")
-    block_schema_version = int(plan.artifact.labels.get("stackwarden.block_schema_version", "1") or "1")
+    layer_schema_version = int(
+        plan.artifact.labels.get(
+            "stackwarden.layer_schema_version",
+            plan.artifact.labels.get("stackwarden.block_schema_version", "1"),
+        )
+        or "1"
+    )
 
     return ArtifactRecord(
         id=uuid.uuid4().hex[:16],
@@ -401,7 +449,7 @@ def _make_record(plan: Plan, status: ArtifactStatus) -> ArtifactRecord:
         build_strategy=plan.decision.builder,
         stack_schema_version=stack_schema_version,
         profile_schema_version=profile_schema_version,
-        block_schema_version=block_schema_version,
+        layer_schema_version=layer_schema_version,
         host_id=host_id,
         status=status,
     )

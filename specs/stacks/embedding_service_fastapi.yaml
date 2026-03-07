@@ -2,10 +2,15 @@ kind: stack_recipe
 schema_version: 2
 id: embedding_service_fastapi
 display_name: "Embedding Service (Sentence Transformers + FastAPI)"
-blocks:
+layers:
+  - ubuntu_24_04_runtime
+  - nccl_accelerator
+  - pytorch_core_compute
   - fastapi
   - sentence_transformers_embedding
-  - pytorch_core_compute
+  - sdpa_attention_optimization
+  - torch_compile_optimization
+  - otel_observability
 
 components:
   base_role: pytorch

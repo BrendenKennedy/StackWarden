@@ -1,4 +1,4 @@
-"""Block preset catalog schema and persistence helpers."""
+"""Layer preset catalog schema and persistence helpers."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from stackwarden.config import block_catalog_path
 
 
-class BlockPresetPipDep(BaseModel):
+class LayerPresetPipDep(BaseModel):
     name: str
     version: str = ""
 
@@ -24,13 +24,13 @@ class BlockPresetPipDep(BaseModel):
         return value
 
 
-class BlockPreset(BaseModel):
+class LayerPreset(BaseModel):
     id: str
     display_name: str
     description: str = ""
     category: str
     tags: list[str] = Field(default_factory=list)
-    pip: list[BlockPresetPipDep] = Field(default_factory=list)
+    pip: list[LayerPresetPipDep] = Field(default_factory=list)
     apt: list[str] = Field(default_factory=list)
     env: dict[str, str] = Field(default_factory=dict)
     ports: list[int] = Field(default_factory=list)
@@ -81,7 +81,7 @@ class BlockPreset(BaseModel):
         return cleaned
 
 
-class BlockPresetCategory(BaseModel):
+class LayerPresetCategory(BaseModel):
     id: str
     label: str
     description: str = ""
@@ -103,20 +103,20 @@ class BlockPresetCategory(BaseModel):
         return value
 
 
-class BlockPresetCatalog(BaseModel):
+class LayerPresetCatalog(BaseModel):
     schema_version: int = 1
     revision: int = 1
-    categories: list[BlockPresetCategory] = Field(default_factory=list)
-    presets: list[BlockPreset] = Field(default_factory=list)
+    categories: list[LayerPresetCategory] = Field(default_factory=list)
+    presets: list[LayerPreset] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def _validate_uniqueness(self) -> "BlockPresetCatalog":
+    def _validate_uniqueness(self) -> "LayerPresetCatalog":
         ids = [p.id for p in self.presets]
         if len(ids) != len(set(ids)):
-            raise ValueError("duplicate preset ids in block catalog")
+            raise ValueError("duplicate preset ids in layer catalog")
         cat_ids = [c.id for c in self.categories]
         if len(cat_ids) != len(set(cat_ids)):
-            raise ValueError("duplicate category ids in block catalog")
+            raise ValueError("duplicate category ids in layer catalog")
         known_categories = set(cat_ids)
         for preset in self.presets:
             if preset.category not in known_categories:
@@ -140,116 +140,35 @@ _CATEGORY_ROWS: list[tuple[str, str, str]] = [
 ]
 
 _BASE_PRESETS: list[dict[str, object]] = [
-    {"id": "vllm", "display_name": "vLLM Runtime", "category": "llm_serving", "block_kind": "runtime", "tags": ["llm", "inference"], "pip": [("vllm", ">=0.6,<0.8")]},
-    {"id": "tgi", "display_name": "Text Generation Inference", "category": "llm_serving", "block_kind": "runtime", "tags": ["llm", "inference"], "pip": [("text-generation", ">=0.7,<0.9")]},
-    {"id": "sglang", "display_name": "SGLang Runtime", "category": "llm_serving", "block_kind": "runtime", "tags": ["llm", "serving"], "pip": [("sglang", ">=0.3,<0.5")]},
-    {"id": "triton_client", "display_name": "Triton Client", "category": "llm_serving", "block_kind": "runtime", "tags": ["triton", "inference"], "pip": [("tritonclient[http]", ">=2.49,<2.53")]},
-    {"id": "ray_serve", "display_name": "Ray Serve", "category": "llm_serving", "block_kind": "runtime", "tags": ["ray", "serving"], "pip": [("ray[serve]", ">=2.34,<2.40")]},
-    {"id": "litellm", "display_name": "LiteLLM Gateway", "category": "llm_serving", "block_kind": "api", "tags": ["gateway", "llm"], "pip": [("litellm", ">=1.45,<1.60")]},
-    {"id": "openai_compat", "display_name": "OpenAI Compat API", "category": "llm_serving", "block_kind": "api", "tags": ["api", "compat"], "pip": [("fastapi", "==0.115.*"), ("uvicorn", "[standard]==0.30.*")]},
-    {"id": "outlines", "display_name": "Outlines Structured Decoding", "category": "llm_serving", "block_kind": "runtime", "tags": ["decoding", "llm"], "pip": [("outlines", ">=0.0.46,<0.1")]},
-    {"id": "guidance", "display_name": "Guidance Runtime", "category": "llm_serving", "block_kind": "runtime", "tags": ["prompting", "llm"], "pip": [("guidance", ">=0.1,<0.2")]},
-    {"id": "llama_cpp", "display_name": "llama.cpp Python", "category": "llm_serving", "block_kind": "runtime", "tags": ["llm", "cpu"], "pip": [("llama-cpp-python", ">=0.2.90,<0.3")]},
-    {"id": "diffusers_runtime", "display_name": "Diffusers Runtime", "category": "diffusion", "block_kind": "runtime", "tags": ["diffusion", "image-gen"], "pip": [("diffusers", ">=0.30,<0.34"), ("transformers", ">=4.44,<4.49")]},
-    {"id": "comfyui_runtime", "display_name": "ComfyUI Runtime", "category": "diffusion", "block_kind": "api", "tags": ["diffusion", "ui"], "pip": [("comfyui", ">=0.2,<0.3")]},
-    {"id": "invokeai_runtime", "display_name": "InvokeAI Runtime", "category": "diffusion", "block_kind": "runtime", "tags": ["diffusion", "serving"], "pip": [("invokeai", ">=5.4,<5.6")]},
-    {"id": "controlnet_tools", "display_name": "ControlNet Tooling", "category": "diffusion", "block_kind": "runtime", "tags": ["diffusion", "controlnet"], "pip": [("controlnet-aux", ">=0.0.9,<0.1")]},
-    {"id": "safetensors_tools", "display_name": "Safetensors Utilities", "category": "diffusion", "block_kind": "runtime", "tags": ["diffusion", "model-format"], "pip": [("safetensors", ">=0.4.5,<0.5")]},
-    {"id": "k_diffusion_tools", "display_name": "K-Diffusion Helpers", "category": "diffusion", "block_kind": "runtime", "tags": ["diffusion", "sampling"], "pip": [("k-diffusion", ">=0.1.1,<0.2")]},
-    {"id": "onnxruntime_vision", "display_name": "ONNX Runtime Vision", "category": "vision_inference", "block_kind": "runtime", "tags": ["vision", "onnx"], "pip": [("onnxruntime-gpu", ">=1.19,<1.21")]},
-    {"id": "ultralytics_yolo", "display_name": "Ultralytics YOLO", "category": "vision_inference", "block_kind": "api", "tags": ["vision", "detection"], "pip": [("ultralytics", ">=8.2,<8.4")]},
-    {"id": "opencv_runtime", "display_name": "OpenCV Runtime", "category": "vision_inference", "block_kind": "runtime", "tags": ["vision", "preprocess"], "pip": [("opencv-python-headless", ">=4.10,<4.12")]},
-    {"id": "detectron2_runtime", "display_name": "Detectron2 Runtime", "category": "vision_inference", "block_kind": "runtime", "tags": ["vision", "segmentation"], "pip": [("detectron2", ">=0.6,<0.7")]},
-    {"id": "timm_inference", "display_name": "timm Inference", "category": "vision_inference", "block_kind": "runtime", "tags": ["vision", "classification"], "pip": [("timm", ">=1.0.9,<1.1")]},
-    {"id": "pillow_simd_tools", "display_name": "Pillow SIMD Tools", "category": "vision_inference", "block_kind": "accelerator", "tags": ["vision", "image-io"], "pip": [("pillow-simd", ">=10.4,<10.6")]},
-    {"id": "faster_whisper_asr", "display_name": "Faster-Whisper ASR", "category": "speech_audio", "block_kind": "api", "tags": ["asr", "speech"], "pip": [("faster-whisper", ">=1.0,<1.1")]},
-    {"id": "whisperx_asr", "display_name": "WhisperX ASR", "category": "speech_audio", "block_kind": "runtime", "tags": ["asr", "alignment"], "pip": [("whisperx", ">=3.2,<3.4")]},
-    {"id": "coqui_tts_runtime", "display_name": "Coqui TTS Runtime", "category": "speech_audio", "block_kind": "api", "tags": ["tts", "speech"], "pip": [("TTS", ">=0.22,<0.24")]},
-    {"id": "piper_tts_runtime", "display_name": "Piper TTS Runtime", "category": "speech_audio", "block_kind": "runtime", "tags": ["tts", "edge"], "pip": [("piper-tts", ">=1.2,<1.4")]},
-    {"id": "pyannote_diarization", "display_name": "PyAnnote Diarization", "category": "speech_audio", "block_kind": "runtime", "tags": ["speech", "diarization"], "pip": [("pyannote.audio", ">=3.3,<3.4")]},
-    {"id": "silero_vad", "display_name": "Silero VAD", "category": "speech_audio", "block_kind": "runtime", "tags": ["speech", "vad"], "pip": [("silero-vad", ">=5.1,<5.2")]},
-    {"id": "deepspeed", "display_name": "DeepSpeed", "category": "training", "block_kind": "accelerator", "tags": ["training", "distributed"], "pip": [("deepspeed", ">=0.14,<0.16")]},
-    {"id": "accelerate", "display_name": "HuggingFace Accelerate", "category": "training", "block_kind": "runtime", "tags": ["training", "hf"], "pip": [("accelerate", ">=0.34,<0.37")]},
-    {"id": "trl", "display_name": "TRL", "category": "training", "block_kind": "runtime", "tags": ["rlhf", "training"], "pip": [("trl", ">=0.10,<0.12")]},
-    {"id": "peft", "display_name": "PEFT", "category": "training", "block_kind": "runtime", "tags": ["lora", "training"], "pip": [("peft", ">=0.12,<0.14")]},
-    {"id": "bitsandbytes", "display_name": "bitsandbytes", "category": "training", "block_kind": "accelerator", "tags": ["quantization", "training"], "pip": [("bitsandbytes", ">=0.43,<0.45")]},
-    {
-        "id": "flash_attn",
-        "display_name": "Flash Attention",
-        "category": "training",
-        "block_kind": "accelerator",
-        "tags": ["cuda", "training"],
-        "pip": [("flash-attn", ">=2.6,<2.8")],
-        "requires": {
-            "arch": "amd64",
-            "gpu_vendor": "nvidia",
-            "container_runtime": "nvidia",
-            "cuda_runtime": {"min": 12.0},
-        },
-    },
-    {"id": "xformers", "display_name": "xFormers", "category": "training", "block_kind": "accelerator", "tags": ["attention", "training"], "pip": [("xformers", ">=0.0.28,<0.0.30")]},
-    {"id": "pytorch_lightning", "display_name": "PyTorch Lightning", "category": "training", "block_kind": "runtime", "tags": ["pytorch", "training"], "pip": [("pytorch-lightning", ">=2.4,<2.5")]},
-    {"id": "wandb", "display_name": "Weights and Biases", "category": "training", "block_kind": "api", "tags": ["experiment", "tracking"], "pip": [("wandb", ">=0.18,<0.20")]},
-    {"id": "mlflow", "display_name": "MLflow", "category": "training", "block_kind": "api", "tags": ["tracking", "registry"], "pip": [("mlflow", ">=2.16,<2.20")]},
-    {"id": "sentence_transformers", "display_name": "Sentence Transformers", "category": "data_rag", "block_kind": "runtime", "tags": ["embeddings", "rag"], "pip": [("sentence-transformers", ">=3.1,<3.4")]},
-    {"id": "langchain", "display_name": "LangChain", "category": "data_rag", "block_kind": "runtime", "tags": ["rag", "agents"], "pip": [("langchain", ">=0.3,<0.4")]},
-    {"id": "llama_index", "display_name": "LlamaIndex", "category": "data_rag", "block_kind": "runtime", "tags": ["rag", "index"], "pip": [("llama-index", ">=0.11,<0.12")]},
-    {"id": "faiss", "display_name": "FAISS", "category": "data_rag", "block_kind": "accelerator", "tags": ["vector", "index"], "pip": [("faiss-cpu", ">=1.8,<1.10")]},
-    {"id": "qdrant_client", "display_name": "Qdrant Client", "category": "data_rag", "block_kind": "runtime", "tags": ["vector", "qdrant"], "pip": [("qdrant-client", ">=1.11,<1.14")]},
-    {"id": "milvus_client", "display_name": "Milvus Client", "category": "data_rag", "block_kind": "runtime", "tags": ["vector", "milvus"], "pip": [("pymilvus", ">=2.4,<2.6")]},
-    {"id": "chromadb", "display_name": "ChromaDB", "category": "data_rag", "block_kind": "runtime", "tags": ["vector", "chroma"], "pip": [("chromadb", ">=0.5,<0.6")]},
-    {"id": "pgvector", "display_name": "pgvector Helpers", "category": "data_rag", "block_kind": "runtime", "tags": ["postgres", "vector"], "pip": [("pgvector", ">=0.3,<0.4")]},
-    {"id": "pydantic_ai", "display_name": "PydanticAI", "category": "data_rag", "block_kind": "runtime", "tags": ["agents", "validation"], "pip": [("pydantic-ai", ">=0.0.10,<0.1")]},
-    {"id": "unstructured", "display_name": "Unstructured", "category": "data_rag", "block_kind": "runtime", "tags": ["ingestion", "documents"], "pip": [("unstructured", ">=0.15,<0.17")]},
-    {"id": "langgraph_runtime", "display_name": "LangGraph Runtime", "category": "agentic_workflows", "block_kind": "runtime", "tags": ["agent", "workflow"], "pip": [("langgraph", ">=0.2.20,<0.3")]},
-    {"id": "autogen_runtime", "display_name": "AutoGen Runtime", "category": "agentic_workflows", "block_kind": "runtime", "tags": ["agent", "multi-agent"], "pip": [("autogen-agentchat", ">=0.3,<0.4")]},
-    {"id": "crewai_runtime", "display_name": "CrewAI Runtime", "category": "agentic_workflows", "block_kind": "runtime", "tags": ["agent", "orchestration"], "pip": [("crewai", ">=0.95,<0.110")]},
-    {"id": "tool_router", "display_name": "Tool Router", "category": "agentic_workflows", "block_kind": "api", "tags": ["agent", "tools"], "pip": [("fastapi", "==0.115.*"), ("httpx", ">=0.27,<0.28")]},
-    {"id": "agent_memory", "display_name": "Agent Memory Store", "category": "agentic_workflows", "block_kind": "runtime", "tags": ["agent", "memory"], "pip": [("mem0ai", ">=0.1.50,<0.2")]},
-    {"id": "onnx_export_tools", "display_name": "ONNX Export Tools", "category": "inference_optimization", "block_kind": "runtime", "tags": ["optimization", "onnx"], "pip": [("onnx", ">=1.17,<1.18"), ("onnxsim", ">=0.4.36,<0.5")]},
-    {"id": "tensorrt_llm_tools", "display_name": "TensorRT-LLM Tools", "category": "inference_optimization", "block_kind": "accelerator", "tags": ["optimization", "tensorrt"], "pip": [("tensorrt-llm", ">=0.13,<0.16")]},
-    {"id": "optimum_runtime", "display_name": "HuggingFace Optimum", "category": "inference_optimization", "block_kind": "runtime", "tags": ["optimization", "hf"], "pip": [("optimum", ">=1.22,<1.24")]},
-    {"id": "openvino_runtime", "display_name": "OpenVINO Runtime", "category": "inference_optimization", "block_kind": "accelerator", "tags": ["optimization", "cpu"], "pip": [("openvino", ">=2024.3,<2025.0")]},
-    {"id": "awq_quantization", "display_name": "AWQ Quantization", "category": "inference_optimization", "block_kind": "accelerator", "tags": ["quantization", "llm"], "pip": [("autoawq", ">=0.2.7,<0.3")]},
-    {"id": "gguf_runtime", "display_name": "GGUF Runtime Tools", "category": "inference_optimization", "block_kind": "runtime", "tags": ["quantization", "gguf"], "pip": [("ctransformers", ">=0.2.27,<0.3")]},
-    {"id": "fastapi_api", "display_name": "FastAPI API", "category": "api_app", "block_kind": "api", "tags": ["api", "python"], "pip": [("fastapi", "==0.115.*"), ("uvicorn", "[standard]==0.30.*")]},
-    {"id": "flask_api", "display_name": "Flask API", "category": "api_app", "block_kind": "api", "tags": ["api", "python"], "pip": [("flask", ">=3.0,<3.1"), ("gunicorn", ">=22,<23")]},
-    {"id": "django_api", "display_name": "Django API", "category": "api_app", "block_kind": "api", "tags": ["api", "django"], "pip": [("django", ">=5.1,<5.2"), ("djangorestframework", ">=3.15,<3.16")]},
-    {"id": "celery_worker", "display_name": "Celery Worker", "category": "api_app", "block_kind": "runtime", "tags": ["worker", "queue"], "pip": [("celery", ">=5.4,<5.5")]},
-    {"id": "rq_worker", "display_name": "RQ Worker", "category": "api_app", "block_kind": "runtime", "tags": ["worker", "queue"], "pip": [("rq", ">=1.16,<1.17")]},
-    {"id": "dramatiq_worker", "display_name": "Dramatiq Worker", "category": "api_app", "block_kind": "runtime", "tags": ["worker", "queue"], "pip": [("dramatiq", ">=1.17,<1.18")]},
-    {"id": "grpc_server", "display_name": "gRPC Server", "category": "api_app", "block_kind": "api", "tags": ["grpc", "api"], "pip": [("grpcio", ">=1.66,<1.68"), ("grpcio-tools", ">=1.66,<1.68")]},
-    {"id": "streamlit", "display_name": "Streamlit App", "category": "api_app", "block_kind": "api", "tags": ["ui", "streamlit"], "pip": [("streamlit", ">=1.39,<1.42")]},
-    {"id": "gradio", "display_name": "Gradio App", "category": "api_app", "block_kind": "api", "tags": ["ui", "gradio"], "pip": [("gradio", ">=5.4,<5.8")]},
-    {"id": "dash", "display_name": "Dash App", "category": "api_app", "block_kind": "api", "tags": ["ui", "dash"], "pip": [("dash", ">=2.18,<2.20")]},
-    {"id": "prometheus_client", "display_name": "Prometheus Client", "category": "observability", "block_kind": "runtime", "tags": ["metrics", "prometheus"], "pip": [("prometheus-client", ">=0.21,<0.22")]},
-    {"id": "opentelemetry", "display_name": "OpenTelemetry", "category": "observability", "block_kind": "runtime", "tags": ["tracing", "otel"], "pip": [("opentelemetry-sdk", ">=1.28,<1.30"), ("opentelemetry-exporter-otlp", ">=1.28,<1.30")]},
-    {"id": "structlog", "display_name": "Structured Logging", "category": "observability", "block_kind": "runtime", "tags": ["logging"], "pip": [("structlog", ">=24.4,<25.0")]},
-    {"id": "sentry", "display_name": "Sentry SDK", "category": "observability", "block_kind": "runtime", "tags": ["errors", "monitoring"], "pip": [("sentry-sdk", ">=2.17,<2.20")]},
-    {"id": "pyroscope", "display_name": "Pyroscope Profiling", "category": "observability", "block_kind": "runtime", "tags": ["profiling"], "pip": [("pyroscope-io", ">=0.8,<0.10")]},
-    {"id": "locust", "display_name": "Locust Load Testing", "category": "observability", "block_kind": "runtime", "tags": ["load-testing"], "pip": [("locust", ">=2.31,<2.33")]},
-    {"id": "httpx_retries", "display_name": "HTTPX Retries", "category": "observability", "block_kind": "runtime", "tags": ["resilience", "http"], "pip": [("httpx", ">=0.27,<0.28"), ("tenacity", ">=9.0,<9.1")]},
-    {"id": "redis_runtime", "display_name": "Redis Runtime", "category": "infra", "block_kind": "runtime", "tags": ["cache", "redis"], "pip": [("redis", ">=5.1,<5.3")]},
-    {"id": "postgres_runtime", "display_name": "Postgres Runtime", "category": "infra", "block_kind": "runtime", "tags": ["postgres", "db"], "pip": [("psycopg[binary]", ">=3.2,<3.3")]},
-    {"id": "mysql_runtime", "display_name": "MySQL Runtime", "category": "infra", "block_kind": "runtime", "tags": ["mysql", "db"], "pip": [("mysqlclient", ">=2.2,<2.3")]},
-    {"id": "kafka_runtime", "display_name": "Kafka Runtime", "category": "infra", "block_kind": "runtime", "tags": ["kafka", "streaming"], "pip": [("confluent-kafka", ">=2.6,<2.8")]},
-    {"id": "rabbitmq_runtime", "display_name": "RabbitMQ Runtime", "category": "infra", "block_kind": "runtime", "tags": ["rabbitmq", "queue"], "pip": [("pika", ">=1.3,<1.4")]},
-    {"id": "s3_runtime", "display_name": "S3 Runtime", "category": "infra", "block_kind": "runtime", "tags": ["storage", "s3"], "pip": [("boto3", ">=1.35,<1.37")]},
-    {"id": "azure_blob_runtime", "display_name": "Azure Blob Runtime", "category": "infra", "block_kind": "runtime", "tags": ["storage", "azure"], "pip": [("azure-storage-blob", ">=12.23,<12.24")]},
-    {"id": "gcs_runtime", "display_name": "GCS Runtime", "category": "infra", "block_kind": "runtime", "tags": ["storage", "gcp"], "pip": [("google-cloud-storage", ">=2.18,<2.20")]},
-    {"id": "jwt_auth", "display_name": "JWT Auth Helpers", "category": "infra", "block_kind": "runtime", "tags": ["auth", "security"], "pip": [("pyjwt", ">=2.9,<2.11"), ("cryptography", ">=43,<45")]},
-    {"id": "oauth_runtime", "display_name": "OAuth Runtime", "category": "infra", "block_kind": "runtime", "tags": ["auth", "oauth"], "pip": [("authlib", ">=1.3,<1.4")]},
-    {"id": "ros2_runtime", "display_name": "ROS2 Runtime (Pilot)", "category": "robotics_edge", "block_kind": "runtime", "tags": ["robotics", "edge", "pilot"], "pip": [("rclpy", ">=3.4,<3.6")]},
-    {"id": "gstreamer_pipeline", "display_name": "GStreamer Pipeline (Pilot)", "category": "robotics_edge", "block_kind": "runtime", "tags": ["robotics", "video", "pilot"], "pip": [("PyGObject", ">=3.48,<3.50")]},
-    {"id": "jetson_helpers", "display_name": "Jetson Helpers (Pilot)", "category": "robotics_edge", "block_kind": "accelerator", "tags": ["robotics", "jetson", "pilot"], "pip": [("jetson-stats", ">=4.2,<4.3")]},
-    {"id": "realsense_runtime", "display_name": "RealSense Runtime (Pilot)", "category": "robotics_edge", "block_kind": "runtime", "tags": ["robotics", "camera", "pilot"], "pip": [("pyrealsense2", ">=2.56,<2.57")]},
+    {"id": "ubuntu_24_04_runtime", "display_name": "Ubuntu 24.04 Runtime", "category": "infra", "block_kind": "runtime", "tags": ["system", "runtime", "ubuntu"], "apt": ["ca-certificates", "curl", "tzdata"], "layers": ["system_runtime_layer"]},
+    {"id": "debian_system_runtime", "display_name": "Debian System Runtime", "category": "infra", "block_kind": "runtime", "tags": ["system", "runtime", "debian"], "apt": ["ca-certificates", "wget", "tzdata"], "layers": ["system_runtime_layer"]},
+    {"id": "cudnn", "display_name": "cuDNN Runtime", "category": "inference_optimization", "block_kind": "accelerator", "tags": ["cuda", "cudnn"], "apt": ["libcudnn9"], "layers": ["driver_accelerator_layer"]},
+    {"id": "nccl_accelerator", "display_name": "NCCL Accelerator", "category": "inference_optimization", "block_kind": "accelerator", "tags": ["cuda", "nccl"], "pip": [("nvidia-nccl-cu12", ">=2.23,<3.0")], "layers": ["driver_accelerator_layer"]},
+    {"id": "pytorch_core_compute", "display_name": "PyTorch Core Compute", "category": "inference_optimization", "block_kind": "runtime", "tags": ["torch", "core", "compute"], "pip": [("torch", ">=2.4,<2.8")], "layers": ["core_compute_layer"]},
+    {"id": "onnx_core_compute", "display_name": "ONNX Core Compute", "category": "inference_optimization", "block_kind": "runtime", "tags": ["onnx", "core", "compute"], "pip": [("onnxruntime-gpu", ">=1.19,<1.21")], "layers": ["core_compute_layer"]},
+    {"id": "vllm_model_runtime", "display_name": "vLLM Model Runtime", "category": "llm_serving", "block_kind": "runtime", "tags": ["llm", "runtime"], "pip": [("vllm", ">=0.8.3,<1.0")], "layers": ["inference_engine_layer"]},
+    {"id": "sglang_model_runtime", "display_name": "SGLang Model Runtime", "category": "llm_serving", "block_kind": "runtime", "tags": ["llm", "runtime"], "pip": [("sglang", ">=0.4,<0.7")], "layers": ["inference_engine_layer"]},
+    {"id": "flux_schnell_runtime", "display_name": "Flux Schnell Runtime", "category": "diffusion", "block_kind": "runtime", "tags": ["diffusion", "flux"], "pip": [("diffusers", ">=0.32,<0.35"), ("transformers", ">=4.55,<4.60"), ("accelerate", ">=0.26,<1.0"), ("safetensors", ">=0.4,<1.0"), ("huggingface-hub", ">=0.26,<1.0")], "layers": ["inference_engine_layer"]},
+    {"id": "syncdreamer_runtime", "display_name": "SyncDreamer Runtime", "category": "diffusion", "block_kind": "runtime", "tags": ["diffusion", "syncdreamer"], "pip": [("diffusers", ">=0.32,<0.35"), ("transformers", ">=4.55,<4.60"), ("accelerate", ">=0.26,<1.0"), ("safetensors", ">=0.4,<1.0"), ("huggingface-hub", ">=0.26,<1.0")], "layers": ["inference_engine_layer"]},
+    {"id": "hunyuan3d2_runtime", "display_name": "Hunyuan3D-2 Runtime", "category": "diffusion", "block_kind": "runtime", "tags": ["diffusion", "hunyuan", "3d"], "pip": [("diffusers", ">=0.32,<0.35"), ("transformers", ">=4.55,<4.60"), ("accelerate", ">=0.26,<1.0"), ("safetensors", ">=0.4,<1.0"), ("huggingface-hub", ">=0.26,<1.0")], "layers": ["inference_engine_layer"]},
+    {"id": "whisper_asr", "display_name": "Whisper ASR Runtime", "category": "speech_audio", "block_kind": "runtime", "tags": ["asr", "speech"], "pip": [("faster-whisper", ">=1.1,<2.0"), ("soundfile", ">=0.12,<1.0")], "layers": ["inference_engine_layer"]},
+    {"id": "sentence_transformers_embedding", "display_name": "Sentence Transformers Embeddings", "category": "data_rag", "block_kind": "runtime", "tags": ["embeddings", "rag"], "pip": [("sentence-transformers", ">=3.0,<4.0")], "layers": ["inference_engine_layer"]},
+    {"id": "sdpa_attention_optimization", "display_name": "SDPA Attention Optimization", "category": "inference_optimization", "block_kind": "accelerator", "tags": ["optimization", "attention", "sdpa"], "layers": ["optimization_compilation_layer"]},
+    {"id": "torch_compile_optimization", "display_name": "torch.compile Optimization", "category": "inference_optimization", "block_kind": "accelerator", "tags": ["optimization", "compile", "pytorch"], "layers": ["optimization_compilation_layer"]},
+    {"id": "flash_attention", "display_name": "Flash Attention (Explicit)", "category": "inference_optimization", "block_kind": "accelerator", "tags": ["optimization", "attention", "cuda"], "pip": [("flash-attn", ">=2.6,<3.0")], "layers": ["optimization_compilation_layer"], "requires": {"arch": "amd64", "gpu_vendor": "nvidia", "container_runtime": "nvidia", "cuda_runtime": {"min": 12.0}}},
+    {"id": "fastapi", "display_name": "FastAPI API Layer", "category": "api_app", "block_kind": "api", "tags": ["api", "python"], "pip": [("fastapi", "==0.115.*"), ("uvicorn", "[standard]==0.30.*")], "layers": ["serving_layer"]},
+    {"id": "grpc_serving", "display_name": "gRPC Serving Layer", "category": "api_app", "block_kind": "api", "tags": ["grpc", "api"], "pip": [("grpcio", ">=1.66,<2.0"), ("grpcio-tools", ">=1.66,<2.0"), ("protobuf", ">=5.28,<6.0")], "layers": ["serving_layer"]},
+    {"id": "agent_orchestration", "display_name": "Agent Orchestration", "category": "agentic_workflows", "block_kind": "runtime", "tags": ["agent", "orchestration"], "pip": [("langchain", ">=0.3,<0.4"), ("pydantic", ">=2.8,<3.0")], "layers": ["application_orchestration_layer"]},
+    {"id": "celery_orchestration", "display_name": "Celery Orchestration", "category": "agentic_workflows", "block_kind": "runtime", "tags": ["worker", "orchestration"], "pip": [("celery", ">=5.4,<6.0"), ("redis", ">=5.0,<6.0")], "layers": ["application_orchestration_layer"]},
+    {"id": "prometheus_observability", "display_name": "Prometheus Observability", "category": "observability", "block_kind": "runtime", "tags": ["observability", "metrics"], "pip": [("prometheus-client", ">=0.21,<1.0")], "layers": ["observability_operations_layer"]},
+    {"id": "otel_observability", "display_name": "OpenTelemetry Observability", "category": "observability", "block_kind": "runtime", "tags": ["observability", "tracing"], "pip": [("opentelemetry-api", ">=1.28,<2.0"), ("opentelemetry-sdk", ">=1.28,<2.0")], "layers": ["observability_operations_layer"]},
 ]
 
-def _to_pip(items: list[tuple[str, str]]) -> list[BlockPresetPipDep]:
-    return [BlockPresetPipDep(name=name, version=version) for name, version in items]
+def _to_pip(items: list[tuple[str, str]]) -> list[LayerPresetPipDep]:
+    return [LayerPresetPipDep(name=name, version=version) for name, version in items]
 
 
-def _base_preset_to_model(row: dict[str, object]) -> BlockPreset:
+def _base_preset_to_model(row: dict[str, object]) -> LayerPreset:
     base_id = str(row["id"])
     manual = bool(row.get("manual", False))
     ports = [8000] if str(row["block_kind"]) == "api" else []
@@ -264,17 +183,17 @@ def _base_preset_to_model(row: dict[str, object]) -> BlockPreset:
         elif block_kind == "api":
             layers = ["serving_layer", "application_orchestration_layer"]
         else:
-            layers = ["model_runtime_layer"]
+            layers = ["inference_engine_layer"]
         if category in {"infra"}:
             layers.append("system_runtime_layer")
         if category in {"robotics_edge"}:
-            layers = ["application_orchestration_layer", "model_runtime_layer"]
+            layers = ["application_orchestration_layer", "inference_engine_layer"]
         if category in {"observability"}:
             layers = ["observability_operations_layer"]
     provides = {
         "preset_group": base_id,
     }
-    return BlockPreset(
+    return LayerPreset(
         id=base_id,
         display_name=str(row["display_name"]),
         description=f"Opinionated preset for {row['display_name']}.",
@@ -291,13 +210,13 @@ def _base_preset_to_model(row: dict[str, object]) -> BlockPreset:
     )
 
 
-def default_block_catalog() -> BlockPresetCatalog:
+def default_layer_catalog() -> LayerPresetCatalog:
     categories = [
-        BlockPresetCategory(id=cid, label=label, description=description)
+        LayerPresetCategory(id=cid, label=label, description=description)
         for cid, label, description in _CATEGORY_ROWS
     ]
     presets = [_base_preset_to_model(row) for row in _BASE_PRESETS]
-    return BlockPresetCatalog(
+    return LayerPresetCatalog(
         schema_version=1,
         revision=1,
         categories=categories,
@@ -305,9 +224,9 @@ def default_block_catalog() -> BlockPresetCatalog:
     )
 
 
-def load_block_catalog(path: Path | None = None) -> BlockPresetCatalog:
+def load_layer_catalog(path: Path | None = None) -> LayerPresetCatalog:
     target = path or block_catalog_path()
-    base = default_block_catalog()
+    base = default_layer_catalog()
     if not target.exists():
         return base
     with open(target, encoding="utf-8") as f:
@@ -319,5 +238,5 @@ def load_block_catalog(path: Path | None = None) -> BlockPresetCatalog:
         "categories": raw.get("categories", [c.model_dump(mode="json") for c in base.categories]),
         "presets": raw.get("presets", [p.model_dump(mode="json") for p in base.presets]),
     }
-    return BlockPresetCatalog.model_validate(merged)
+    return LayerPresetCatalog.model_validate(merged)
 

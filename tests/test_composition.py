@@ -1,21 +1,22 @@
-"""Tests for block-based stack composition."""
+"""Tests for layer-based stack composition."""
 
 from __future__ import annotations
 
 import pytest
 
 from stackwarden.domain.composition import analyze_recipe_tuple_conflicts, compose_stack
-from stackwarden.domain.models import BlockSpec, StackRecipeSpec
+from stackwarden.domain.models import LayerSpec, StackRecipeSpec
 
 
-def _block(**overrides) -> BlockSpec:
+def _layer(**overrides) -> LayerSpec:
     base = {
-        "kind": "block",
+        "kind": "layer",
         "id": "base",
         "display_name": "Base",
+        "stack_layer": "core_compute_layer",
     }
     base.update(overrides)
-    return BlockSpec.model_validate(base)
+    return LayerSpec.model_validate(base)
 
 
 def _recipe(**overrides) -> StackRecipeSpec:
@@ -26,7 +27,7 @@ def _recipe(**overrides) -> StackRecipeSpec:
         "task": "custom",
         "serve": "python_api",
         "api": "fastapi",
-        "blocks": ["base"],
+        "layers": ["base"],
     }
     base.update(overrides)
     return StackRecipeSpec.model_validate(base)
@@ -34,11 +35,12 @@ def _recipe(**overrides) -> StackRecipeSpec:
 
 def test_compose_basic_merge():
     recipe = _recipe(
-        blocks=["runtime", "api"],
+        layers=["runtime", "api"],
         components={"pip": [{"name": "uvicorn", "version": "==0.30.*"}]},
+        requirements={"constraints": {"stackwarden_certification": "dgx_certified"}},
         env=["APP_MODE=prod"],
     )
-    runtime = _block(
+    runtime = _layer(
         id="runtime",
         components={
             "base_role": "pytorch",
@@ -52,7 +54,7 @@ def test_compose_basic_merge():
         env=["APP_MODE=dev", "PYTHONUNBUFFERED=1"],
         ports=[8000],
     )
-    api = _block(
+    api = _layer(
         id="api",
         components={
             "pip": [{"name": "fastapi", "version": "==0.115.*"}],
@@ -74,17 +76,18 @@ def test_compose_basic_merge():
     assert composed.components.apt_constraints == {"curl": "=8.5.0-1ubuntu1"}
     assert composed.env == ["APP_MODE=prod", "PYTHONUNBUFFERED=1"]
     assert composed.ports == [8000, 8080]
+    assert composed.requirements.constraints.get("stackwarden_certification") == "dgx_certified"
 
 
-def test_compose_detects_missing_block():
-    recipe = _recipe(blocks=["missing"])
+def test_compose_detects_missing_layer():
+    recipe = _recipe(layers=["missing"])
     with pytest.raises(ValueError):
         compose_stack(recipe, [])
 
 
-def test_compose_detects_duplicate_block_reference():
-    recipe = _recipe(blocks=["a", "a"])
-    a = _block(
+def test_compose_detects_duplicate_layer_reference():
+    recipe = _recipe(layers=["a", "a"])
+    a = _layer(
         id="a",
         components={"base_role": "pytorch"},
         build_strategy="overlay",
@@ -95,21 +98,21 @@ def test_compose_detects_duplicate_block_reference():
 
 
 def test_compose_detects_incompatible_pinned_versions():
-    recipe = _recipe(blocks=["a", "b"])
-    a = _block(
+    recipe = _recipe(layers=["a", "b"])
+    a = _layer(
         id="a",
         components={"base_role": "pytorch", "pip": [{"name": "numpy", "version": "==1.26.0"}]},
         build_strategy="overlay",
         entrypoint={"cmd": ["python", "main.py"]},
     )
-    b = _block(id="b", components={"pip": [{"name": "numpy", "version": "==2.0.0"}]})
+    b = _layer(id="b", components={"pip": [{"name": "numpy", "version": "==2.0.0"}]})
     with pytest.raises(ValueError):
         compose_stack(recipe, [a, b])
 
 
 def test_compose_applies_defaults_for_missing_runtime_fields():
-    recipe = _recipe(blocks=["only"], components={"base_role": "pytorch"})
-    only = _block(id="only")
+    recipe = _recipe(layers=["only"], components={"base_role": "pytorch"})
+    only = _layer(id="only")
     composed = compose_stack(recipe, [only])
     assert composed.components.base_role == "pytorch"
     assert composed.build_strategy.value == "overlay"
@@ -118,13 +121,13 @@ def test_compose_applies_defaults_for_missing_runtime_fields():
 
 def test_compose_applies_recipe_wheelhouse_override():
     recipe = _recipe(
-        blocks=["runtime"],
+        layers=["runtime"],
         components={
             "pip_install_mode": "wheelhouse_only",
             "pip_wheelhouse_path": "wheels/release",
         },
     )
-    runtime = _block(
+    runtime = _layer(
         id="runtime",
         components={
             "base_role": "pytorch",
@@ -140,9 +143,9 @@ def test_compose_applies_recipe_wheelhouse_override():
 
 
 def test_tuple_conflicts_detected_for_conflicting_requires():
-    recipe = _recipe(blocks=["a", "b"])
-    a = _block(id="a", requires={"arch": "amd64"})
-    b = _block(id="b", requires={"arch": "arm64"})
+    recipe = _recipe(layers=["a", "b"])
+    a = _layer(id="a", requires={"arch": "amd64"})
+    b = _layer(id="b", requires={"arch": "arm64"})
     conflicts = analyze_recipe_tuple_conflicts(recipe, [a, b])
     assert any(c["type"] == "tuple" and c["name"] == "arch" for c in conflicts)
 

@@ -79,6 +79,7 @@ Representative suites:
 - `apps/web/tests/api-client.spec.ts`
 - `apps/web/tests/job-stream.spec.ts`
 - `apps/web/tests/blocks-view-modal.spec.ts`
+- `apps/web/tests/route-deprecations.spec.ts`
 
 ## Architecture and Contract Guards
 
@@ -87,6 +88,7 @@ Critical guardrails:
 - architecture boundary tests to prevent improper coupling
 - contract synchronization tests where frontend/backend API shapes must remain aligned
 - regression checks around compatibility and deterministic outputs
+- packaged static asset hygiene checks to prevent stale web bundles in backend static assets
 
 These tests are high-value because they protect multi-layer coherence.
 

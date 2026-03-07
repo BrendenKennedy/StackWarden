@@ -56,7 +56,7 @@ describe('ProfileWizardModal', () => {
             fields: {},
           },
           stack: { required_fields: [], defaults: {}, fields: {} },
-          block: { required_fields: [], defaults: {}, fields: {} },
+          layer: { required_fields: [], defaults: {}, fields: {} },
         },
       },
     })

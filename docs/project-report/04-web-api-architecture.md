@@ -25,7 +25,7 @@ Core middleware responsibilities:
 
 Route modules are organized by domain intent:
 
-- Entities: `profiles.py`, `stacks.py`, `blocks.py`
+- Entities: `profiles.py`, `stacks.py`, `layers.py`
 - Creation and composition: `create.py`, `plan.py`, `compatibility.py`, `verify.py`
 - Job orchestration and streaming: `jobs.py`
 - Persistence and artifacts: `catalog.py`, `artifacts.py`
@@ -36,7 +36,7 @@ This grouping mirrors operator tasks rather than low-level subsystem internals.
 
 ## Contracts and Versioning
 
-Request/response DTOs are centralized in `packages/stackwarden/src/stackwarden/web/schemas.py`. API contract/version behavior is supported by `packages/stackwarden/src/stackwarden/web/util/versioning.py`.
+Transport request/response DTOs are defined in `packages/stackwarden/src/stackwarden/web/schemas.py`. Create-flow request models are mirrored in `packages/stackwarden/src/stackwarden/application/create_request_models.py` to keep core orchestration decoupled from web transport modules. API version behavior is implemented in `packages/stackwarden/src/stackwarden/web/util/versioning.py`.
 
 Design intent:
 

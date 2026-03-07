@@ -72,6 +72,8 @@ export interface StackSummary {
   task: string
   serve: string
   api: string
+  certification: 'dgx_certified' | 'generic_best_effort'
+  certification_note: string
   variants: Record<string, VariantDef>
   source?: string | null
   source_path?: string | null
@@ -85,9 +87,10 @@ export interface StackDetail extends StackSummary {
   env: string[]
 }
 
-export interface BlockSummary {
+export interface LayerSummary {
   id: string
   display_name: string
+  stack_layer: string
   tags: string[]
   requires_keys?: string[]
   source?: string | null
@@ -96,7 +99,7 @@ export interface BlockSummary {
   source_repo_owner?: string | null
 }
 
-export interface BlockDetail extends BlockSummary {
+export interface LayerDetail extends LayerSummary {
   build_strategy: string | null
   ports: number[]
   env: string[]
@@ -207,21 +210,13 @@ export interface JobDetail extends JobSummary {
 
 export interface SystemConfig {
   catalog_path: string | null
+  catalog_local_path?: string | null
+  catalog_local_overrides_path?: string | null
   log_dir: string | null
   default_profile: string | null
   registry_allow: string[]
   registry_deny: string[]
-  remote_catalog_enabled?: boolean
-  remote_catalog_repo_url?: string | null
-  remote_catalog_branch?: string
-  remote_catalog_local_path?: string | null
-  remote_catalog_local_overrides_path?: string | null
-  remote_catalog_auto_pull?: boolean
-  remote_catalog_last_sync_status?: string | null
-  remote_catalog_last_sync_detail?: string | null
-  remote_catalog_last_sync_commit?: string | null
   auth_enabled: boolean
-  blocks_first_enabled: boolean
   tuple_layer_mode?: string
 }
 
@@ -229,14 +224,9 @@ export interface SettingsConfigUpdatePayload {
   default_profile?: string | null
   registry_allow?: string[]
   registry_deny?: string[]
-  remote_catalog_enabled?: boolean
-  remote_catalog_repo_url?: string | null
-  remote_catalog_branch?: string
-  remote_catalog_local_path?: string | null
-  remote_catalog_local_overrides_path?: string | null
-  remote_catalog_auto_pull?: boolean
+  catalog_local_path?: string | null
+  catalog_local_overrides_path?: string | null
   tuple_layer_mode?: string | null
-  sync_now?: boolean
 }
 
 export interface AuthSessionStatus {
@@ -306,24 +296,24 @@ export interface HardwareCatalog {
   gpu_model: HardwareCatalogItem[]
 }
 
-export interface BlockPresetPipDep {
+export interface LayerPresetPipDep {
   name: string
   version: string
 }
 
-export interface BlockPresetCategory {
+export interface LayerPresetCategory {
   id: string
   label: string
   description: string
 }
 
-export interface BlockPreset {
+export interface LayerPreset {
   id: string
   display_name: string
   description: string
   category: string
   tags: string[]
-  pip: BlockPresetPipDep[]
+  pip: LayerPresetPipDep[]
   apt: string[]
   env: Record<string, string>
   ports: number[]
@@ -333,11 +323,11 @@ export interface BlockPreset {
   layers?: string[]
 }
 
-export interface BlockPresetCatalog {
+export interface LayerPresetCatalog {
   schema_version: number
   revision: number
-  categories: BlockPresetCategory[]
-  presets: BlockPreset[]
+  categories: LayerPresetCategory[]
+  presets: LayerPreset[]
 }
 
 export interface TupleCatalogSelector {
@@ -377,8 +367,9 @@ export interface StackCreatePayload {
   kind: 'stack_recipe'
   id: string
   display_name: string
+  target_profile_id: string
   description?: string
-  blocks: string[]
+  layers: string[]
   build_strategy?: string | null
   base_role?: string | null
   copy_items: { src: string; dst: string }[]
@@ -392,7 +383,7 @@ export interface StackCreatePayload {
   decision_trace?: string[]
 }
 
-export interface BlockCreatePayload {
+export interface LayerCreatePayload {
   schema_version?: number
   id: string
   display_name: string
@@ -546,6 +537,35 @@ export interface CompatibilityPreviewResponse {
   tuple_decision?: Record<string, any>
 }
 
+export type LayerOptionTier = 'recommended' | 'compatible' | 'incompatible'
+
+export interface LayerOption {
+  id: string
+  display_name: string
+  stack_layer: string
+  tags: string[]
+  tier: LayerOptionTier
+  score: number
+  reasons: string[]
+  selected: boolean
+}
+
+export interface LayerOptionGroup {
+  stack_layer: string
+  options: LayerOption[]
+}
+
+export interface LayerOptionsClassifyPayload {
+  selected_layers: string[]
+  inference_type?: string
+  inference_profile?: string
+  target_profile_id: string
+}
+
+export interface LayerOptionsClassifyResponse {
+  groups: LayerOptionGroup[]
+}
+
 export interface EnumsMeta {
   task: string[]
   serve: string[]
@@ -574,7 +594,7 @@ export interface CreateContractsResponse {
   schema_version: number
   profile: CreateContract
   stack: CreateContract
-  block: CreateContract
+  layer: CreateContract
 }
 
 export interface ValidationError {

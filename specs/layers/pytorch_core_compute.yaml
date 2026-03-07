@@ -1,0 +1,16 @@
+kind: layer
+schema_version: 2
+id: pytorch_core_compute
+display_name: "PyTorch Core Compute"
+stack_layer: core_compute_layer
+block_kind: runtime
+tags:
+  - torch
+  - core
+  - compute
+components:
+  pip:
+    - name: torch
+      version: ">=2.4,<2.8"
+provides:
+  layer: core_compute_layer

@@ -14,8 +14,10 @@ Primary entrypoints:
 
 The CLI combines top-level commands with grouped subcommands:
 
-- Top-level examples: `plan`, `check`, `ensure`, `verify`, `inspect`, `compose`, `manifest`, `repro`, `sbom`, `doctor`, `init`, `wizard`
-- Grouped surfaces: `list`, `profiles`, `stacks`, `blocks`, `catalog`, `export`, `migrate`
+- Top-level examples: `plan`, `check`, `ensure`, `verify`, `inspect`, `inspect-layer`, `compose`, `manifest`, `repro`, `sbom`, `doctor`, `init`, `wizard`
+- Grouped surfaces: `list`, `profiles`, `stacks`, `layers`, `catalog`, `export`, `migrate`
+
+Entity-specific list commands (for example `stackwarden profiles list`) are maintained as compatibility aliases with deprecation guidance toward `stackwarden list ...`.
 
 Risk taxonomy metadata is maintained in:
 
@@ -35,7 +37,7 @@ Important conventions:
 
 - Config file path defaults to XDG-compatible `~/.config/stackwarden/config.yaml`.
 - Data roots default to XDG-compatible `~/.local/share/stackwarden`.
-- `STACKWARDEN_DATA_DIR` can override profile/stack/block roots.
+- `STACKWARDEN_DATA_DIR` can override profile/stack/layer roots.
 - CLI context setup (`packages/stackwarden/src/stackwarden/cli_shared/context.py`) loads config and initializes logging.
 
 Operational toggles include strict compatibility behavior, tuple layer mode, and remote catalog settings.

@@ -41,12 +41,16 @@ class StackNotFoundError(StackWardenError):
         super().__init__(f"Stack not found: {stack_id}")
 
 
-class BlockNotFoundError(StackWardenError):
-    """Raised when a requested block spec cannot be located."""
+class LayerNotFoundError(StackWardenError):
+    """Raised when a requested layer spec cannot be located."""
 
-    def __init__(self, block_id: str) -> None:
-        self.block_id = block_id
-        super().__init__(f"Block not found: {block_id}")
+    def __init__(self, layer_id: str) -> None:
+        self.layer_id = layer_id
+        super().__init__(f"Layer not found: {layer_id}")
+
+
+# Legacy compatibility shim during Blocks->Layers migration.
+BlockNotFoundError = LayerNotFoundError
 
 
 class IncompatibleStackError(StackWardenError):

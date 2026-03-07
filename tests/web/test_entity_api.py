@@ -26,7 +26,8 @@ def _stack_payload(id_: str = "entity-stack") -> dict:
         "kind": "stack_recipe",
         "id": id_,
         "display_name": "Entity Stack",
-        "blocks": ["entity-block"],
+        "target_profile_id": "entity-profile",
+        "layers": ["entity-layer"],
         "build_strategy": "overlay",
         "base_role": "pytorch",
         "pip": [{"name": "fastapi", "version": ">=0.115"}],
@@ -47,10 +48,11 @@ def _recipe_stack_payload(id_: str = "entity-recipe") -> dict:
         "schema_version": 3,
         "id": id_,
         "display_name": "Entity Recipe",
+        "target_profile_id": "entity-profile",
         "task": "custom",
         "serve": "python_api",
         "api": "fastapi",
-        "blocks": ["entity-block"],
+        "layers": ["entity-layer"],
         "build_strategy": "overlay",
         "base_role": "pytorch",
         "pip": [],
@@ -81,10 +83,11 @@ def _profile_payload(id_: str = "entity-profile") -> dict:
     }
 
 
-def _block_payload(id_: str = "entity-block") -> dict:
+def _layer_payload(id_: str = "entity-layer") -> dict:
     return {
         "id": id_,
-        "display_name": "Entity Block",
+        "display_name": "Entity Layer",
+        "stack_layer": "serving_layer",
         "tags": ["api"],
         "build_strategy": "overlay",
         "base_role": "pytorch",
@@ -102,23 +105,35 @@ def _block_payload(id_: str = "entity-block") -> dict:
 
 @pytest.fixture()
 def client(data_dir):
+    xdg_config_home = data_dir / "xdg-config"
+    xdg_config_home.mkdir(parents=True, exist_ok=True)
     with patch.dict(
         os.environ,
-        {"STACKWARDEN_DATA_DIR": str(data_dir), "STACKWARDEN_WEB_DEV": "true"},
+        {
+            "STACKWARDEN_DATA_DIR": str(data_dir),
+            "STACKWARDEN_WEB_DEV": "true",
+            "XDG_CONFIG_HOME": str(xdg_config_home),
+        },
     ):
         from stackwarden.catalog.store import CatalogStore
         from stackwarden.web.app import create_app
-        from stackwarden.web.deps import get_catalog, get_job_manager
+        from stackwarden.web.deps import get_catalog, get_job_manager, reset_cached_dependencies
         from stackwarden.web.jobs.manager import JobManager
         from stackwarden.web.jobs.store import JobStore
         from stackwarden.web.settings import WebSettings
 
+        reset_cached_dependencies()
         catalog = CatalogStore(db_path=data_dir / "catalog.sqlite3")
         manager = JobManager(store=JobStore(db_path=data_dir / "catalog.sqlite3"))
         app = create_app(WebSettings(token=None, dev=True))
         app.dependency_overrides[get_catalog] = lambda: catalog
         app.dependency_overrides[get_job_manager] = lambda: manager
-        yield TestClient(app), catalog, manager
+        client = TestClient(app)
+        client.post(
+            "/api/auth/setup",
+            json={"username": "admin", "password": "dev-password-123"},
+        )
+        yield client, catalog, manager
 
 
 def test_profile_detail_and_update(client):
@@ -156,7 +171,8 @@ def test_profile_delete(client):
 
 def test_stack_delete(client):
     c, _catalog, _manager = client
-    assert c.post("/api/blocks", json=_block_payload()).status_code == 201
+    assert c.post("/api/profiles", json=_profile_payload()).status_code == 201
+    assert c.post("/api/layers", json=_layer_payload()).status_code == 201
     assert c.post("/api/stacks", json=_stack_payload(id_="entity-stack-delete")).status_code == 201
     deleted = c.delete("/api/stacks/entity-stack-delete")
     assert deleted.status_code == 200
@@ -165,9 +181,10 @@ def test_stack_delete(client):
     assert missing.status_code == 404
 
 
-def test_stack_and_block_update(client):
+def test_stack_and_layer_update(client):
     c, _catalog, _manager = client
-    assert c.post("/api/blocks", json=_block_payload()).status_code == 201
+    assert c.post("/api/profiles", json=_profile_payload()).status_code == 201
+    assert c.post("/api/layers", json=_layer_payload()).status_code == 201
     assert c.post("/api/stacks", json=_stack_payload()).status_code == 201
 
     s = _stack_payload()
@@ -180,28 +197,30 @@ def test_stack_and_block_update(client):
     stack_detail = c.get("/api/stacks/entity-stack")
     assert stack_detail.status_code == 200
     assert stack_detail.json()["source"] == "local"
+    assert stack_detail.json()["certification"] == "generic_best_effort"
 
-    b = _block_payload()
-    b["display_name"] = "Entity Block Updated"
-    b_spec = c.get("/api/blocks/entity-block/spec")
+    b = _layer_payload()
+    b["display_name"] = "Entity Layer Updated"
+    b_spec = c.get("/api/layers/entity-layer/spec")
     assert b_spec.status_code == 200
-    bu = c.put("/api/blocks/entity-block", json=b)
+    bu = c.put("/api/layers/entity-layer", json=b)
     assert bu.status_code == 200
-    assert bu.json()["id"] == "entity-block"
-    block_detail = c.get("/api/blocks/entity-block")
-    assert block_detail.status_code == 200
-    assert block_detail.json()["source"] == "local"
+    assert bu.json()["id"] == "entity-layer"
+    layer_detail = c.get("/api/layers/entity-layer")
+    assert layer_detail.status_code == 200
+    assert layer_detail.json()["source"] == "local"
 
 
 def test_stack_spec_preserves_recipe_shape(client):
     c, _catalog, _manager = client
-    assert c.post("/api/blocks", json=_block_payload()).status_code == 201
+    assert c.post("/api/profiles", json=_profile_payload()).status_code == 201
+    assert c.post("/api/layers", json=_layer_payload()).status_code == 201
     assert c.post("/api/stacks", json=_recipe_stack_payload()).status_code == 201
     spec = c.get("/api/stacks/entity-recipe/spec")
     assert spec.status_code == 200
     body = spec.json()
     assert body["kind"] == "stack_recipe"
-    assert body["blocks"] == ["entity-block"]
+    assert body["layers"] == ["entity-layer"]
 
 
 def test_catalog_items_lifecycle_mapping(client):

@@ -1,0 +1,16 @@
+kind: layer
+schema_version: 2
+id: onnx_core_compute
+display_name: "ONNX Core Compute"
+stack_layer: core_compute_layer
+block_kind: runtime
+tags:
+  - onnx
+  - core
+  - compute
+components:
+  pip:
+    - name: onnxruntime-gpu
+      version: ">=1.19,<1.21"
+provides:
+  layer: core_compute_layer

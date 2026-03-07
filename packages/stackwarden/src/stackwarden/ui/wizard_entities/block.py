@@ -4,15 +4,17 @@ from __future__ import annotations
 
 import json
 import re
+import warnings
 from pathlib import Path
 from typing import Any, Literal
 
 from rich.console import Console
 
-from stackwarden.application.create_flows import create_block, dry_run_block
+from stackwarden.application.create_flows import create_layer, dry_run_layer
+from stackwarden.application.create_flows import BLOCK_ALIAS_REMOVE_AFTER
+from stackwarden.application.create_flows import validate_layer_create_request
 from stackwarden.contracts import ALLOWED_BUILD_STRATEGIES, SPEC_ID_PATTERN
-from stackwarden.domain.block_catalog import BlockPreset, load_block_catalog
-from stackwarden.web.schemas import BlockCreateRequest
+from stackwarden.domain.block_catalog import LayerPreset, load_layer_catalog
 
 from stackwarden.ui.create_wizard_engine import CreateWizardResult, WizardPrompts
 
@@ -97,11 +99,11 @@ def _parse_apt_text(text: str) -> tuple[list[str], dict[str, str]]:
     return apt, constraints
 
 
-def _pick_preset(prompts: WizardPrompts, preset_id: str | None = None) -> BlockPreset:
-    catalog = load_block_catalog()
+def _pick_preset(prompts: WizardPrompts, preset_id: str | None = None) -> LayerPreset:
+    catalog = load_layer_catalog()
     presets = sorted(catalog.presets, key=lambda p: (p.category, p.id))
     if not presets:
-        raise ValueError("Block preset catalog is empty.")
+        raise ValueError("Layer preset catalog is empty.")
     by_id = {p.id: p for p in presets}
     if preset_id:
         chosen = by_id.get(preset_id)
@@ -115,9 +117,9 @@ def _pick_preset(prompts: WizardPrompts, preset_id: str | None = None) -> BlockP
     return by_id[selected]
 
 
-def run_block_create_wizard(
+def run_layer_create_wizard(
     *,
-    block_id: str | None = None,
+    layer_id: str | None = None,
     display_name: str | None = None,
     preset_id: str | None = None,
     profile_mode: PresetProfile = "base",
@@ -163,9 +165,9 @@ def run_block_create_wizard(
         apt.extend(apt_extra)
         apt_constraints.update(apt_cons_extra)
 
-    resolved_id = block_id or prompts.text("Block ID", default=preset.id)
+    resolved_id = layer_id or prompts.text("Layer ID", default=preset.id)
     if not re.fullmatch(SPEC_ID_PATTERN, resolved_id):
-        raise ValueError("Block id must match pattern: ^[a-z][a-z0-9_\\-]{2,63}$")
+        raise ValueError("Layer id must match pattern: ^[a-z][a-z0-9_\\-]{2,63}$")
     resolved_name = display_name or prompts.text("Display name", default=preset.display_name)
 
     strategy_value = build_strategy
@@ -183,6 +185,7 @@ def run_block_create_wizard(
         "schema_version": 2,
         "id": resolved_id,
         "display_name": resolved_name,
+        "stack_layer": preset.layers[0] if preset.layers else "inference_engine_layer",
         "tags": list(dict.fromkeys(preset.tags)),
         "build_strategy": strategy_value,
         "base_role": None,
@@ -204,10 +207,10 @@ def run_block_create_wizard(
         "incompatible_with": [],
         "provides": dict(preset.provides),
     }
-    req = BlockCreateRequest.model_validate(payload)
-    dry = dry_run_block(req)
+    req = validate_layer_create_request(payload)
+    dry = dry_run_layer(req)
     result = CreateWizardResult(
-        entity="block",
+        entity="layer",
         id=req.id,
         valid=dry.valid,
         yaml=dry.yaml,
@@ -218,9 +221,48 @@ def run_block_create_wizard(
     prompts.maybe_write_output(output, dry.yaml)
     if not dry.valid or dry_run:
         return result
-    if not (yes or non_interactive) and not prompts.confirm("Create block now?", default=True):
+    if not (yes or non_interactive) and not prompts.confirm("Create layer now?", default=True):
         return result
-    target = create_block(req)
+    target = create_layer(req)
     result.created = True
     result.path = str(target)
     return result
+
+
+def run_block_create_wizard(
+    *,
+    block_id: str | None = None,
+    display_name: str | None = None,
+    preset_id: str | None = None,
+    profile_mode: PresetProfile = "base",
+    build_strategy: str | None = None,
+    requirements_file: str | None = None,
+    package_json_file: str | None = None,
+    apt_file: str | None = None,
+    non_interactive: bool = False,
+    dry_run: bool = False,
+    yes: bool = False,
+    output: str | None = None,
+    console: Console | None = None,
+) -> CreateWizardResult:
+    warnings.warn(
+        "run_block_create_wizard is deprecated; use run_layer_create_wizard instead. "
+        f"Scheduled for removal after {BLOCK_ALIAS_REMOVE_AFTER}.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return run_layer_create_wizard(
+        layer_id=block_id,
+        display_name=display_name,
+        preset_id=preset_id,
+        profile_mode=profile_mode,
+        build_strategy=build_strategy,
+        requirements_file=requirements_file,
+        package_json_file=package_json_file,
+        apt_file=apt_file,
+        non_interactive=non_interactive,
+        dry_run=dry_run,
+        yes=yes,
+        output=output,
+        console=console,
+    )

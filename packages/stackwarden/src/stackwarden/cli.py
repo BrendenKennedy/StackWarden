@@ -37,14 +37,14 @@ app = typer.Typer(
 list_app = typer.Typer(help="List available profiles and stacks.")
 profiles_app = typer.Typer(help="Manage hardware profiles.")
 stacks_app = typer.Typer(help="Manage stack specs.")
-blocks_app = typer.Typer(help="Manage reusable blocks.")
+layers_app = typer.Typer(help="Manage reusable layers.")
 catalog_app = typer.Typer(help="Query and manage the artifact catalog.")
 export_app = typer.Typer(help="Export run helpers for built artifacts.")
 migrate_app = typer.Typer(help="Migrate v1 specs to v2 contracts.")
 app.add_typer(list_app, name="list")
 app.add_typer(profiles_app, name="profiles")
 app.add_typer(stacks_app, name="stacks")
-app.add_typer(blocks_app, name="blocks")
+app.add_typer(layers_app, name="layers")
 app.add_typer(catalog_app, name="catalog")
 app.add_typer(export_app, name="export")
 app.add_typer(migrate_app, name="migrate")
@@ -161,7 +161,7 @@ def main_callback(ctx: typer.Context) -> None:
 # list commands
 # ---------------------------------------------------------------------------
 
-list_profiles, list_stacks, list_blocks = register_list_commands(
+list_profiles, list_stacks, list_layers = register_list_commands(
     list_app,
     verbose_option=_verbose_option,
     json_option=_json_option,
@@ -222,11 +222,10 @@ def profiles_create_cmd(
 ) -> None:
     """Create a profile from a YAML file."""
     setup_cli(verbose=verbose)
-    from stackwarden.application.create_flows import create_profile
-    from stackwarden.web.schemas import ProfileCreateRequest
+    from stackwarden.application.create_flows import create_profile, validate_profile_create_request
 
     raw = load_yaml_file(file)
-    req = ProfileCreateRequest.model_validate(raw)
+    req = validate_profile_create_request(raw)
     target = create_profile(req)
     if output_json:
         console.print_json(json.dumps({"id": req.id, "path": str(target)}, indent=2))
@@ -245,14 +244,13 @@ def profiles_edit_cmd(
 ) -> None:
     """Edit an existing profile from file or $EDITOR."""
     setup_cli(verbose=verbose)
-    from stackwarden.application.create_flows import update_profile
+    from stackwarden.application.create_flows import update_profile, validate_profile_create_request
     from stackwarden.config import load_profile
-    from stackwarden.web.schemas import ProfileCreateRequest
     from stackwarden.web.util.write_yaml import serialize_for_yaml
 
     original = load_profile(id)
     raw = load_yaml_file(file) if file else edit_yaml_via_editor(serialize_for_yaml(original))
-    req = ProfileCreateRequest.model_validate(raw)
+    req = validate_profile_create_request(raw)
     target = update_profile(id, req)
     if output_json:
         console.print_json(json.dumps({"id": id, "path": str(target)}, indent=2))
@@ -358,7 +356,7 @@ def stacks_show_cmd(
         return
     console.print(Panel(f"[bold]{stack.display_name}[/bold]", title=f"Stack: {stack.id}"))
     console.print(f"  Strategy: {stack.build_strategy.value}")
-    console.print(f"  Blocks: {len(getattr(stack, 'blocks', []) or [])}")
+    console.print(f"  Layers: {len(getattr(stack, 'layers', []) or [])}")
 
 
 @stacks_app.command("create")
@@ -370,11 +368,10 @@ def stacks_create_cmd(
 ) -> None:
     """Create a stack from a YAML file."""
     setup_cli(verbose=verbose)
-    from stackwarden.application.create_flows import create_stack
-    from stackwarden.web.schemas import StackCreateRequest
+    from stackwarden.application.create_flows import create_stack, validate_stack_create_request
 
     raw = load_yaml_file(file)
-    req = StackCreateRequest.model_validate(raw)
+    req = validate_stack_create_request(raw)
     target = create_stack(req)
     stack_id = req.id
     if output_json:
@@ -394,14 +391,13 @@ def stacks_edit_cmd(
 ) -> None:
     """Edit an existing stack from file or $EDITOR."""
     setup_cli(verbose=verbose)
-    from stackwarden.application.create_flows import update_stack
+    from stackwarden.application.create_flows import update_stack, validate_stack_create_request
     from stackwarden.config import load_stack
-    from stackwarden.web.schemas import StackCreateRequest
     from stackwarden.web.util.write_yaml import serialize_for_yaml
 
     original = load_stack(id)
     raw = load_yaml_file(file) if file else edit_yaml_via_editor(serialize_for_yaml(original))
-    req = StackCreateRequest.model_validate(raw)
+    req = validate_stack_create_request(raw)
     target = update_stack(id, req)
     if output_json:
         console.print_json(json.dumps({"id": id, "path": str(target)}, indent=2))
@@ -416,7 +412,7 @@ def stacks_wizard_cmd(
     display_name: str | None = typer.Option(None, "--display-name", help="Stack display name override"),
     target_profile: str | None = typer.Option(None, "--target-profile", help="Target profile id for guided flow"),
     build_strategy: str | None = typer.Option(None, "--build-strategy", help="Build strategy override"),
-    block: Optional[list[str]] = typer.Option(None, "--block", help="Pre-selected block id (repeatable)"),
+    layer: Optional[list[str]] = typer.Option(None, "--layer", help="Pre-selected layer id (repeatable)"),
     non_interactive: bool = typer.Option(False, "--non-interactive", help="Do not prompt; use provided/default values"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Validate and preview YAML without writing"),
     yes: bool = typer.Option(False, "--yes", help="Skip confirmation and create immediately"),
@@ -433,7 +429,7 @@ def stacks_wizard_cmd(
         display_name=display_name,
         target_profile_id=target_profile,
         build_strategy=build_strategy,
-        blocks=block,
+        layers=layer,
         non_interactive=non_interactive,
         dry_run=dry_run,
         yes=yes,
@@ -482,90 +478,88 @@ def stacks_delete_cmd(
         console.print(f"[green]Deleted stack:[/green] {id}")
 
 
-@blocks_app.command("list")
-def blocks_list_cmd(
+@layers_app.command("list")
+def layers_list_cmd(
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
-    """List blocks (entity-first alias)."""
-    _deprecated_alias_notice("stackwarden blocks list", "stackwarden list blocks")
-    list_blocks(verbose=verbose, output_json=output_json)
+    """List layers (entity-first alias)."""
+    _deprecated_alias_notice("stackwarden layers list", "stackwarden list layers")
+    list_layers(verbose=verbose, output_json=output_json)
 
 
-@blocks_app.command("show")
+@layers_app.command("show")
 @with_cli_errors(console)
-def blocks_show_cmd(
-    id: str = typer.Option(..., "--id", help="Block ID"),
+def layers_show_cmd(
+    id: str = typer.Option(..., "--id", help="Layer ID"),
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
-    """Show block details."""
+    """Show layer details."""
     setup_cli(verbose=verbose)
-    from stackwarden.config import load_block
+    from stackwarden.config import load_layer
     from stackwarden.web.util.write_yaml import serialize_for_yaml
 
-    block = load_block(id)
-    data = serialize_for_yaml(block)
+    layer = load_layer(id)
+    data = serialize_for_yaml(layer)
     if output_json:
         console.print_json(json.dumps(data, indent=2))
         return
-    console.print(Panel(f"[bold]{block.display_name}[/bold]", title=f"Block: {block.id}"))
-    console.print(f"  Tags: {', '.join(block.tags) if block.tags else '-'}")
+    console.print(Panel(f"[bold]{layer.display_name}[/bold]", title=f"Layer: {layer.id}"))
+    console.print(f"  Tags: {', '.join(layer.tags) if layer.tags else '-'}")
 
 
-@blocks_app.command("create")
+@layers_app.command("create")
 @with_cli_errors(console)
-def blocks_create_cmd(
-    file: str = typer.Option(..., "--file", "-f", help="Block YAML file to create from"),
+def layers_create_cmd(
+    file: str = typer.Option(..., "--file", "-f", help="Layer YAML file to create from"),
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
-    """Create a block from a YAML file."""
+    """Create a layer from a YAML file."""
     setup_cli(verbose=verbose)
-    from stackwarden.application.create_flows import create_block
-    from stackwarden.web.schemas import BlockCreateRequest
+    from stackwarden.application.create_flows import create_layer, validate_layer_create_request
 
     raw = _normalize_legacy_block_payload(load_yaml_file(file))
-    req = BlockCreateRequest.model_validate(raw)
-    target = create_block(req)
+    req = validate_layer_create_request(raw)
+    target = create_layer(req)
     if output_json:
         console.print_json(json.dumps({"id": req.id, "path": str(target)}, indent=2))
         return
-    console.print(f"[green]Created block:[/green] {req.id}")
+    console.print(f"[green]Created layer:[/green] {req.id}")
     console.print(f"  Path: {target}")
 
 
-@blocks_app.command("edit")
+@layers_app.command("edit")
 @with_cli_errors(console)
-def blocks_edit_cmd(
-    id: str = typer.Option(..., "--id", help="Block ID to edit"),
+def layers_edit_cmd(
+    id: str = typer.Option(..., "--id", help="Layer ID to edit"),
     file: str | None = typer.Option(None, "--file", "-f", help="Optional YAML file to apply"),
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
-    """Edit an existing block from file or $EDITOR."""
+    """Edit an existing layer from file or $EDITOR."""
     setup_cli(verbose=verbose)
-    from stackwarden.application.create_flows import update_block
-    from stackwarden.config import load_block
-    from stackwarden.web.schemas import BlockCreateRequest
+    from stackwarden.application.create_flows import update_layer, validate_layer_create_request
+    from stackwarden.config import load_layer
     from stackwarden.web.util.write_yaml import serialize_for_yaml
 
-    original = load_block(id)
+    original = load_layer(id)
     raw = load_yaml_file(file) if file else edit_yaml_via_editor(serialize_for_yaml(original))
     raw = _normalize_legacy_block_payload(raw)
-    req = BlockCreateRequest.model_validate(raw)
-    target = update_block(id, req)
+    req = validate_layer_create_request(raw)
+    target = update_layer(id, req)
     if output_json:
         console.print_json(json.dumps({"id": id, "path": str(target)}, indent=2))
         return
-    console.print(f"[green]Updated block:[/green] {id}")
+    console.print(f"[green]Updated layer:[/green] {id}")
 
 
-@blocks_app.command("wizard")
+@layers_app.command("wizard")
 @with_cli_errors(console)
-def blocks_wizard_cmd(
-    id: str | None = typer.Option(None, "--id", help="Block id override"),
-    display_name: str | None = typer.Option(None, "--display-name", help="Block display name override"),
+def layers_wizard_cmd(
+    id: str | None = typer.Option(None, "--id", help="Layer id override"),
+    display_name: str | None = typer.Option(None, "--display-name", help="Layer display name override"),
     preset: str | None = typer.Option(None, "--preset", help="Preset id"),
     profile_mode: str = typer.Option("base", "--profile-mode", help="Preset overlay mode: base|cpu|gpu|dev|prod"),
     build_strategy: str | None = typer.Option(None, "--build-strategy", help="Build strategy override"),
@@ -579,12 +573,12 @@ def blocks_wizard_cmd(
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
-    """Guided block wizard with preset/runtime/review flow."""
+    """Guided layer wizard with preset/runtime/review flow."""
     setup_cli(verbose=verbose)
-    from stackwarden.ui.wizard_entities import run_block_create_wizard
+    from stackwarden.ui.wizard_entities import run_layer_create_wizard
 
-    result = run_block_create_wizard(
-        block_id=id,
+    result = run_layer_create_wizard(
+        layer_id=id,
         display_name=display_name,
         preset_id=preset,
         profile_mode=profile_mode,  # type: ignore[arg-type]
@@ -602,14 +596,14 @@ def blocks_wizard_cmd(
         console.print_json(result.model_dump_json(indent=2))
         return
     if result.created:
-        console.print(f"[green]Created block:[/green] {result.id}")
+        console.print(f"[green]Created layer:[/green] {result.id}")
         if result.path:
             console.print(f"  Path: {result.path}")
         return
     if result.valid:
-        console.print(f"[green]Block preview valid:[/green] {result.id}")
+        console.print(f"[green]Layer preview valid:[/green] {result.id}")
     else:
-        console.print(f"[red]Block preview invalid:[/red] {result.id}")
+        console.print(f"[red]Layer preview invalid:[/red] {result.id}")
         for err in result.errors:
             console.print(f"  - {err.get('field')}: {err.get('message')}")
 
@@ -628,18 +622,25 @@ def plan(
 ) -> None:
     """Resolve a plan for the given profile + stack."""
     setup_cli(verbose=verbose)
-    from stackwarden.config import compatibility_strict_default, load_block, load_profile, load_stack
+    from stackwarden.config import (
+        compatibility_strict_default,
+        load_layer,
+        load_profile,
+        load_stack,
+        strict_host_optimization_default,
+    )
     from stackwarden.resolvers.resolver import resolve
 
     p = load_profile(profile)
     s = load_stack(stack)
-    blocks = [load_block(block_id) for block_id in (s.blocks or [])]
+    layers = [load_layer(layer_id) for layer_id in (s.layers or [])]
     result = resolve(
         p,
         s,
-        blocks=blocks,
+        layers=layers,
         explain=explain,
         strict_mode=compatibility_strict_default(),
+        strict_host_optimization=strict_host_optimization_default(),
     )
     if output_json:
         console.print_json(json.dumps(result.to_json(), indent=2))
@@ -690,15 +691,15 @@ def check_cmd(
 ) -> None:
     """Validate compatibility for profile + stack without building."""
     setup_cli(verbose=verbose)
-    from stackwarden.config import compatibility_strict_default, load_block, load_profile, load_stack
+    from stackwarden.config import compatibility_strict_default, load_layer, load_profile, load_stack
     from stackwarden.resolvers.compatibility import evaluate_compatibility
 
     strict_mode = compatibility_strict_default() if strict is None else strict
 
     p = load_profile(profile)
     s = load_stack(stack)
-    blocks = [load_block(block_id) for block_id in (s.blocks or [])]
-    report = evaluate_compatibility(p, s, blocks=blocks, strict_mode=strict_mode)
+    layers = [load_layer(layer_id) for layer_id in (s.layers or [])]
+    report = evaluate_compatibility(p, s, layers=layers, strict_mode=strict_mode)
     if output_json:
         console.print_json(json.dumps(report.model_dump(mode="json"), indent=2))
     else:
@@ -762,12 +763,25 @@ def ensure(
         if isinstance(exc, BuildError) and not output_json:
             base_image = None
             try:
-                from stackwarden.config import compatibility_strict_default, load_block, load_profile, load_stack
+                from stackwarden.config import (
+                    compatibility_strict_default,
+                    load_layer,
+                    load_profile,
+                    load_stack,
+                    strict_host_optimization_default,
+                )
                 from stackwarden.resolvers.resolver import resolve
                 p = load_profile(profile)
                 s = load_stack(stack)
-                blocks = [load_block(bid) for bid in (s.blocks or [])]
-                plan = resolve(p, s, blocks=blocks, variants=variants, strict_mode=compatibility_strict_default())
+                layers = [load_layer(lid) for lid in (s.layers or [])]
+                plan = resolve(
+                    p,
+                    s,
+                    layers=layers,
+                    variants=variants,
+                    strict_mode=compatibility_strict_default(),
+                    strict_host_optimization=strict_host_optimization_default(),
+                )
                 base_image = plan.decision.base_image
             except Exception:
                 pass
@@ -936,35 +950,35 @@ def inspect_cmd(
                 console.print(line)
 
 
-@app.command("inspect-block")
+@app.command("inspect-layer")
 @with_cli_errors(console)
-def inspect_block_cmd(
-    block_id: str = typer.Option(..., "--id", help="Block ID to inspect"),
+def inspect_layer_cmd(
+    layer_id: str = typer.Option(..., "--id", help="Layer ID to inspect"),
     verbose: bool = _verbose_option,
     output_json: bool = _json_option,
 ) -> None:
-    """Inspect a block definition."""
+    """Inspect a layer definition."""
     setup_cli(verbose=verbose)
-    from stackwarden.config import load_block
+    from stackwarden.config import load_layer
 
-    block = load_block(block_id)
-    data = block.model_dump(mode="json", by_alias=True)
+    layer = load_layer(layer_id)
+    data = layer.model_dump(mode="json", by_alias=True)
     if output_json:
         console.print_json(json.dumps(data, indent=2))
         return
 
-    console.print(Panel(f"[bold]{block.id}[/bold]", title="Block Inspect"))
-    console.print(f"  Display Name: {block.display_name}")
-    if block.tags:
-        console.print(f"  Tags:         {', '.join(block.tags)}")
-    if block.components.base_role:
-        console.print(f"  Base Role:    {block.components.base_role}")
-    if block.components.pip:
-        console.print(f"  Pip deps:     {len(block.components.pip)}")
-    if block.components.apt:
-        console.print(f"  Apt packages: {len(block.components.apt)}")
-    if block.entrypoint:
-        console.print(f"  Entrypoint:   {' '.join(block.entrypoint.cmd)}")
+    console.print(Panel(f"[bold]{layer.id}[/bold]", title="Layer Inspect"))
+    console.print(f"  Display Name: {layer.display_name}")
+    if layer.tags:
+        console.print(f"  Tags:         {', '.join(layer.tags)}")
+    if layer.components.base_role:
+        console.print(f"  Base Role:    {layer.components.base_role}")
+    if layer.components.pip:
+        console.print(f"  Pip deps:     {len(layer.components.pip)}")
+    if layer.components.apt:
+        console.print(f"  Apt packages: {len(layer.components.apt)}")
+    if layer.entrypoint:
+        console.print(f"  Entrypoint:   {' '.join(layer.entrypoint.cmd)}")
 
 
 @app.command("compose")
@@ -1059,7 +1073,12 @@ def repro_cmd(
 ) -> None:
     """Reproduce a build from its stored manifest with pinned dependencies."""
     setup_cli(verbose=verbose)
-    from stackwarden.config import compatibility_strict_default, load_profile, load_stack
+    from stackwarden.config import (
+        compatibility_strict_default,
+        load_profile,
+        load_stack,
+        strict_host_optimization_default,
+    )
     from stackwarden.resolvers.resolver import resolve
     from stackwarden.runtime.docker_client import DockerClient
     from stackwarden.catalog.store import CatalogStore
@@ -1088,6 +1107,7 @@ def repro_cmd(
         pinned_stack,
         variants=variants,
         strict_mode=compatibility_strict_default(),
+        strict_host_optimization=strict_host_optimization_default(),
     )
 
     catalog.upsert_profile(p)
@@ -1700,7 +1720,7 @@ def migrate_v1_to_v2(
 ) -> None:
     """Migrate profile/block/stack specs from schema_version=1 to =2."""
     setup_cli(verbose=verbose)
-    from stackwarden.config import get_blocks_dir, get_profiles_dir, get_stacks_dir
+    from stackwarden.config import get_layers_dir, get_profiles_dir, get_stacks_dir
     from stackwarden.domain.hardware_catalog import load_hardware_catalog
 
     import yaml
@@ -1709,7 +1729,7 @@ def migrate_v1_to_v2(
     inspected = 0
     unresolved = 0
     catalog = load_hardware_catalog()
-    targets = [get_profiles_dir(), get_blocks_dir(), get_stacks_dir()]
+    targets = [get_profiles_dir(), get_layers_dir(), get_stacks_dir()]
     for folder in targets:
         if not folder.exists():
             continue
@@ -1758,7 +1778,7 @@ def migrate_v1_to_v2(
                     if gpu_family_id:
                         gpu["family_id"] = gpu_family_id
                     data["gpu"] = gpu
-            elif folder == get_blocks_dir():
+            elif folder == get_layers_dir():
                 data["schema_version"] = 2
                 data.setdefault("requires", {})
                 data.setdefault("conflicts", [])
@@ -1766,7 +1786,7 @@ def migrate_v1_to_v2(
                 data.setdefault("provides", {})
             else:
                 data["schema_version"] = 2
-                data.setdefault("blocks", [])
+                data.setdefault("layers", [])
                 data.setdefault("policy_overrides", {})
 
             converted += 1
@@ -1835,13 +1855,12 @@ def init(
             '    - "docker.io"\n'
             "  deny: []\n"
             "\n"
-            "remote_catalog:\n"
-            "  enabled: false\n"
-            "  repo_url: null\n"
-            '  branch: "main"\n'
-            '  local_path: "~/.local/share/stackwarden/remote-catalog"\n'
-            '  local_overrides_path: "~/.local/share/stackwarden/local-catalog"\n'
-            "  auto_pull: true\n"
+            "catalog:\n"
+            "  local_path: null\n"
+            "  local_overrides_path: null\n"
+            "\n"
+            "optimization:\n"
+            "  strict_host_specific: true\n"
         )
         config_path.write_text(_DEFAULT_CONFIG)
         console.print(f"  [green]created[/green] {config_path}")
@@ -2013,7 +2032,12 @@ def wizard(
 
     if not output_json:
         from stackwarden.resolvers.resolver import resolve
-        from stackwarden.config import compatibility_strict_default, load_profile, load_stack
+        from stackwarden.config import (
+            compatibility_strict_default,
+            load_profile,
+            load_stack,
+            strict_host_optimization_default,
+        )
 
         p = load_profile(result.selection.profile_id)
         s = load_stack(result.selection.stack_id)
@@ -2022,6 +2046,7 @@ def wizard(
             variants=result.selection.variants or None,
             explain=explain,
             strict_mode=compatibility_strict_default(),
+            strict_host_optimization=strict_host_optimization_default(),
         )
         render_plan_human(plan, console=console)
 

@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from stackwarden.config import load_block, load_profile, load_stack
+from stackwarden.config import load_layer, load_profile, load_stack
 
 
 # ---------------------------------------------------------------------------
@@ -22,25 +22,38 @@ def data_dir(tmp_path):
     """Temporary data directory with stacks/ and profiles/ subdirs."""
     stacks = tmp_path / "stacks"
     profiles = tmp_path / "profiles"
-    blocks = tmp_path / "blocks"
+    layers = tmp_path / "layers"
     stacks.mkdir()
     profiles.mkdir()
-    blocks.mkdir()
+    layers.mkdir()
     return tmp_path
 
 
 @pytest.fixture()
 def client(data_dir):
     """TestClient that writes specs to *data_dir*."""
+    xdg_config_home = data_dir / "xdg-config"
+    xdg_config_home.mkdir(parents=True, exist_ok=True)
     with patch.dict(
         os.environ,
-        {"STACKWARDEN_DATA_DIR": str(data_dir), "STACKWARDEN_WEB_DEV": "true"},
+        {
+            "STACKWARDEN_DATA_DIR": str(data_dir),
+            "STACKWARDEN_WEB_DEV": "true",
+            "XDG_CONFIG_HOME": str(xdg_config_home),
+        },
     ):
         from stackwarden.web.app import create_app
+        from stackwarden.web.deps import reset_cached_dependencies
         from stackwarden.web.settings import WebSettings
 
+        reset_cached_dependencies()
         app = create_app(WebSettings(token=None, dev=True))
-        yield TestClient(app)
+        client = TestClient(app)
+        client.post(
+            "/api/auth/setup",
+            json={"username": "admin", "password": "dev-password-123"},
+        )
+        yield client
 
 
 def _valid_stack_payload(**overrides) -> dict:
@@ -48,9 +61,10 @@ def _valid_stack_payload(**overrides) -> dict:
         "kind": "stack_recipe",
         "id": "my-new-stack",
         "display_name": "My New Stack",
+        "target_profile_id": "my-new-profile",
         "build_strategy": "overlay",
         "base_role": "pytorch",
-        "blocks": ["fastapi"],
+        "layers": ["fastapi"],
         "copy_items": [],
         "variants": {},
     }
@@ -62,16 +76,17 @@ def _valid_recipe_stack_payload(**overrides) -> dict:
     base = _valid_stack_payload(
         id="my-recipe-stack",
         display_name="My Recipe Stack",
-        blocks=["fastapi"],
+        layers=["fastapi"],
     )
     base.update(overrides)
     return base
 
 
-def _valid_block_payload(**overrides) -> dict:
+def _valid_layer_payload(**overrides) -> dict:
     base = {
         "id": "fastapi",
         "display_name": "FastAPI",
+        "stack_layer": "serving_layer",
         "tags": ["api", "python"],
         "build_strategy": "overlay",
         "base_role": "pytorch",
@@ -110,8 +125,13 @@ def _valid_profile_payload(**overrides) -> dict:
     return base
 
 
-def _ensure_fastapi_block(client: TestClient) -> None:
-    client.post("/api/blocks", json=_valid_block_payload())
+def _ensure_default_profile(client: TestClient) -> None:
+    client.post("/api/profiles", json=_valid_profile_payload())
+
+
+def _ensure_fastapi_layer(client: TestClient) -> None:
+    _ensure_default_profile(client)
+    client.post("/api/layers", json=_valid_layer_payload())
 
 
 # ---------------------------------------------------------------------------
@@ -120,7 +140,7 @@ def _ensure_fastapi_block(client: TestClient) -> None:
 
 class TestCreateStack:
     def test_success(self, client, data_dir):
-        _ensure_fastapi_block(client)
+        _ensure_fastapi_layer(client)
         resp = client.post("/api/stacks", json=_valid_stack_payload())
         assert resp.status_code == 201
         body = resp.json()
@@ -132,10 +152,10 @@ class TestCreateStack:
             stack = load_stack("my-new-stack")
             assert stack.id == "my-new-stack"
             assert stack.kind == "stack"
-            assert stack.blocks == ["fastapi"]
+            assert stack.layers == ["fastapi"]
 
     def test_conflict(self, client):
-        _ensure_fastapi_block(client)
+        _ensure_fastapi_layer(client)
         payload = _valid_stack_payload()
         resp1 = client.post("/api/stacks", json=payload)
         assert resp1.status_code == 201
@@ -143,7 +163,7 @@ class TestCreateStack:
         assert resp2.status_code == 409
 
     def test_reject_path_traversal(self, client):
-        _ensure_fastapi_block(client)
+        _ensure_fastapi_layer(client)
         payload = _valid_stack_payload(
             copy_items=[{"src": "../../etc/passwd", "dst": "/tmp/pwned"}],
         )
@@ -153,7 +173,7 @@ class TestCreateStack:
         assert any("copy_items" in e["field"] for e in detail)
 
     def test_reject_dockerfile_template(self, client):
-        _ensure_fastapi_block(client)
+        _ensure_fastapi_layer(client)
         payload = _valid_stack_payload(build_strategy="dockerfile_template")
         resp = client.post("/api/stacks", json=payload)
         assert resp.status_code == 422
@@ -161,7 +181,7 @@ class TestCreateStack:
         assert any("build_strategy" in e["field"] for e in detail)
 
     def test_reject_variant_reserved_name(self, client):
-        _ensure_fastapi_block(client)
+        _ensure_fastapi_layer(client)
         payload = _valid_stack_payload(variants={
             "profile": {"type": "bool", "options": [], "default": True},
         })
@@ -171,18 +191,27 @@ class TestCreateStack:
         assert any("profile" in e["field"] for e in detail)
 
     def test_reject_bad_id(self, client):
-        _ensure_fastapi_block(client)
+        _ensure_fastapi_layer(client)
         payload = _valid_stack_payload(id="AB")
         resp = client.post("/api/stacks", json=payload)
         assert resp.status_code == 422
 
-    def test_reject_missing_blocks(self, client):
-        payload = _valid_stack_payload(blocks=[])
+    def test_reject_missing_layers(self, client):
+        _ensure_fastapi_layer(client)
+        payload = _valid_stack_payload(layers=[])
         resp = client.post("/api/stacks", json=payload)
         assert resp.status_code == 422
 
+    def test_reject_missing_target_profile(self, client):
+        _ensure_fastapi_layer(client)
+        payload = _valid_stack_payload(target_profile_id="")
+        resp = client.post("/api/stacks", json=payload)
+        assert resp.status_code == 422
+        detail = resp.json()["detail"]
+        assert "target_profile_id" in str(detail)
+
     def test_recipe_success(self, client, data_dir):
-        _ensure_fastapi_block(client)
+        _ensure_fastapi_layer(client)
         resp = client.post("/api/stacks", json=_valid_recipe_stack_payload())
         assert resp.status_code == 201
         with patch.dict(os.environ, {"STACKWARDEN_DATA_DIR": str(data_dir)}):
@@ -197,7 +226,7 @@ class TestCreateStack:
 
 class TestDryRunStack:
     def test_valid_returns_yaml(self, client):
-        _ensure_fastapi_block(client)
+        _ensure_fastapi_layer(client)
         resp = client.post("/api/stacks/dry-run", json=_valid_stack_payload())
         assert resp.status_code == 200
         body = resp.json()
@@ -206,7 +235,7 @@ class TestDryRunStack:
         assert body["errors"] == []
 
     def test_invalid_returns_errors(self, client):
-        _ensure_fastapi_block(client)
+        _ensure_fastapi_layer(client)
         payload = _valid_stack_payload(build_strategy="dockerfile_template")
         resp = client.post("/api/stacks/dry-run", json=payload)
         assert resp.status_code == 200
@@ -215,7 +244,7 @@ class TestDryRunStack:
         assert len(body["errors"]) > 0
 
     def test_recipe_valid_returns_yaml(self, client):
-        _ensure_fastapi_block(client)
+        _ensure_fastapi_layer(client)
         payload = _valid_recipe_stack_payload()
         resp = client.post("/api/stacks/dry-run", json=payload)
         assert resp.status_code == 200
@@ -226,7 +255,8 @@ class TestDryRunStack:
 
 class TestComposePreview:
     def test_success(self, client):
-        client.post("/api/blocks", json=_valid_block_payload())
+        _ensure_default_profile(client)
+        client.post("/api/layers", json=_valid_layer_payload())
         resp = client.post("/api/stacks/compose", json=_valid_recipe_stack_payload())
         assert resp.status_code == 200
         body = resp.json()
@@ -234,26 +264,28 @@ class TestComposePreview:
         assert "kind: stack" in body["yaml"]
         assert body["resolved_spec"]["id"] == "my-recipe-stack"
 
-    def test_unknown_block_error(self, client):
-        resp = client.post("/api/stacks/compose", json=_valid_recipe_stack_payload(blocks=["missing"]))
+    def test_unknown_layer_error(self, client):
+        _ensure_default_profile(client)
+        resp = client.post("/api/stacks/compose", json=_valid_recipe_stack_payload(layers=["missing"]))
         assert resp.status_code == 200
         body = resp.json()
         assert body["valid"] is False
-        assert any("Block not found" in e["message"] for e in body["errors"])
+        assert any("Layer not found" in e["message"] for e in body["errors"])
 
     def test_reports_soft_dependency_conflicts(self, client):
-        block_a = _valid_block_payload(
+        _ensure_default_profile(client)
+        block_a = _valid_layer_payload(
             id="numpy-pinned",
             pip=[{"name": "numpy", "version": "==1.26.4", "version_mode": "custom"}],
         )
-        block_b = _valid_block_payload(
+        block_b = _valid_layer_payload(
             id="numpy-latest",
             pip=[{"name": "numpy", "version": "", "version_mode": "latest"}],
         )
-        assert client.post("/api/blocks", json=block_a).status_code == 201
-        assert client.post("/api/blocks", json=block_b).status_code == 201
+        assert client.post("/api/layers", json=block_a).status_code == 201
+        assert client.post("/api/layers", json=block_b).status_code == 201
         payload = _valid_recipe_stack_payload(
-            blocks=["numpy-pinned", "numpy-latest"],
+            layers=["numpy-pinned", "numpy-latest"],
         )
         resp = client.post("/api/stacks/compose", json=payload)
         assert resp.status_code == 200
@@ -265,18 +297,19 @@ class TestComposePreview:
         )
 
     def test_reports_hard_dependency_conflicts(self, client):
-        block_a = _valid_block_payload(
+        _ensure_default_profile(client)
+        block_a = _valid_layer_payload(
             id="numpy-pin-a",
             pip=[{"name": "numpy", "version": "==1.26.4", "version_mode": "custom"}],
         )
-        block_b = _valid_block_payload(
+        block_b = _valid_layer_payload(
             id="numpy-pin-b",
             pip=[{"name": "numpy", "version": "==2.0.0", "version_mode": "custom"}],
         )
-        assert client.post("/api/blocks", json=block_a).status_code == 201
-        assert client.post("/api/blocks", json=block_b).status_code == 201
+        assert client.post("/api/layers", json=block_a).status_code == 201
+        assert client.post("/api/layers", json=block_b).status_code == 201
         payload = _valid_recipe_stack_payload(
-            blocks=["numpy-pin-a", "numpy-pin-b"],
+            layers=["numpy-pin-a", "numpy-pin-b"],
         )
         resp = client.post("/api/stacks/compose", json=payload)
         assert resp.status_code == 200
@@ -285,20 +318,21 @@ class TestComposePreview:
         assert any(c.get("severity") == "error" for c in body.get("dependency_conflicts", []))
 
     def test_reports_wheelhouse_policy_conflicts(self, client):
-        block_a = _valid_block_payload(
+        _ensure_default_profile(client)
+        block_a = _valid_layer_payload(
             id="wheel-a",
             pip_install_mode="wheelhouse_only",
             pip_wheelhouse_path="wheels/a",
         )
-        block_b = _valid_block_payload(
+        block_b = _valid_layer_payload(
             id="wheel-b",
             pip_install_mode="wheelhouse_prefer",
             pip_wheelhouse_path="wheels/b",
         )
-        assert client.post("/api/blocks", json=block_a).status_code == 201
-        assert client.post("/api/blocks", json=block_b).status_code == 201
+        assert client.post("/api/layers", json=block_a).status_code == 201
+        assert client.post("/api/layers", json=block_b).status_code == 201
         payload = _valid_recipe_stack_payload(
-            blocks=["wheel-a", "wheel-b"],
+            layers=["wheel-a", "wheel-b"],
         )
         resp = client.post("/api/stacks/compose", json=payload)
         assert resp.status_code == 200
@@ -309,18 +343,19 @@ class TestComposePreview:
         )
 
     def test_reports_tuple_conflicts(self, client):
-        block_a = _valid_block_payload(
+        _ensure_default_profile(client)
+        block_a = _valid_layer_payload(
             id="tuple-a",
             requires={"arch": "amd64"},
         )
-        block_b = _valid_block_payload(
+        block_b = _valid_layer_payload(
             id="tuple-b",
             requires={"arch": "arm64"},
         )
-        assert client.post("/api/blocks", json=block_a).status_code == 201
-        assert client.post("/api/blocks", json=block_b).status_code == 201
+        assert client.post("/api/layers", json=block_a).status_code == 201
+        assert client.post("/api/layers", json=block_b).status_code == 201
         payload = _valid_recipe_stack_payload(
-            blocks=["tuple-a", "tuple-b"],
+            layers=["tuple-a", "tuple-b"],
         )
         resp = client.post("/api/stacks/compose", json=payload)
         assert resp.status_code == 200
@@ -328,19 +363,20 @@ class TestComposePreview:
         assert any(c.get("type") == "tuple" and c.get("name") == "arch" for c in body.get("tuple_conflicts", []))
 
     def test_reports_runtime_conflicts(self, client):
-        block_a = _valid_block_payload(
+        _ensure_default_profile(client)
+        block_a = _valid_layer_payload(
             id="runtime-a",
             env={"APP_MODE": "prod"},
             entrypoint_cmd=["python", "-m", "uvicorn"],
         )
-        block_b = _valid_block_payload(
+        block_b = _valid_layer_payload(
             id="runtime-b",
             env={"APP_MODE": "dev"},
             entrypoint_cmd=["python", "-m", "gunicorn"],
         )
-        assert client.post("/api/blocks", json=block_a).status_code == 201
-        assert client.post("/api/blocks", json=block_b).status_code == 201
-        payload = _valid_recipe_stack_payload(blocks=["runtime-a", "runtime-b"])
+        assert client.post("/api/layers", json=block_a).status_code == 201
+        assert client.post("/api/layers", json=block_b).status_code == 201
+        payload = _valid_recipe_stack_payload(layers=["runtime-a", "runtime-b"])
         resp = client.post("/api/stacks/compose", json=payload)
         assert resp.status_code == 200
         body = resp.json()
@@ -348,6 +384,7 @@ class TestComposePreview:
         assert any(c.get("type") == "entrypoint" for c in body.get("runtime_conflicts", []))
 
     def test_internal_fault_maps_to_500(self, client, monkeypatch):
+        _ensure_default_profile(client)
         from stackwarden.application.errors import AppInternalError
 
         monkeypatch.setattr(
@@ -383,12 +420,14 @@ class TestCreateProfile:
         resp2 = client.post("/api/profiles", json=payload)
         assert resp2.status_code == 409
 
-    def test_reject_no_candidates(self, client):
+    def test_auto_enriches_when_no_candidates(self, client, data_dir):
         payload = _valid_profile_payload(base_candidates=[])
         resp = client.post("/api/profiles", json=payload)
-        assert resp.status_code == 422
-        detail = resp.json()["detail"]
-        assert any("base_candidates" in e["field"] for e in detail)
+        assert resp.status_code == 201
+        with patch.dict(os.environ, {"STACKWARDEN_DATA_DIR": str(data_dir)}):
+            profile = load_profile("my-new-profile")
+            assert len(profile.base_candidates) >= 1
+            assert any("Auto-enriched base_candidates" in msg for msg in profile.decision_trace)
 
     def test_reject_non_linux_os(self, client):
         payload = _valid_profile_payload(os="darwin")
@@ -433,12 +472,13 @@ class TestDryRunProfile:
         assert body["valid"] is True
         assert "id: my-new-profile" in body["yaml"]
 
-    def test_invalid_returns_errors(self, client):
+    def test_no_candidates_is_enriched_and_valid(self, client):
         payload = _valid_profile_payload(base_candidates=[])
         resp = client.post("/api/profiles/dry-run", json=payload)
         body = resp.json()
-        assert body["valid"] is False
-        assert len(body["errors"]) > 0
+        assert body["valid"] is True
+        assert body["errors"] == []
+        assert "base_candidates:" in body["yaml"]
 
 
 class TestProfileV2Create:
@@ -455,7 +495,7 @@ class TestProfileV2Create:
 
 class TestDeclarativeDerivationNormalization:
     def test_stack_create_normalizes_derived_capabilities(self, client, data_dir):
-        _ensure_fastapi_block(client)
+        _ensure_fastapi_layer(client)
         payload = _valid_stack_payload(
             id="derived-stack",
             display_name="Derived Stack",
@@ -475,7 +515,7 @@ class TestDeclarativeDerivationNormalization:
             stack = load_stack("derived-stack")
             # load_stack resolves recipe -> composed StackSpec and does not retain derivation trace fields.
             assert stack.id == "derived-stack"
-            assert stack.blocks == ["fastapi"]
+            assert stack.layers == ["fastapi"]
 
     def test_profile_create_normalizes_derived_capabilities(self, client, data_dir):
         payload = _valid_profile_payload(
@@ -516,16 +556,16 @@ class TestCompatibilityPreview:
             host_facts={"driver_version": "550.54", "runtime_version": None, "detected_at": None},
         )
         assert client.post("/api/profiles", json=profile).status_code == 201
-        block = _valid_block_payload(
+        block = _valid_layer_payload(
             schema_version=2,
             id="needs-amd64",
             requires={"arch": "amd64"},
         )
-        assert client.post("/api/blocks", json=block).status_code == 201
+        assert client.post("/api/layers", json=block).status_code == 201
         stack = _valid_stack_payload(
             schema_version=2,
             id="stack-needs-amd64",
-            blocks=["needs-amd64"],
+            layers=["needs-amd64"],
         )
         assert client.post("/api/stacks", json=stack).status_code == 201
         resp = client.post(
@@ -538,81 +578,81 @@ class TestCompatibilityPreview:
         assert any(e["code"] == "ARCH_MISMATCH" for e in body["errors"])
 
 
-class TestCreateBlock:
+class TestCreateLayer:
     def test_success(self, client, data_dir):
-        resp = client.post("/api/blocks", json=_valid_block_payload())
+        resp = client.post("/api/layers", json=_valid_layer_payload())
         assert resp.status_code == 201
         body = resp.json()
         assert body["id"] == "fastapi"
-        assert (data_dir / "blocks" / "fastapi.yaml").exists()
+        assert (data_dir / "layers" / "fastapi.yaml").exists()
         with patch.dict(os.environ, {"STACKWARDEN_DATA_DIR": str(data_dir)}):
-            block = load_block("fastapi")
-            assert block.id == "fastapi"
+            layer = load_layer("fastapi")
+            assert layer.id == "fastapi"
 
     def test_conflict(self, client):
-        payload = _valid_block_payload()
-        assert client.post("/api/blocks", json=payload).status_code == 201
-        assert client.post("/api/blocks", json=payload).status_code == 409
+        payload = _valid_layer_payload()
+        assert client.post("/api/layers", json=payload).status_code == 201
+        assert client.post("/api/layers", json=payload).status_code == 409
 
     def test_dry_run(self, client):
-        resp = client.post("/api/blocks/dry-run", json=_valid_block_payload())
+        resp = client.post("/api/layers/dry-run", json=_valid_layer_payload())
         assert resp.status_code == 200
         body = resp.json()
         assert body["valid"] is True
-        assert "kind: block" in body["yaml"]
+        assert "kind: layer" in body["yaml"]
 
-    def test_block_create_supports_npm_and_apt_constraints(self, client):
-        payload = _valid_block_payload(
+    def test_layer_create_supports_npm_and_apt_constraints(self, client):
+        payload = _valid_layer_payload(
             npm=[{"name": "@types/node", "version": "22.0.0", "version_mode": "custom", "package_manager": "npm"}],
             apt=["curl"],
             apt_constraints={"curl": "=8.5.0-1ubuntu1"},
         )
-        resp = client.post("/api/blocks", json=payload)
+        resp = client.post("/api/layers", json=payload)
         assert resp.status_code == 201
 
-    def test_block_rejects_lock_only_without_lockfile_copy(self, client):
-        payload = _valid_block_payload(
+    def test_layer_rejects_lock_only_without_lockfile_copy(self, client):
+        payload = _valid_layer_payload(
             npm_install_mode="lock_only",
             copy_items=[],
         )
-        resp = client.post("/api/blocks", json=payload)
+        resp = client.post("/api/layers", json=payload)
         assert resp.status_code == 422
         detail = resp.json()["detail"]
         assert any(e["field"] == "copy_items" for e in detail)
 
-    def test_block_rejects_pin_only_without_all_constraints(self, client):
-        payload = _valid_block_payload(
+    def test_layer_rejects_pin_only_without_all_constraints(self, client):
+        payload = _valid_layer_payload(
             apt=["curl", "git"],
             apt_constraints={"curl": "=8.5.0-1ubuntu1"},
             apt_install_mode="pin_only",
         )
-        resp = client.post("/api/blocks", json=payload)
+        resp = client.post("/api/layers", json=payload)
         assert resp.status_code == 422
         detail = resp.json()["detail"]
         assert any(e["field"] == "apt_constraints" for e in detail)
 
-    def test_block_create_accepts_wheelhouse_mode(self, client):
-        payload = _valid_block_payload(
+    def test_layer_create_accepts_wheelhouse_mode(self, client):
+        payload = _valid_layer_payload(
             pip_install_mode="wheelhouse_prefer",
             pip_wheelhouse_path="wheels",
         )
-        resp = client.post("/api/blocks", json=payload)
+        resp = client.post("/api/layers", json=payload)
         assert resp.status_code == 201
 
-    def test_block_create_emits_metric_events(self, client, caplog):
+    def test_layer_create_emits_metric_events(self, client, caplog):
         caplog.set_level(logging.INFO)
-        resp = client.post("/api/blocks", json=_valid_block_payload(id="metric-block"))
+        resp = client.post("/api/layers", json=_valid_layer_payload(id="metric-layer"))
         assert resp.status_code == 201
         metric_lines = [r.getMessage() for r in caplog.records if "metric_event" in r.getMessage()]
-        assert any("create_attempt" in line and "metric-block" in line for line in metric_lines)
+        assert any("create_attempt" in line and "metric-layer" in line for line in metric_lines)
         assert any("create_result" in line and "'outcome': 'success'" in line for line in metric_lines)
 
-    def test_block_dry_run_emits_metric_events(self, client, caplog):
+    def test_layer_dry_run_emits_metric_events(self, client, caplog):
         caplog.set_level(logging.INFO)
-        resp = client.post("/api/blocks/dry-run", json=_valid_block_payload(id="metric-block-dry"))
+        resp = client.post("/api/layers/dry-run", json=_valid_layer_payload(id="metric-layer-dry"))
         assert resp.status_code == 200
         metric_lines = [r.getMessage() for r in caplog.records if "metric_event" in r.getMessage()]
-        assert any("dry_run_attempt" in line and "metric-block-dry" in line for line in metric_lines)
+        assert any("dry_run_attempt" in line and "metric-layer-dry" in line for line in metric_lines)
         assert any("dry_run_result" in line and "'outcome': 'success'" in line for line in metric_lines)
 
 
@@ -669,7 +709,7 @@ class TestMetaEnums:
 
 class TestDuplicateStack:
     def test_success(self, client, data_dir):
-        _ensure_fastapi_block(client)
+        _ensure_fastapi_layer(client)
         client.post("/api/stacks", json=_valid_stack_payload())
         resp = client.post("/api/stacks/my-new-stack/duplicate", json={
             "new_id": "my-stack-copy",
@@ -681,7 +721,7 @@ class TestDuplicateStack:
         assert (data_dir / "stacks" / "my-stack-copy.yaml").exists()
 
     def test_reject_unsafe_override(self, client):
-        _ensure_fastapi_block(client)
+        _ensure_fastapi_layer(client)
         client.post("/api/stacks", json=_valid_stack_payload())
         resp = client.post("/api/stacks/my-new-stack/duplicate", json={
             "new_id": "my-stack-copy",

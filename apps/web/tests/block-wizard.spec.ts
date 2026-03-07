@@ -2,11 +2,11 @@ import { nextTick } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 
-import BlockWizardModal from '../src/components/BlockWizardModal.vue'
+import LayerWizardModal from '../src/components/LayerWizardModal.vue'
 
-describe('BlockWizardModal', () => {
+describe('LayerWizardModal', () => {
   it('renders modal and no longer requires apply preset click', async () => {
-    const wrapper = mount(BlockWizardModal, {
+    const wrapper = mount(LayerWizardModal, {
       attachTo: document.body,
       props: {
         show: true,
@@ -27,9 +27,9 @@ describe('BlockWizardModal', () => {
           schema_version: 3,
           profile: { required_fields: [], defaults: {}, fields: {} },
           stack: { required_fields: [], defaults: {}, fields: {} },
-          block: { required_fields: ['id', 'display_name'], defaults: {}, fields: {} },
+          layer: { required_fields: ['id', 'display_name'], defaults: {}, fields: {} },
         },
-        blockCatalog: {
+        layerCatalog: {
           schema_version: 1,
           revision: 1,
           categories: [{ id: 'llm_serving', label: 'LLM Serving', description: '' }],
@@ -66,7 +66,7 @@ describe('BlockWizardModal', () => {
   })
 
   it('moves from runtime directly to review', async () => {
-    const wrapper = mount(BlockWizardModal, {
+    const wrapper = mount(LayerWizardModal, {
       attachTo: document.body,
       props: {
         show: true,
@@ -84,7 +84,7 @@ describe('BlockWizardModal', () => {
         },
         envEntries: [],
         contracts: null,
-        blockCatalog: null,
+        layerCatalog: null,
         selectedCategory: '',
         searchTerm: '',
         selectedPresetId: '',
@@ -105,7 +105,7 @@ describe('BlockWizardModal', () => {
   })
 
   it('shows dependency guidance and npm section in runtime step', async () => {
-    const wrapper = mount(BlockWizardModal, {
+    const wrapper = mount(LayerWizardModal, {
       attachTo: document.body,
       props: {
         show: true,
@@ -123,7 +123,7 @@ describe('BlockWizardModal', () => {
         },
         envEntries: [],
         contracts: null,
-        blockCatalog: null,
+        layerCatalog: null,
         selectedCategory: '',
         searchTerm: '',
         selectedPresetId: '',
@@ -145,25 +145,26 @@ describe('BlockWizardModal', () => {
   })
 
   it('shows wheel location only when a pip dependency selects wheel source', async () => {
-    const wrapper = mount(BlockWizardModal, {
+    const formData = {
+      id: 'deps_block',
+      display_name: 'Deps Block',
+      tags: [],
+      pip: [{ name: 'fastapi', version: '', version_mode: 'latest', wheel_file_path: '' }],
+      pip_install_mode: 'index',
+      pip_wheelhouse_path: '',
+      npm: [],
+      apt: [],
+      apt_constraints: {},
+      ports: [],
+    }
+    const wrapper = mount(LayerWizardModal, {
       attachTo: document.body,
       props: {
         show: true,
-        form: {
-          id: 'deps_block',
-          display_name: 'Deps Block',
-          tags: [],
-          pip: [{ name: 'fastapi', version: '', version_mode: 'latest', wheel_file_path: '' }],
-          pip_install_mode: 'index',
-          pip_wheelhouse_path: '',
-          npm: [],
-          apt: [],
-          apt_constraints: {},
-          ports: [],
-        },
+        form: formData,
         envEntries: [],
         contracts: null,
-        blockCatalog: null,
+        layerCatalog: null,
         selectedCategory: '',
         searchTerm: '',
         selectedPresetId: '',
@@ -192,7 +193,7 @@ describe('BlockWizardModal', () => {
     wheelInput!.value = 'wheels/flash_attn-2.7.4-cp310-cp310-linux_x86_64.whl'
     wheelInput!.dispatchEvent(new Event('input'))
     await nextTick()
-    expect((wrapper.props('form') as any).pip[0].version).toBe('==2.7.4')
+    expect(formData.pip[0].version).toBe('==2.7.4')
     wrapper.unmount()
   })
 })

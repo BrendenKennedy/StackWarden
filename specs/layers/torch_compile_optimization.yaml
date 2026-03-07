@@ -1,0 +1,17 @@
+kind: layer
+schema_version: 2
+id: torch_compile_optimization
+display_name: "torch.compile Optimization"
+stack_layer: optimization_compilation_layer
+block_kind: accelerator
+tags:
+  - optimization
+  - pytorch
+  - compile
+env:
+  - "TORCHINDUCTOR_FREEZING=1"
+  - "TORCHINDUCTOR_MAX_AUTOTUNE=1"
+requires:
+  gpu_vendor: nvidia
+provides:
+  layer: optimization_compilation_layer

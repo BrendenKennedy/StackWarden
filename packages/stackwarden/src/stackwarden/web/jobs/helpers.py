@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from stackwarden.config import compatibility_strict_default, load_block, load_profile, load_stack
+from stackwarden.config import (
+    compatibility_strict_default,
+    load_layer,
+    load_profile,
+    load_stack,
+    strict_host_optimization_default,
+)
 from stackwarden.resolvers.resolver import resolve
 
 if TYPE_CHECKING:
@@ -18,13 +24,14 @@ def resolve_plan_for_job(record: JobRecord) -> "Plan | None":
     try:
         profile = load_profile(record.profile_id)
         stack = load_stack(record.stack_id)
-        blocks = [load_block(bid) for bid in (stack.blocks or [])]
+        layers = [load_layer(lid) for lid in (stack.layers or [])]
         return resolve(
             profile,
             stack,
-            blocks=blocks,
+            layers=layers,
             variants=record.variants,
             strict_mode=compatibility_strict_default(),
+            strict_host_optimization=strict_host_optimization_default(),
         )
     except Exception:
         return None

@@ -7,10 +7,13 @@ from typing import Any
 
 from rich.console import Console
 
-from stackwarden.application.create_flows import create_profile, dry_run_profile
+from stackwarden.application.create_flows import (
+    create_profile,
+    dry_run_profile,
+    validate_profile_create_request,
+)
 from stackwarden.contracts import SPEC_ID_PATTERN
 from stackwarden.domain.hardware_catalog import load_hardware_catalog
-from stackwarden.web.schemas import ProfileCreateRequest
 from stackwarden.web.services.host_detection import detect_server_hints
 
 from stackwarden.ui.create_wizard_engine import CreateWizardResult, WizardPrompts
@@ -95,6 +98,8 @@ def run_profile_create_wizard(
         "display_name": resolved_name,
         "arch": chosen_arch,
         "os": "linux",
+        "os_family": chosen_os_family,
+        "os_version": chosen_os_version,
         "os_family_id": chosen_os_family,
         "os_version_id": chosen_os_version,
         "container_runtime": chosen_runtime,
@@ -117,9 +122,10 @@ def run_profile_create_wizard(
         ),
         "gpu_devices": hints.gpu_devices if hints else [],
         "constraints": {"disallow": {}, "require": {}},
+        "requirements": {"needs": [], "optimize_for": [], "constraints": {}},
         "advanced_override": False,
     }
-    req = ProfileCreateRequest.model_validate(payload)
+    req = validate_profile_create_request(payload)
     dry = dry_run_profile(req)
     result = CreateWizardResult(
         entity="profile",

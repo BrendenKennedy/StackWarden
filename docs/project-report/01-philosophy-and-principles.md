@@ -6,7 +6,7 @@ StackWarden is a deterministic system for planning and producing ML container ar
 
 At a product level:
 
-- Users express intent using stack blocks.
+- Users express intent using stack layers.
 - Profiles describe host facts and constraints.
 - Resolver logic derives compatible implementation choices.
 - Builders execute those choices and catalog records provenance and lifecycle.
@@ -15,13 +15,13 @@ At a product level:
 
 ## 1) Intent-First Contract
 
-The authored `stack.blocks` sequence is the primary intent surface. This separates *what the user wants* from *how the system realizes it* on specific hardware/runtime conditions.
+The authored `stack.layers` sequence is the primary intent surface. This separates *what the user wants* from *how the system realizes it* on specific hardware/runtime conditions.
 
 Practical implications:
 
-- Author intent in stacks and blocks, not by hardcoding ad hoc runtime behavior in profiles.
+- Author intent in stacks and layers, not by hardcoding ad hoc runtime behavior in profiles.
 - Keep profile definitions focused on host facts, restrictions, and policy boundaries.
-- Preserve block order semantics because composition precedence is meaningful.
+- Preserve layer order semantics because composition precedence is meaningful.
 
 ## 2) Determinism by Default
 
@@ -90,6 +90,6 @@ Safety posture includes:
 
 ## Common Modification Scenarios
 
-- Extending intent model: update block schemas and composition logic first, then resolver rules.
+- Extending intent model: update layer schemas and composition logic first, then resolver rules.
 - Tightening compatibility policy: adjust rule catalog and compatibility checks with contract tests.
 - Changing reproducibility behavior: update fingerprint inputs and ensure drift logic remains coherent.

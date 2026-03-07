@@ -78,6 +78,7 @@ def _block_payload(block_id: str) -> dict:
     return {
         "id": block_id,
         "display_name": "Stress Block",
+        "stack_layer": "application_orchestration_layer",
         "tags": ["stress"],
         "build_strategy": "overlay",
         "base_role": "python",
@@ -134,7 +135,7 @@ def test_plan_deterministic_between_cli_and_api_under_repetition(stress_client):
     stack_id = "stress_stack_e2e"
 
     assert client.post("/api/profiles", json=_profile_payload(profile_id)).status_code == 201
-    assert client.post("/api/blocks", json=_block_payload(block_id)).status_code == 201
+    assert client.post("/api/layers", json=_block_payload(block_id)).status_code == 201
     assert client.post("/api/stacks", json=_stack_payload(stack_id, block_id)).status_code == 201
 
     runner = CliRunner()
@@ -170,7 +171,7 @@ def test_ensure_flag_bundles_are_robust_for_api_and_cli(stress_client, monkeypat
     stack_id = "stress_stack_flags"
 
     assert client.post("/api/profiles", json=_profile_payload(profile_id)).status_code == 201
-    assert client.post("/api/blocks", json=_block_payload(block_id)).status_code == 201
+    assert client.post("/api/layers", json=_block_payload(block_id)).status_code == 201
     assert client.post("/api/stacks", json=_stack_payload(stack_id, block_id)).status_code == 201
 
     # Keep API ensure cheap while still exercising request validation + job creation.
@@ -262,7 +263,7 @@ def test_cli_json_output_is_parseable_under_stress_noise(stress_client):
     stack_id = "stress_stack_json"
 
     assert client.post("/api/profiles", json=_profile_payload(profile_id)).status_code == 201
-    assert client.post("/api/blocks", json=_block_payload(block_id)).status_code == 201
+    assert client.post("/api/layers", json=_block_payload(block_id)).status_code == 201
     assert client.post("/api/stacks", json=_stack_payload(stack_id, block_id)).status_code == 201
 
     runner = CliRunner()

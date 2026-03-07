@@ -2,7 +2,7 @@
 
 ## Role of the Web UI
 
-The Web UI provides guided authoring and operational workflows for profiles, stacks, blocks, planning, and artifact/job visibility. It is designed to make complex compatibility and build behavior understandable and actionable.
+The Web UI provides guided authoring and operational workflows for profiles, stacks, layers, planning, and artifact/job visibility. It is designed to make complex compatibility and build behavior understandable and actionable.
 
 Primary frontend stack:
 
@@ -25,9 +25,13 @@ High-level organization:
 
 This structure keeps views orchestration-focused while moving reusable logic into composables/components.
 
+Note on migration state: runtime behavior is layers-first, but some internal component/composable implementations still use block-era filenames as compatibility wrappers.
+
 ## Routing and State Patterns
 
 Routing is centralized in `apps/web/src/router.ts` with auth-aware guards and explicit auth routes (`/login`, `/setup`) plus post-auth destination (`/dashboard`) alongside entity/workflow routes.
+
+Legacy `/blocks*` routes are compatibility redirects to `/layers*`, with deprecation warnings emitted through `apps/web/src/routerDeprecations.ts`.
 
 State model:
 
@@ -86,6 +90,7 @@ Representative tests:
 - `apps/web/tests/api-client.spec.ts`
 - `apps/web/tests/job-stream.spec.ts`
 - `apps/web/tests/blocks-view-modal.spec.ts`
+- `apps/web/tests/route-deprecations.spec.ts`
 
 CI includes frontend install/test/build to maintain UI/API contract health.
 

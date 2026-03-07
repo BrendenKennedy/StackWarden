@@ -87,13 +87,13 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { blocks as blocksApi, profiles as profilesApi, stacks as stacksApi } from '@/api/endpoints'
+import { layers as layersApi, profiles as profilesApi, stacks as stacksApi } from '@/api/endpoints'
 import { toUserErrorMessage } from '@/utils/errors'
 import { useModalFocusTrap } from '@/composables/useModalFocusTrap'
 
 const props = defineProps<{
   show: boolean
-  entity: 'profiles' | 'stacks' | 'blocks'
+  entity: 'profiles' | 'stacks' | 'layers'
   id: string | null
 }>()
 
@@ -134,6 +134,7 @@ const overviewFields = computed(() => {
       { key: 'id', label: 'ID', value: d.id },
       { key: 'display_name', label: 'Display Name', value: d.display_name },
       { key: 'description', label: 'Description', value: d.description },
+      { key: 'stackwarden_certification', label: 'Certification', value: d.requirements?.constraints?.stackwarden_certification || 'generic_best_effort' },
       { key: 'task', label: 'Task', value: d.task },
       { key: 'serve', label: 'Serve', value: d.serve },
       { key: 'api', label: 'API', value: d.api },
@@ -212,7 +213,14 @@ const mapSections = computed(() => {
         entries: Object.entries(require).map(([k, v]) => ({ key: k, value: Array.isArray(v) ? v.join(', ') : v })),
       })
     }
-  } else if (props.entity === 'stacks' || props.entity === 'blocks') {
+  } else if (props.entity === 'stacks' || props.entity === 'layers') {
+    const reqConstraints = d.requirements?.constraints || {}
+    if (props.entity === 'stacks' && reqConstraints && typeof reqConstraints === 'object' && Object.keys(reqConstraints).length > 0) {
+      sections.push({
+        label: 'Requirements Constraints',
+        entries: Object.entries(reqConstraints).map(([k, v]) => ({ key: k, value: v })),
+      })
+    }
     if (d.policy_overrides && typeof d.policy_overrides === 'object') {
       sections.push({
         label: 'Tuple Policy Overrides',
@@ -238,7 +246,7 @@ async function fetchData() {
   try {
     if (props.entity === 'profiles') data.value = await profilesApi.getSpec(props.id)
     else if (props.entity === 'stacks') data.value = await stacksApi.getSpec(props.id)
-    else data.value = await blocksApi.getSpec(props.id)
+    else data.value = await layersApi.getSpec(props.id)
   } catch (err) {
     errorMessage.value = toUserErrorMessage(err)
   } finally {

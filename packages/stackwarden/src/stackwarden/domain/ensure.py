@@ -56,11 +56,11 @@ def ensure_internal(
     from stackwarden.config import (
         AppConfig,
         compatibility_strict_default,
-        load_block,
+        load_layer,
         load_profile,
         load_stack,
+        strict_host_optimization_default,
     )
-    from stackwarden.domain.remote_catalog import sync_remote_catalog
     from stackwarden.domain.registry_policy import assert_registry_allowed
     from stackwarden.resolvers.resolver import resolve
     from stackwarden.builders.plan_executor import execute_plan
@@ -73,16 +73,11 @@ def ensure_internal(
 
     _raise_if_canceled()
     cfg = AppConfig.load()
-    if cfg.remote_catalog_enabled and cfg.remote_catalog_auto_pull:
-        try:
-            sync_remote_catalog(cfg)
-        except Exception as exc:
-            log.warning("Remote catalog sync failed; continuing with local data: %s", exc)
     _raise_if_canceled()
 
     p = load_profile(profile_id)
     s = load_stack(stack_id)
-    blocks = [load_block(block_id) for block_id in (s.blocks or [])]
+    layers = [load_layer(layer_id) for layer_id in (s.layers or [])]
     _raise_if_canceled()
 
     if variants:
@@ -95,10 +90,11 @@ def ensure_internal(
     result = resolve(
         p,
         s,
-        blocks=blocks,
+        layers=layers,
         variants=variants,
         explain=explain,
         strict_mode=compatibility_strict_default(),
+        strict_host_optimization=strict_host_optimization_default(),
     )
     assert_registry_allowed(result.decision.base_image, cfg.registry)
     _raise_if_canceled()
@@ -112,11 +108,12 @@ def ensure_internal(
         result = resolve(
             p,
             s,
-            blocks=blocks,
+            layers=layers,
             base_digest=base_digest,
             variants=variants,
             explain=explain,
             strict_mode=compatibility_strict_default(),
+            strict_host_optimization=strict_host_optimization_default(),
         )
     _raise_if_canceled()
 

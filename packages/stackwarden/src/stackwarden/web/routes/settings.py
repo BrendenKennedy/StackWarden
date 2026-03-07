@@ -9,12 +9,11 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 
 from stackwarden.config import AppConfig
-from stackwarden.domain.block_catalog import load_block_catalog
+from stackwarden.domain.block_catalog import load_layer_catalog
 from stackwarden.domain.hardware_catalog import load_hardware_catalog, save_hardware_catalog
-from stackwarden.domain.remote_catalog import RemoteCatalogSyncResult, sync_remote_catalog
 from stackwarden.domain.tuple_catalog import load_tuple_catalog
 from stackwarden.web.schemas import (
-    BlockPresetCatalogDTO,
+    LayerPresetCatalogDTO,
     HardwareCatalogDTO,
     HardwareCatalogUpsertRequestDTO,
     SettingsConfigUpdateRequestDTO,
@@ -62,12 +61,12 @@ async def get_hardware_catalogs():
         raise
 
 
-@router.get("/settings/block-catalog", response_model=BlockPresetCatalogDTO)
-async def get_block_catalog():
+@router.get("/settings/layer-catalog", response_model=LayerPresetCatalogDTO)
+async def get_layer_catalog():
     try:
-        return BlockPresetCatalogDTO.model_validate(load_block_catalog().model_dump(mode="json"))
+        return LayerPresetCatalogDTO.model_validate(load_layer_catalog().model_dump(mode="json"))
     except Exception:
-        log.exception("Failed to serve /settings/block-catalog")
+        log.exception("Failed to serve /settings/layer-catalog")
         raise
 
 
@@ -122,35 +121,17 @@ async def update_settings_config(
             cfg.registry.allow = [v.strip() for v in body.registry_allow if v.strip()]
         if body.registry_deny is not None:
             cfg.registry.deny = [v.strip() for v in body.registry_deny if v.strip()]
-        if body.remote_catalog_enabled is not None:
-            cfg.remote_catalog_enabled = body.remote_catalog_enabled
-        if body.remote_catalog_repo_url is not None:
-            cfg.remote_catalog_repo_url = body.remote_catalog_repo_url.strip() or None
-        if body.remote_catalog_branch is not None:
-            cfg.remote_catalog_branch = body.remote_catalog_branch.strip() or "main"
-        if body.remote_catalog_local_path is not None:
-            cfg.remote_catalog_local_path = (
-                body.remote_catalog_local_path.strip()
-                or "~/.local/share/stackwarden/remote-catalog"
-            )
-        if body.remote_catalog_local_overrides_path is not None:
-            cfg.remote_catalog_local_overrides_path = (
-                body.remote_catalog_local_overrides_path.strip()
-                or "~/.local/share/stackwarden/local-catalog"
-            )
-        if body.remote_catalog_auto_pull is not None:
-            cfg.remote_catalog_auto_pull = body.remote_catalog_auto_pull
+        if body.catalog_local_path is not None:
+            cfg.catalog_local_path = body.catalog_local_path.strip() or None
+        if body.catalog_local_overrides_path is not None:
+            cfg.catalog_local_overrides_path = body.catalog_local_overrides_path.strip() or None
         if body.tuple_layer_mode is not None:
             mode = body.tuple_layer_mode.strip().lower()
             cfg.tuple_layer_mode = mode if mode in {"off", "shadow", "warn", "enforce"} else "enforce"
 
-        sync_result: RemoteCatalogSyncResult | None = None
-        if body.sync_now:
-            sync_result = sync_remote_catalog(cfg)
-
         cfg.save()
         reset_cached_dependencies()
-        return config_to_dto(cfg, sync_result=sync_result)
+        return config_to_dto(cfg)
     except HTTPException:
         raise
     except Exception:

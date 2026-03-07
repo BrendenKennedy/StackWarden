@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import { useEntityListPage } from '@/composables/useEntityListPage'
 import { useQueryModal } from '@/composables/useQueryModal'
 
-type EntityType = 'profiles' | 'stacks' | 'blocks'
+type EntityType = 'profiles' | 'stacks' | 'layers'
 
 type UseEntityListPageWithModalsOptions<T> = {
   entity: EntityType
@@ -28,7 +28,7 @@ export function useEntityListPageWithModals<T>(
   const showEditModal = ref(false)
   const editModalId = ref<string | null>(null)
 
-  const entityLabel = options.entity.slice(0, -1) as 'profile' | 'stack' | 'block'
+  const entityLabel = options.entity.slice(0, -1) as 'profile' | 'stack' | 'layer'
 
   function handleView(row: Record<string, string | number | null | undefined>) {
     const id = row.id

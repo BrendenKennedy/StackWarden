@@ -1,0 +1,16 @@
+kind: layer
+schema_version: 2
+id: sentence_transformers_embedding
+display_name: "Sentence Transformers Embedding"
+stack_layer: inference_engine_layer
+block_kind: runtime
+tags:
+  - embedding
+  - retrieval
+  - nlp
+components:
+  pip:
+    - name: sentence-transformers
+      version: ">=3.0,<4.0"
+provides:
+  layer: core_compute_layer

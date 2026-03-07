@@ -17,7 +17,7 @@
         <path d="M3 12L12 17L21 12" />
         <path d="M3 16L12 21L21 16" />
       </svg>
-      <svg v-else-if="titleIcon === 'blocks'" viewBox="0 0 24 24" class="page-title-icon" aria-hidden="true">
+      <svg v-else-if="titleIcon === 'layers'" viewBox="0 0 24 24" class="page-title-icon" aria-hidden="true">
         <rect x="4" y="4" width="7" height="7" rx="1.5" />
         <rect x="13" y="4" width="7" height="7" rx="1.5" />
         <rect x="4" y="13" width="7" height="7" rx="1.5" />
@@ -177,7 +177,7 @@ type RowData = Record<string, string | number | null | undefined>
 
 const props = withDefaults(defineProps<{
   title: string
-  titleIcon?: 'catalog' | 'profiles' | 'stacks' | 'blocks' | 'settings'
+  titleIcon?: 'catalog' | 'profiles' | 'stacks' | 'layers' | 'settings'
   createLabel?: string
   loading: boolean
   loadingMessage?: string

@@ -1,11 +1,11 @@
 # CLI Wizard Usage
 
-StackWarden now supports guided create flows for profiles, blocks, and stacks.
+Use CLI wizards when you want guided create flows with validation and optional non-interactive execution.
 
 ## Commands
 
 - `stackwarden profiles wizard`
-- `stackwarden blocks wizard`
+- `stackwarden layers wizard`
 - `stackwarden stacks wizard`
 
 ## Common Flags
@@ -16,7 +16,7 @@ StackWarden now supports guided create flows for profiles, blocks, and stacks.
 - `--output <path>`: write preview YAML to a file.
 - `--json`: return machine-readable wizard result.
 
-## Block Wizard Extras
+## Layer Wizard Extras
 
 - `--preset <id>`
 - `--profile-mode base|cpu|gpu|dev|prod`
@@ -26,16 +26,17 @@ StackWarden now supports guided create flows for profiles, blocks, and stacks.
 
 ## Stack Wizard Notes
 
-- Build strategy is a dedicated decision step and is not part of layer selection.
+- Build strategy is a dedicated decision step (separate from layer selection).
 - `system_runtime_layer` is required for successful stack composition.
 - Compose preview runs before create to surface conflicts.
+- Layer options are compatibility-aware and grouped by recommendation status.
 
 ## Manual Edit Fallback
 
-Power users can still use:
+Power users can use file-based create flows:
 
 - `stackwarden profiles create --file ...`
-- `stackwarden blocks create --file ...`
+- `stackwarden layers create --file ...`
 - `stackwarden stacks create --file ...`
 
 Run `--dry-run` and `doctor` for validation/health checks before writing in CI.

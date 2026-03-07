@@ -21,7 +21,7 @@ from stackwarden.web.jobs.models import JobEvent, JobStatus
 def client_bundle(tmp_path):
     (tmp_path / "stacks").mkdir()
     (tmp_path / "profiles").mkdir()
-    (tmp_path / "blocks").mkdir()
+    (tmp_path / "layers").mkdir()
     with patch.dict(
         os.environ,
         {
@@ -32,17 +32,23 @@ def client_bundle(tmp_path):
     ):
         from stackwarden.catalog.store import CatalogStore
         from stackwarden.web.app import create_app
-        from stackwarden.web.deps import get_catalog, get_job_manager
+        from stackwarden.web.deps import get_catalog, get_job_manager, reset_cached_dependencies
         from stackwarden.web.jobs.manager import JobManager
         from stackwarden.web.jobs.store import JobStore
         from stackwarden.web.settings import WebSettings
 
+        reset_cached_dependencies()
         catalog = CatalogStore(db_path=tmp_path / "catalog.sqlite3")
         manager = JobManager(store=JobStore(db_path=tmp_path / "catalog.sqlite3"))
         app = create_app(WebSettings(token=None, dev=True))
         app.dependency_overrides[get_catalog] = lambda: catalog
         app.dependency_overrides[get_job_manager] = lambda: manager
-        yield TestClient(app), catalog, manager
+        with TestClient(app) as test_client:
+            test_client.post(
+                "/api/auth/setup",
+                json={"username": "admin", "password": "dev-password-123"},
+            )
+            yield test_client, catalog, manager
 
 
 def test_plan_and_ensure_reject_unknown_flags(client_bundle):
@@ -78,8 +84,8 @@ def test_concurrent_ensure_requests_apply_admission_control(client_bundle, monke
         "stackwarden.web.routes.jobs.load_profile",
         lambda _: SimpleNamespace(host_facts=SimpleNamespace(memory_gb_total=16.0)),
     )
-    monkeypatch.setattr("stackwarden.web.routes.jobs.load_stack", lambda _: SimpleNamespace(blocks=[]))
-    monkeypatch.setattr("stackwarden.web.routes.jobs.load_block", lambda _: object())
+    monkeypatch.setattr("stackwarden.web.routes.jobs.load_stack", lambda _: SimpleNamespace(layers=[]))
+    monkeypatch.setattr("stackwarden.web.routes.jobs.load_layer", lambda _: object())
     monkeypatch.setattr(
         "stackwarden.web.routes.jobs.resolve",
         lambda *args, **kwargs: SimpleNamespace(decision=SimpleNamespace(build_optimization=None)),

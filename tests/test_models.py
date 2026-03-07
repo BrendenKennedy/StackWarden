@@ -15,7 +15,7 @@ from stackwarden.domain.enums import (
 from stackwarden.domain.models import (
     ArtifactRecord,
     BaseCandidate,
-    BlockSpec,
+    LayerSpec,
     CudaSpec,
     GpuSpec,
     Plan,
@@ -181,22 +181,24 @@ class TestStackSpec:
             )
 
 
-class TestBlockSpec:
+class TestLayerSpec:
     def test_parse_minimal(self):
-        block = BlockSpec.model_validate({
-            "kind": "block",
+        layer = LayerSpec.model_validate({
+            "kind": "layer",
             "id": "fastapi",
             "display_name": "FastAPI",
+            "stack_layer": "serving_layer",
         })
-        assert block.kind == "block"
-        assert block.id == "fastapi"
+        assert layer.kind == "layer"
+        assert layer.id == "fastapi"
 
     def test_missing_kind_uses_default(self):
-        block = BlockSpec.model_validate({
+        layer = LayerSpec.model_validate({
             "id": "runtime",
             "display_name": "Runtime",
+            "stack_layer": "inference_engine_layer",
         })
-        assert block.kind == "block"
+        assert layer.kind == "layer"
 
 
 class TestStackRecipeSpec:
@@ -208,12 +210,12 @@ class TestStackRecipeSpec:
             "task": "llm",
             "serve": "python_api",
             "api": "fastapi",
-            "blocks": ["fastapi"],
+            "layers": ["fastapi"],
         })
         assert recipe.kind == "stack_recipe"
-        assert recipe.blocks == ["fastapi"]
+        assert recipe.layers == ["fastapi"]
 
-    def test_rejects_empty_blocks(self):
+    def test_rejects_empty_layers(self):
         with pytest.raises(ValidationError):
             StackRecipeSpec.model_validate({
                 "kind": "stack_recipe",
@@ -222,7 +224,7 @@ class TestStackRecipeSpec:
                 "task": "llm",
                 "serve": "python_api",
                 "api": "fastapi",
-                "blocks": [],
+                "layers": [],
             })
 
     def test_unknown_kind_rejected(self):
@@ -234,7 +236,7 @@ class TestStackRecipeSpec:
                 "task": "llm",
                 "serve": "python_api",
                 "api": "fastapi",
-                "blocks": ["fastapi"],
+                "layers": ["fastapi"],
             })
 
 

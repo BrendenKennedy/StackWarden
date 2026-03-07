@@ -1,0 +1,24 @@
+kind: layer
+schema_version: 2
+id: vision_onnx_runtime
+display_name: "Vision ONNX Runtime"
+stack_layer: inference_engine_layer
+block_kind: runtime
+tags:
+  - vision
+  - onnx
+  - detector
+  - classification
+  - segmentation
+components:
+  pip:
+    - name: onnxruntime-gpu
+      version: ">=1.19,<1.21"
+    - name: onnx
+      version: ">=1.16,<2.0"
+    - name: opencv-python-headless
+      version: ">=4.10,<5.0"
+requires:
+  gpu_vendor: nvidia
+provides:
+  layer: inference_engine_layer

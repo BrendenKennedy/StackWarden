@@ -5,8 +5,10 @@ import pytest
 from stackwarden.domain.errors import IncompatibleStackError
 from stackwarden.domain.models import (
     BaseCandidate,
+    LayerSpec,
     CudaSpec,
     GpuSpec,
+    HostDiscoveryFacts,
     PipDep,
     Profile,
     ProfileConstraints,
@@ -14,6 +16,7 @@ from stackwarden.domain.models import (
     StackEntrypoint,
     StackSpec,
 )
+from stackwarden.domain.tuple_catalog import SupportedTuple, TupleCatalog, TupleSelector, default_tuple_catalog
 from stackwarden.resolvers.resolver import resolve
 from stackwarden.resolvers.rules import (
     check_arch_compatibility,
@@ -65,6 +68,17 @@ def _stack(**kw) -> StackSpec:
     )
     defaults.update(kw)
     return StackSpec.model_validate(defaults)
+
+
+def _gpu_layer() -> LayerSpec:
+    return LayerSpec.model_validate(
+        {
+            "id": "gpu_runtime",
+            "display_name": "GPU Runtime",
+            "stack_layer": "inference_engine_layer",
+            "requires": {"gpu_vendor": "nvidia"},
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -250,7 +264,47 @@ class TestResolver:
         assert plan.decision.build_optimization.cpu_parallelism >= 1
         build_step = next(step for step in plan.steps if step.type == "build_overlay")
         assert "STACKWARDEN_BUILD_JOBS" in build_step.build_args
+        assert "STACKWARDEN_OPT_MODE" in build_step.build_args
         assert "--progress=plain" in build_step.buildx_flags
+
+    def test_resolve_strict_host_optimization_fails_when_facts_missing(self):
+        p = _profile(
+            host_facts=HostDiscoveryFacts(
+                cpu_cores_logical=None,
+                memory_gb_total=None,
+                driver_version=None,
+            )
+        )
+        p.gpu.compute_capability = None
+        s = _stack()
+
+        with pytest.raises(IncompatibleStackError):
+            resolve(
+                p,
+                s,
+                layers=[_gpu_layer()],
+                strict_host_optimization=True,
+            )
+
+    def test_resolve_strict_host_optimization_succeeds_with_facts(self):
+        p = _profile(
+            gpu=GpuSpec(vendor="nvidia", family="blackwell", compute_capability="12.0"),
+            host_facts=HostDiscoveryFacts(
+                cpu_cores_logical=32,
+                memory_gb_total=128.0,
+                driver_version="570.133.20",
+            ),
+        )
+        s = _stack()
+        plan = resolve(
+            p,
+            s,
+            layers=[_gpu_layer()],
+            strict_host_optimization=True,
+        )
+        assert plan.decision.build_optimization is not None
+        assert plan.decision.build_optimization.strict_host_specific is True
+        assert plan.artifact.labels.get("stackwarden.host_optimization")
 
     def test_resolve_tuple_mode_is_explicit_and_deterministic(self, monkeypatch):
         p = _profile()
@@ -262,3 +316,140 @@ class TestResolver:
         assert plan1.artifact.fingerprint == plan2.artifact.fingerprint
         assert plan1.decision.tuple_decision.get("mode") == "off"
         assert plan2.decision.tuple_decision.get("mode") == "off"
+
+    def test_default_tuple_catalog_includes_dgx_spark_cuda13(self):
+        tuple_ids = {item.id for item in default_tuple_catalog().tuples}
+        assert "dgx_h100_cuda125_ubuntu2204" in tuple_ids
+        assert "arm_nvidia_cuda130_ubuntu2404" in tuple_ids
+        assert "arm_nvidia_cuda130_ubuntu2404_pull" in tuple_ids
+
+    def test_resolve_uses_aggressive_route_for_blackwell(self):
+        p = _profile(
+            arch="arm64",
+            os_family="ubuntu",
+            os_version="24.04",
+            os_family_id="ubuntu",
+            os_version_id="ubuntu_24_04",
+            cuda=CudaSpec(major=13, minor=0, variant="cuda13.0"),
+            gpu=GpuSpec(
+                vendor="nvidia",
+                family="blackwell",
+                vendor_id="nvidia",
+                family_id="blackwell",
+                model_id="nvidia_gb10",
+                compute_capability="12.1",
+            ),
+            host_facts=HostDiscoveryFacts(
+                cpu_cores_logical=20,
+                memory_gb_total=128.0,
+                driver_version="570.42",
+            ),
+        )
+        s = _stack()
+        plan = resolve(
+            p,
+            s,
+            layers=[_gpu_layer()],
+            strict_host_optimization=False,
+        )
+        opt = plan.decision.build_optimization
+        assert opt is not None
+        assert opt.strategy == "aggressive"
+        assert opt.policy == "strict_host_specific"
+        assert opt.build_args["STACKWARDEN_OPT_PROFILE"] == "aggressive"
+
+    def test_resolve_uses_aggressive_route_for_non_blackwell_gpu(self):
+        p = _profile(
+            arch="amd64",
+            gpu=GpuSpec(vendor="nvidia", family="ampere", vendor_id="nvidia", family_id="ampere"),
+            host_facts=HostDiscoveryFacts(
+                cpu_cores_logical=8,
+                memory_gb_total=32.0,
+            ),
+        )
+        s = _stack()
+        plan = resolve(p, s)
+        opt = plan.decision.build_optimization
+        assert opt is not None
+        assert opt.strategy == "aggressive"
+        assert opt.policy == "strict_host_specific"
+        assert opt.build_args["STACKWARDEN_OPT_PROFILE"] == "aggressive"
+
+    def test_resolve_uses_balanced_route_for_cpu_only_profile(self):
+        p = _profile(
+            arch="amd64",
+            container_runtime="runc",
+            cuda=None,
+            gpu=GpuSpec(vendor="cpu", family="cpu"),
+            host_facts=HostDiscoveryFacts(
+                cpu_cores_logical=8,
+                memory_gb_total=16.0,
+            ),
+        )
+        s = _stack(task="custom", api="none", serve="custom")
+        plan = resolve(p, s)
+        opt = plan.decision.build_optimization
+        assert opt is not None
+        assert opt.strategy == "balanced"
+        assert opt.policy == "portable"
+        assert opt.build_args["STACKWARDEN_OPT_PROFILE"] == "balanced"
+
+    def test_resolve_emits_workload_policy_knobs(self):
+        p = _profile(
+            arch="amd64",
+            gpu=GpuSpec(vendor="nvidia", family="hopper", vendor_id="nvidia", family_id="hopper"),
+            host_facts=HostDiscoveryFacts(
+                cpu_cores_logical=12,
+                memory_gb_total=48.0,
+            ),
+        )
+        s = _stack(task="llm", api="fastapi", serve="python_api")
+        plan = resolve(p, s, layers=[_gpu_layer()])
+        step = next(step for step in plan.steps if step.type == "build_overlay")
+        assert step.build_args["STACKWARDEN_OPT_WORKLOAD"] == "llm"
+        assert step.build_args["STACKWARDEN_OPT_SERVING"] == "fastapi"
+        assert step.build_args["STACKWARDEN_BATCH_PROFILE"] == "throughput_high"
+        assert step.build_args["STACKWARDEN_CUDA_GRAPH"] == "hybrid"
+        assert step.build_args["STACKWARDEN_PREFILL_POLICY"] == "none"
+
+    def test_resolve_applies_tuple_base_and_wheelhouse_hints(self):
+        p = _profile(
+            arch="arm64",
+            os_family="ubuntu",
+            os_version="24.04",
+            os_family_id="ubuntu",
+            os_version_id="ubuntu_24_04",
+            cuda=CudaSpec(major=13, minor=0, variant="cuda13.0"),
+            gpu=GpuSpec(vendor="nvidia", family="blackwell", vendor_id="nvidia", family_id="blackwell"),
+        )
+        s = _stack()
+        tuples = TupleCatalog(
+            tuples=[
+                SupportedTuple(
+                    id="dgx_hint",
+                    status="supported",
+                    selector=TupleSelector(
+                        arch="arm64",
+                        os_family_id="ubuntu",
+                        os_version_id="ubuntu_24_04",
+                        container_runtime="nvidia",
+                        gpu_vendor_id="nvidia",
+                        gpu_family_id="blackwell",
+                        cuda_min=13.0,
+                        cuda_max=13.0,
+                    ),
+                    base_image="nvcr.io/nvidia/pytorch:25.03-py3",
+                    wheelhouse_path="/opt/wheelhouse/dgx",
+                )
+            ]
+        )
+        plan = resolve(
+            p,
+            s,
+            tuple_mode="warn",
+            tuple_catalog=tuples,
+        )
+        assert plan.decision.base_image == "nvcr.io/nvidia/pytorch:25.03-py3"
+        build_step = next(step for step in plan.steps if step.type == "build_overlay")
+        assert build_step.build_args["STACKWARDEN_PIP_WHEELHOUSE_PATH_HINT"] == "/opt/wheelhouse/dgx"
+        assert plan.artifact.labels["stackwarden.tuple_base_image_hint"] == "nvcr.io/nvidia/pytorch:25.03-py3"

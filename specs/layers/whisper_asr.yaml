@@ -1,0 +1,20 @@
+kind: layer
+schema_version: 2
+id: whisper_asr
+display_name: "Whisper Speech Recognition"
+stack_layer: inference_engine_layer
+block_kind: runtime
+tags:
+  - asr
+  - speech
+  - audio
+components:
+  pip:
+    - name: faster-whisper
+      version: ">=1.1,<2.0"
+    - name: soundfile
+      version: ">=0.12,<1.0"
+requires:
+  gpu_vendor: nvidia
+provides:
+  layer: core_compute_layer

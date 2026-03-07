@@ -11,8 +11,9 @@
       <StackWizardModal
         :show="wizardShow"
         :form="form"
-        :available-blocks="availableBlocks"
-        :block-catalog="blockCatalog"
+        :available-profiles="availableProfiles"
+        :available-layers="availableLayers"
+        :layer-catalog="layerCatalog"
         :create-contracts="createContracts"
         :auth-enabled="authEnabled"
         :can-create="canCreate"
@@ -42,8 +43,9 @@ defineEmits<{
 const flow = useStackCreateFlow()
 
 const form = flow.form
-const availableBlocks = flow.availableBlocks
-const blockCatalog = flow.blockCatalog
+const availableProfiles = flow.availableProfiles
+const availableLayers = flow.availableLayers
+const layerCatalog = flow.layerCatalog
 const createContracts = flow.createContracts
 const authEnabled = flow.authEnabled
 const canCreate = flow.canCreate

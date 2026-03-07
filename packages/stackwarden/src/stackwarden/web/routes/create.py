@@ -13,18 +13,18 @@ from stackwarden.application.create_flows import (
     AppNotFoundError,
     AppValidationError,
     compose_stack_preview as app_compose_stack_preview,
-    create_block as app_create_block,
+    create_layer as app_create_layer,
     create_profile as app_create_profile,
     create_stack as app_create_stack,
-    dry_run_block as app_dry_run_block,
+    dry_run_layer as app_dry_run_layer,
     dry_run_profile as app_dry_run_profile,
     dry_run_stack as app_dry_run_stack,
     duplicate_profile as app_duplicate_profile,
     duplicate_stack as app_duplicate_stack,
 )
 from stackwarden.web.schemas import (
-    BlockCreateRequest,
-    BlockCreateResponse,
+    LayerCreateRequest,
+    LayerCreateResponse,
     ComposePreviewResponse,
     DryRunResponse,
     DuplicateProfileRequest,
@@ -314,23 +314,23 @@ async def dry_run_profile(req: ProfileCreateRequest):
     return DryRunResponse(yaml=result.yaml, valid=True, errors=[])
 
 
-@router.post("/blocks", response_model=BlockCreateResponse, status_code=201)
-async def create_block(req: BlockCreateRequest):
+@router.post("/layers", response_model=LayerCreateResponse, status_code=201)
+async def create_layer(req: LayerCreateRequest):
     started = time.perf_counter()
     _emit_metric(
         "create_attempt",
-        entity_type="block",
+        entity_type="layer",
         entity_id=req.id,
         schema_version=req.schema_version,
         outcome="attempt",
         runtime_family=(req.build_strategy or "unknown"),
     )
     try:
-        target = app_create_block(req)
+        target = app_create_layer(req)
     except AppValidationError as exc:
         _emit_metric(
             "create_result",
-            entity_type="block",
+            entity_type="layer",
             entity_id=req.id,
             schema_version=req.schema_version,
             outcome="validation_error",
@@ -342,7 +342,7 @@ async def create_block(req: BlockCreateRequest):
     except AppConflictError as exc:
         _emit_metric(
             "create_result",
-            entity_type="block",
+            entity_type="layer",
             entity_id=req.id,
             schema_version=req.schema_version,
             outcome="conflict",
@@ -351,35 +351,35 @@ async def create_block(req: BlockCreateRequest):
             runtime_family=(req.build_strategy or "unknown"),
         )
         raise HTTPException(status_code=409, detail=exc.message)
-    log.info("Created block %s at %s", req.id, target)
+    log.info("Created layer %s at %s", req.id, target)
     _emit_metric(
         "create_result",
-        entity_type="block",
+        entity_type="layer",
         entity_id=req.id,
         schema_version=req.schema_version,
         outcome="success",
         duration_ms=int((time.perf_counter() - started) * 1000),
         runtime_family=(req.build_strategy or "unknown"),
     )
-    return BlockCreateResponse(id=req.id, display_name=req.display_name, path=str(target))
+    return LayerCreateResponse(id=req.id, display_name=req.display_name, path=str(target))
 
 
-@router.post("/blocks/dry-run", response_model=DryRunResponse)
-async def dry_run_block(req: BlockCreateRequest):
+@router.post("/layers/dry-run", response_model=DryRunResponse)
+async def dry_run_layer(req: LayerCreateRequest):
     started = time.perf_counter()
     _emit_metric(
         "dry_run_attempt",
-        entity_type="block",
+        entity_type="layer",
         entity_id=req.id,
         schema_version=req.schema_version,
         outcome="attempt",
         runtime_family=(req.build_strategy or "unknown"),
     )
-    result = app_dry_run_block(req)
+    result = app_dry_run_layer(req)
     if not result.valid:
         _emit_metric(
             "dry_run_result",
-            entity_type="block",
+            entity_type="layer",
             entity_id=req.id,
             schema_version=req.schema_version,
             outcome="validation_error",
@@ -390,7 +390,7 @@ async def dry_run_block(req: BlockCreateRequest):
         return DryRunResponse(yaml="", valid=False, errors=result.errors)
     _emit_metric(
         "dry_run_result",
-        entity_type="block",
+        entity_type="layer",
         entity_id=req.id,
         schema_version=req.schema_version,
         outcome="success",

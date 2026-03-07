@@ -3,7 +3,7 @@ export type StackLayerId =
   | 'system_runtime_layer'
   | 'driver_accelerator_layer'
   | 'core_compute_layer'
-  | 'model_runtime_layer'
+  | 'inference_engine_layer'
   | 'optimization_compilation_layer'
   | 'serving_layer'
   | 'application_orchestration_layer'
@@ -26,29 +26,8 @@ export const STACK_LAYERS: Array<{
     profileManaged: true,
   },
   {
-    id: 'system_runtime_layer',
-    label: 'System/Runtime Layer',
-    hint: 'Base runtime and system glue.',
-    purpose: 'Provides foundational system packages and runtime prerequisites.',
-    whenUsed: 'Use when workloads need common OS/runtime tooling.',
-  },
-  {
-    id: 'driver_accelerator_layer',
-    label: 'Driver/Accelerator Layer',
-    hint: 'GPU/accelerator wiring and kernels.',
-    purpose: 'Adds accelerator-specific runtime support.',
-    whenUsed: 'Use for GPU or other hardware-accelerated inference.',
-  },
-  {
-    id: 'core_compute_layer',
-    label: 'Core Compute Libraries',
-    hint: 'Torch/ONNX and core compute libs.',
-    purpose: 'Supplies primary numeric/compute frameworks.',
-    whenUsed: 'Use when model runtime depends on these foundations.',
-  },
-  {
-    id: 'model_runtime_layer',
-    label: 'Model Framework/Runtime',
+    id: 'inference_engine_layer',
+    label: 'Inference Engine Layer',
     hint: 'Model execution runtimes.',
     purpose: 'Defines the model-serving runtime engine.',
     whenUsed: 'Use for specific runtime choices (vLLM, llama.cpp, etc.).',
@@ -61,11 +40,25 @@ export const STACK_LAYERS: Array<{
     whenUsed: 'Use when latency/throughput optimization is needed.',
   },
   {
-    id: 'serving_layer',
-    label: 'Serving Layer',
-    hint: 'Inference serving interfaces.',
-    purpose: 'Exposes model runtime through serving protocols and gateways.',
-    whenUsed: 'Use when stack needs network-facing inference serving.',
+    id: 'core_compute_layer',
+    label: 'Core Compute Libraries',
+    hint: 'Torch/ONNX and core compute libs.',
+    purpose: 'Supplies primary numeric/compute frameworks.',
+    whenUsed: 'Use when model runtime depends on these foundations.',
+  },
+  {
+    id: 'driver_accelerator_layer',
+    label: 'Driver/Accelerator Layer',
+    hint: 'GPU/accelerator wiring and kernels.',
+    purpose: 'Adds accelerator-specific runtime support.',
+    whenUsed: 'Use for GPU or other hardware-accelerated inference.',
+  },
+  {
+    id: 'system_runtime_layer',
+    label: 'System/Runtime Layer',
+    hint: 'Base runtime and system glue.',
+    purpose: 'Provides foundational system packages and runtime prerequisites.',
+    whenUsed: 'Use when workloads need common OS/runtime tooling.',
   },
   {
     id: 'application_orchestration_layer',
@@ -80,6 +73,13 @@ export const STACK_LAYERS: Array<{
     hint: 'Metrics/tracing/ops readiness.',
     purpose: 'Provides telemetry and operational visibility.',
     whenUsed: 'Use for production monitoring, tracing, and diagnostics.',
+  },
+  {
+    id: 'serving_layer',
+    label: 'Serving Layer',
+    hint: 'Inference serving interfaces.',
+    purpose: 'Exposes model runtime through serving protocols and gateways.',
+    whenUsed: 'Use when stack needs network-facing inference serving.',
   },
 ]
 
@@ -99,11 +99,11 @@ const TAG_LAYER_MAP: Array<{ token: string; layer: StackLayerId }> = [
   { token: 'compile', layer: 'optimization_compilation_layer' },
   { token: 'cuda', layer: 'driver_accelerator_layer' },
   { token: 'accelerator', layer: 'driver_accelerator_layer' },
-  { token: 'llm', layer: 'model_runtime_layer' },
-  { token: 'diffusion', layer: 'model_runtime_layer' },
-  { token: 'vision', layer: 'model_runtime_layer' },
-  { token: 'asr', layer: 'model_runtime_layer' },
-  { token: 'tts', layer: 'model_runtime_layer' },
+  { token: 'llm', layer: 'inference_engine_layer' },
+  { token: 'diffusion', layer: 'inference_engine_layer' },
+  { token: 'vision', layer: 'inference_engine_layer' },
+  { token: 'asr', layer: 'inference_engine_layer' },
+  { token: 'tts', layer: 'inference_engine_layer' },
   { token: 'torch', layer: 'core_compute_layer' },
   { token: 'onnx', layer: 'core_compute_layer' },
   { token: 'ubuntu', layer: 'system_runtime_layer' },

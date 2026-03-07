@@ -11,6 +11,7 @@ import { profiles as profilesApi, meta as metaApi, settings as settingsApi, syst
 import { ApiError } from '@/api/client'
 import { toUserErrorMessage } from '@/utils/errors'
 import { SPEC_ID_PATTERN } from '@/api/contracts.generated'
+import { resolveCreateSchemaVersion } from '@/api/schemaVersions'
 import { useToast } from '@/composables/useToast'
 import { useEntityCreateFlow } from '@/composables/useEntityCreateFlow'
 
@@ -170,7 +171,7 @@ export function useProfileCreateFlow(options: Options = {}) {
     const vendor = labelOrId('gpu_vendor', gpuVendorId)
     const family = labelOrId('gpu_family', gpuFamilyId)
     return {
-      schema_version: 3,
+      schema_version: resolveCreateSchemaVersion('profile', createContracts.value),
       id: form.id,
       display_name: form.display_name,
       arch,

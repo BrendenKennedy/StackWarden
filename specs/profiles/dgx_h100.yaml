@@ -1,0 +1,50 @@
+schema_version: 2
+id: dgx_h100
+display_name: "NVIDIA DGX H100"
+arch: amd64
+os: linux
+os_family: ubuntu
+os_version: "22.04"
+os_family_id: ubuntu
+os_version_id: ubuntu_22_04
+container_runtime: nvidia
+cuda:
+  major: 12
+  minor: 5
+  variant: cuda12.5
+gpu:
+  vendor: nvidia
+  family: hopper
+  vendor_id: nvidia
+  family_id: hopper
+  model_id: nvidia_h100
+  compute_capability: "9.0"
+constraints:
+  disallow:
+    serve: []
+  require:
+    env: [NVIDIA_VISIBLE_DEVICES]
+base_candidates:
+  - name: nvcr.io/nvidia/pytorch
+    tags: ["24.08-py3"]
+    score_bias: 150
+  - name: nvcr.io/nvidia/tritonserver
+    tags: ["24.08-py3"]
+    score_bias: 130
+defaults:
+  python: "3.11"
+  workdir: "/workspace"
+requirements:
+  optimize_for:
+    - throughput
+    - latency
+    - reproducibility
+derived_capabilities:
+  - cuda
+  - tensor_cores
+tags:
+  - curated
+  - dgx
+  - dgx-h100
+labels:
+  optimization_scope: curated_authoritative

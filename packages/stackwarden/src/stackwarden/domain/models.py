@@ -8,6 +8,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from stackwarden.contracts import STACK_LAYER_IDS
 from stackwarden.domain.enums import (
     ApiType,
     Arch,
@@ -144,6 +145,7 @@ _WHEELHOUSE_MODE = Literal["index", "wheelhouse_prefer", "wheelhouse_only"]
 _NPM_INSTALL_MODE = Literal["spec", "lock_prefer", "lock_only"]
 _APT_INSTALL_MODE = Literal["repo", "pin_prefer", "pin_only"]
 _LOCKFILE_NAMES = frozenset({"package-lock.json", "pnpm-lock.yaml", "yarn.lock"})
+_STACK_LAYER_IDS = frozenset(STACK_LAYER_IDS)
 
 
 class PipDep(BaseModel):
@@ -350,7 +352,7 @@ class StackSpec(BaseModel):
     entrypoint: StackEntrypoint
     files: StackFiles = Field(default_factory=StackFiles)
     variants: dict[str, VariantDef] = Field(default_factory=dict)
-    blocks: list[str] = Field(default_factory=list)
+    layers: list[str] = Field(default_factory=list)
     intent: IntentSpec = Field(default_factory=IntentSpec)
     requirements: RequirementsSpec = Field(default_factory=RequirementsSpec)
     derived_capabilities: list[str] = Field(default_factory=list)
@@ -380,12 +382,14 @@ class StackSpec(BaseModel):
         return self
 
 
-class BlockSpec(BaseModel):
-    kind: Literal["block"] = "block"
+class LayerSpec(BaseModel):
+    kind: Literal["layer"] = "layer"
     schema_version: int = 1
     id: str
     display_name: str
     description: str = ""
+    block_kind: str | None = None
+    stack_layer: str = ""
     tags: list[str] = Field(default_factory=list)
     build_strategy: BuildStrategy | None = None
     components: StackComponentsPartial = Field(default_factory=StackComponentsPartial)
@@ -410,12 +414,20 @@ class BlockSpec(BaseModel):
         return _validate_port_values(v)
 
     @model_validator(mode="after")
-    def _validate_npm_lock_policy(self) -> "BlockSpec":
+    def _validate_npm_lock_policy(self) -> "LayerSpec":
         if self.components.npm_install_mode == "lock_only" and not _has_supported_lockfile(self.files):
             raise ValueError(
                 "npm_install_mode='lock_only' requires copying one lockfile in files.copy: "
                 "package-lock.json, pnpm-lock.yaml, or yarn.lock"
             )
+        resolved_layer = self.stack_layer.strip().lower()
+        if resolved_layer not in _STACK_LAYER_IDS:
+            allowed = ", ".join(sorted(_STACK_LAYER_IDS))
+            raise ValueError(
+                "Layer must declare a valid stack_layer. "
+                f"Allowed values: {allowed}"
+            )
+        self.stack_layer = resolved_layer
         return self
 
 
@@ -425,7 +437,7 @@ class StackRecipeSpec(BaseModel):
     id: str
     display_name: str
     description: str = ""
-    blocks: list[str] = Field(default_factory=list)
+    layers: list[str] = Field(default_factory=list)
     build_strategy: BuildStrategy | None = None
     components: StackComponentsPartial = Field(default_factory=StackComponentsPartial)
     env: list[str] = Field(default_factory=list)
@@ -451,11 +463,11 @@ class StackRecipeSpec(BaseModel):
     def _validate_ports(cls, v: list[int]) -> list[int]:
         return _validate_port_values(v)
 
-    @field_validator("blocks")
+    @field_validator("layers")
     @classmethod
-    def _validate_blocks_nonempty(cls, v: list[str]) -> list[str]:
+    def _validate_layers_nonempty(cls, v: list[str]) -> list[str]:
         if not v:
-            raise ValueError("stack_recipe must include at least one block")
+            raise ValueError("stack_recipe must include at least one layer")
         return v
 
     @model_validator(mode="after")
@@ -519,11 +531,22 @@ class BuildOptimizationDecision(BaseModel):
 
     enabled: bool = True
     strategy: str = "auto"
+    policy: Literal["strict_host_specific", "portable", "conservative"] = "portable"
+    strict_host_specific: bool = False
+    host_signature: str = ""
+    gpu_family: str = ""
+    gpu_compute_capability: str = ""
+    driver_version: str = ""
+    torch_dtype: str = "fp16"
+    attention_backend: str = "sdpa_auto"
+    torch_compile_enabled: bool = True
+    tf32_enabled: bool = False
     cpu_parallelism: int = 2
     memory_budget_gb: float | None = None
     estimated_build_memory_gb: float | None = None
     oom_risk: Literal["low", "medium", "high"] = "medium"
     build_args: dict[str, str] = Field(default_factory=dict)
+    optimization_env: dict[str, str] = Field(default_factory=dict)
     buildx_flags: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
@@ -587,7 +610,7 @@ class ArtifactRecord(BaseModel):
     template_hash: str | None = None
     stack_schema_version: int = 1
     profile_schema_version: int = 1
-    block_schema_version: int = 1
+    layer_schema_version: int = 1
     manifest_path: str | None = None
     sbom_path: str | None = None
     profile_snapshot_path: str | None = None

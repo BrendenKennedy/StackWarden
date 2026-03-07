@@ -1,6 +1,6 @@
 import { del, get, post, put } from './client'
 import type {
-  BlockSummary,
+  LayerSummary,
   ProfileSummary,
   StackSummary,
   CatalogItem,
@@ -17,12 +17,14 @@ import type {
   DryRunResponse,
   EnumsMeta,
   CreateContractsResponse,
-  BlockCreatePayload,
+  LayerCreatePayload,
   ComposePreviewResponse,
   CompatibilityPreviewResponse,
+  LayerOptionsClassifyPayload,
+  LayerOptionsClassifyResponse,
   HardwareCatalog,
   HardwareCatalogItem,
-  BlockPresetCatalog,
+  LayerPresetCatalog,
   TupleCatalog,
   SettingsConfigUpdatePayload,
   AuthSessionStatus,
@@ -48,13 +50,15 @@ export const stacks = {
     post<ComposePreviewResponse>('/stacks/compose', payload),
 }
 
-export const blocks = {
-  list: () => get<BlockSummary[]>('/blocks'),
-  getSpec: (id: string) => get<BlockCreatePayload>(`/blocks/${id}/spec`),
-  create: (payload: BlockCreatePayload) => post<CreateResponse>('/blocks', payload),
-  update: (id: string, payload: BlockCreatePayload) => put<CreateResponse>(`/blocks/${id}`, payload),
-  remove: (id: string) => del<{ deleted: boolean; id: string }>(`/blocks/${id}`),
-  dryRun: (payload: BlockCreatePayload) => post<DryRunResponse>('/blocks/dry-run', payload),
+export const layers = {
+  list: () => get<LayerSummary[]>('/layers'),
+  classifyOptions: (payload: LayerOptionsClassifyPayload) =>
+    post<LayerOptionsClassifyResponse>('/layers/options/classify', payload),
+  getSpec: (id: string) => get<LayerCreatePayload>(`/layers/${id}/spec`),
+  create: (payload: LayerCreatePayload) => post<CreateResponse>('/layers', payload),
+  update: (id: string, payload: LayerCreatePayload) => put<CreateResponse>(`/layers/${id}`, payload),
+  remove: (id: string) => del<{ deleted: boolean; id: string }>(`/layers/${id}`),
+  dryRun: (payload: LayerCreatePayload) => post<DryRunResponse>('/layers/dry-run', payload),
 }
 
 export const catalog = {
@@ -127,7 +131,7 @@ export const system = {
 
 export const settings = {
   hardwareCatalogs: () => get<HardwareCatalog>('/settings/hardware-catalogs'),
-  blockCatalog: () => get<BlockPresetCatalog>('/settings/block-catalog'),
+  layerCatalog: () => get<LayerPresetCatalog>('/settings/layer-catalog'),
   tupleCatalog: () => get<TupleCatalog>('/settings/tuple-catalog'),
   updateConfig: (body: SettingsConfigUpdatePayload) => post<SystemConfig>('/settings/config', body),
   recycleServices: () => post<{ started: boolean; pid: number; log_file: string }>('/settings/services/recycle'),

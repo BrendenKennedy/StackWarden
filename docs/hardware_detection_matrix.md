@@ -1,11 +1,10 @@
 # Hardware Detection Fact Matrix
 
-This document tracks local-host hardware facts used by StackWarden profile creation.
-It is intended as the source-of-truth checklist for detection coverage, normalization, and confidence semantics.
+Source-of-truth coverage for hardware facts used during profile detection and guided profile creation.
 
 ## Detection Chain
 
-Detection runs in this order so branch behavior is explicit and testable:
+Detection order (explicit and testable):
 
 1. Bootstrap invariants (`arch`, `os`, `os_family`, `os_version`).
 2. Detect execution context (container hints, Docker availability/runtime visibility, command gates).
@@ -100,12 +99,12 @@ Detection output is reconciled against `specs/rules/hardware_catalog.yaml` for:
 
 Unresolved values are emitted as `unmatched_suggestions` with `{catalog, raw_value, suggested_id}`.
 
-## Investigation Acceptance Checklist
+## Acceptance Checklist
 
 - `stackwarden profiles detect --json` returns deterministic field names and confidence keys.
-- `/api/system/detection-hints` and CLI detection expose the same hardware facts.
+- `/api/system/detection-hints` and CLI detection expose aligned fact surfaces.
 - Probe list includes explicit branch/gate diagnostics (`bootstrap_invariants`, `execution_context`, `os_router`).
-- `resolved_ids` contains canonical IDs when catalog mappings exist.
+- `resolved_ids` includes canonical catalog IDs when mappings exist.
 - `unmatched_suggestions` captures unmapped tokens for catalog expansion.
-- `unknown_rate` tracks unresolved confidence fields and drops as probe quality improves.
+- `unknown_rate` tracks unresolved confidence fields.
 - Guided profile setup writes host facts into `host_facts` without mixing software-intent fields.

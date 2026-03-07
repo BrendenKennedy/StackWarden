@@ -8,14 +8,14 @@ to reduce circular-import risk.
 from __future__ import annotations
 
 from stackwarden.config import (
-    list_block_ids,
+    list_layer_ids,
     list_profile_ids,
     list_stack_ids,
-    load_block,
+    load_layer,
     load_profile,
     load_stack,
 )
-from stackwarden.domain.models import BlockSpec, Profile, StackSpec
+from stackwarden.domain.models import LayerSpec, Profile, StackSpec
 
 
 def load_all_profiles() -> list[Profile]:
@@ -28,6 +28,6 @@ def load_all_stacks() -> list[StackSpec]:
     return [load_stack(sid) for sid in list_stack_ids()]
 
 
-def load_all_blocks() -> list[BlockSpec]:
-    """Load every block spec found on disk."""
-    return [load_block(bid) for bid in list_block_ids()]
+def load_all_layers() -> list[LayerSpec]:
+    """Load every layer spec found on disk."""
+    return [load_layer(lid) for lid in list_layer_ids()]

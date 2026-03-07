@@ -37,7 +37,7 @@ Why it exists:
 
 Standalone ML API services (FastAPI stubs).
 
-Each subdirectory is a self-contained service with a `main.py` entry point:
+Each subdirectory is a self-contained service implementation (entrypoint naming varies by service):
 `agentic_rag_api`, `asr_api`, `diffusion_api`, `embedding_api`, `flux_schnell_api`, `llm_api`, `ollama_chat`, `rag_api`, `tts_api`, `vision_api`.
 
 Why it exists:
@@ -51,7 +51,7 @@ Authored YAML contracts, compatibility catalogs, and runtime configs.
 
 - `specs/profiles/`
 - `specs/stacks/`
-- `specs/blocks/`
+- `specs/layers/`
 - `specs/rules/`
 - `specs/templates/`
 - `specs/configs/`: runtime configuration files (finetune, NeMo, etc.)
@@ -111,7 +111,7 @@ Use these rules when adding files:
 - New Python module used by CLI/API/shared logic -> `packages/stackwarden/src/stackwarden/...`
 - New UI component/view/composable -> `apps/web/src/...`
 - New ML API service -> `services/<service_name>/`
-- New authored stack/profile/block/rule/template/config data -> `specs/...`
+- New authored stack/profile/layer/rule/template/config data -> `specs/...`
 - New generated/compiled resolver output -> `generated/...`
 - New run/deploy shell script or developer utility -> `ops/scripts/...`
 - New service unit/deployment file -> `ops/systemd/...`

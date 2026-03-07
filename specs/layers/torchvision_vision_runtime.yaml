@@ -1,0 +1,22 @@
+kind: layer
+schema_version: 2
+id: torchvision_vision_runtime
+display_name: "TorchVision Vision Runtime"
+stack_layer: inference_engine_layer
+block_kind: runtime
+tags:
+  - vision
+  - classification
+  - segmentation
+  - detector
+  - torchvision
+components:
+  pip:
+    - name: torchvision
+      version: ">=0.20,<0.22"
+    - name: pillow
+      version: ">=10.0,<12.0"
+requires:
+  gpu_vendor: nvidia
+provides:
+  layer: inference_engine_layer

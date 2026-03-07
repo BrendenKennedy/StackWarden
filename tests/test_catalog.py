@@ -2,6 +2,7 @@
 
 
 import pytest
+from sqlalchemy import text
 
 from stackwarden.catalog.store import CatalogStore
 from stackwarden.domain.enums import ArtifactStatus, LicenseSeverity
@@ -160,6 +161,18 @@ class TestArtifacts:
         store.insert_artifact(_artifact(id="a1", tag="t1", status=ArtifactStatus.STALE))
         count = store.prune_by_status(ArtifactStatus.STALE)
         assert count == 1
+
+    def test_prefers_legacy_block_schema_when_layer_schema_is_default(self, store, profile, stack):
+        store.upsert_profile(profile)
+        store.upsert_stack(stack)
+        store.insert_artifact(_artifact(id="a1", tag="t1", layer_schema_version=1))
+        with store._engine.begin() as conn:  # noqa: SLF001
+            conn.execute(text(
+                "UPDATE artifacts SET block_schema_version = 3, layer_schema_version = 1 WHERE id = 'a1'"
+            ))
+        found = store.get_artifact_by_tag("t1")
+        assert found is not None
+        assert found.layer_schema_version == 3
 
 
 class TestComponents:

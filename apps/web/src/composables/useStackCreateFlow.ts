@@ -1,13 +1,15 @@
 import { computed, onUnmounted, reactive, ref, watch } from 'vue'
-import { blocks as blocksApi, stacks as stacksApi, meta as metaApi, settings as settingsApi, system as systemApi } from '@/api/endpoints'
+import { layers as layersApi, profiles as profilesApi, stacks as stacksApi, meta as metaApi, settings as settingsApi, system as systemApi } from '@/api/endpoints'
 import type {
-  BlockSummary,
-  BlockPresetCatalog,
+  LayerSummary,
+  ProfileSummary,
+  LayerPresetCatalog,
   CreateContractsResponse,
   EnumsMeta,
   StackCreatePayload,
   ValidationError as VError,
 } from '@/api/types'
+import { resolveCreateSchemaVersion } from '@/api/schemaVersions'
 import { useEntityCreateFlow } from '@/composables/useEntityCreateFlow'
 import { toUserErrorMessage } from '@/utils/errors'
 
@@ -20,11 +22,12 @@ export function useStackCreateFlow(options: Options = {}) {
     task: [], serve: [], api: [], arch: [], build_strategy: [], container_runtime: [],
   })
 
-  const availableBlocks = ref<BlockSummary[]>([])
+  const availableLayers = ref<LayerSummary[]>([])
+  const availableProfiles = ref<ProfileSummary[]>([])
   const metadataLoaded = ref(false)
   const authEnabled = ref(true)
   const createContracts = ref<CreateContractsResponse | null>(null)
-  const blockCatalog = ref<BlockPresetCatalog | null>(null)
+  const layerCatalog = ref<LayerPresetCatalog | null>(null)
 
   const form = reactive({
     id: '',
@@ -32,7 +35,8 @@ export function useStackCreateFlow(options: Options = {}) {
     description: '',
     build_strategy: '',
     base_role: '',
-    blocks: [] as string[],
+    target_profile_id: '',
+    layers: [] as string[],
     copy_items: [] as { src: string; dst: string }[],
     variants: {} as Record<string, { type: 'bool' | 'enum'; options: string[]; default: string | boolean }>,
   })
@@ -50,26 +54,29 @@ export function useStackCreateFlow(options: Options = {}) {
   const canCreate = computed(() =>
     form.id !== '' &&
     form.display_name !== '' &&
-    form.blocks.length > 0,
+    form.target_profile_id !== '' &&
+    form.layers.length > 0,
   )
 
   async function loadMetadata() {
     flow.generalError.value = null
     try {
-      const [enumData, sysConfig, blockData, contracts] = await Promise.all([
+      const [enumData, sysConfig, layerData, profileData, contracts] = await Promise.all([
         metaApi.enums(),
         systemApi.config(),
-        blocksApi.list(),
+        layersApi.list(),
+        profilesApi.list(),
         metaApi.createContracts('v3').catch(() => null),
       ])
       Object.assign(enums, enumData)
       authEnabled.value = sysConfig.auth_enabled
-      availableBlocks.value = blockData
+      availableLayers.value = layerData
+      availableProfiles.value = profileData
       createContracts.value = contracts
       try {
-        blockCatalog.value = await settingsApi.blockCatalog()
+        layerCatalog.value = await settingsApi.layerCatalog()
       } catch {
-        blockCatalog.value = null
+        layerCatalog.value = null
       }
       metadataLoaded.value = true
     } catch (err: unknown) {
@@ -79,9 +86,9 @@ export function useStackCreateFlow(options: Options = {}) {
   }
 
   watch(
-    () => [...form.blocks],
+    () => [...form.layers],
     async () => {
-      if (form.blocks.length > 0) {
+      if (form.layers.length > 0) {
         if (composeDebounceTimer.value !== null) {
           window.clearTimeout(composeDebounceTimer.value)
         }
@@ -98,16 +105,22 @@ export function useStackCreateFlow(options: Options = {}) {
     const resolvedDisplayName = (form.display_name || '').trim() || 'Draft Stack'
 
     return {
-      schema_version: 3,
+      schema_version: resolveCreateSchemaVersion('stack', createContracts.value),
       kind: 'stack_recipe',
       id: resolvedId,
       display_name: resolvedDisplayName,
+      target_profile_id: form.target_profile_id,
       description: (form.description || '').trim(),
-      blocks: [...form.blocks],
+      layers: [...form.layers],
       build_strategy: form.build_strategy,
       base_role: form.base_role,
       copy_items: form.copy_items.filter(c => c.src),
       variants: form.variants,
+      requirements: {
+        needs: [],
+        optimize_for: [],
+        constraints: { target_profile_id: form.target_profile_id },
+      },
     }
   }
 
@@ -165,7 +178,8 @@ export function useStackCreateFlow(options: Options = {}) {
     form.description = ''
     form.build_strategy = ''
     form.base_role = ''
-    form.blocks = []
+    form.target_profile_id = ''
+    form.layers = []
     form.copy_items = []
     form.variants = {}
     flow.resetFlowState()
@@ -191,8 +205,9 @@ export function useStackCreateFlow(options: Options = {}) {
   return {
     enums,
     form,
-    availableBlocks,
-    blockCatalog,
+    availableLayers,
+    availableProfiles,
+    layerCatalog,
     authEnabled,
     createContracts,
     metadataLoaded,

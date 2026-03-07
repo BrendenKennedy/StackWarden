@@ -29,14 +29,14 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { blocks as blocksApi, profiles as profilesApi, stacks as stacksApi } from '@/api/endpoints'
+import { layers as layersApi, profiles as profilesApi, stacks as stacksApi } from '@/api/endpoints'
 import { toUserErrorMessage } from '@/utils/errors'
 import { ApiError } from '@/api/client'
 import { useModalFocusTrap } from '@/composables/useModalFocusTrap'
 
 const props = defineProps<{
   show: boolean
-  entity: 'profiles' | 'stacks' | 'blocks'
+  entity: 'profiles' | 'stacks' | 'layers'
   id: string | null
 }>()
 
@@ -61,7 +61,7 @@ async function loadSpec() {
     let spec: any
     if (props.entity === 'profiles') spec = await profilesApi.getSpec(props.id)
     else if (props.entity === 'stacks') spec = await stacksApi.getSpec(props.id)
-    else spec = await blocksApi.getSpec(props.id)
+    else spec = await layersApi.getSpec(props.id)
     raw.value = JSON.stringify(spec, null, 2)
   } catch (e: unknown) {
     error.value = toUserErrorMessage(e)
@@ -78,7 +78,7 @@ async function save() {
     const payload = JSON.parse(raw.value)
     if (props.entity === 'profiles') await profilesApi.update(props.id, payload)
     else if (props.entity === 'stacks') await stacksApi.update(props.id, payload)
-    else await blocksApi.update(props.id, payload)
+    else await layersApi.update(props.id, payload)
     emit('saved')
     emit('close')
   } catch (e: unknown) {

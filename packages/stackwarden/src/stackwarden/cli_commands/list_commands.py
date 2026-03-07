@@ -1,4 +1,4 @@
-"""List subcommand implementations (profiles, stacks, blocks)."""
+"""List subcommand implementations (profiles, stacks, layers)."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ def register_list_commands(
     setup_fn: Callable[[bool], None],
     console,
 ) -> tuple[Callable[..., None], Callable[..., None], Callable[..., None]]:
-    """Register list profiles, stacks, blocks. Returns (list_profiles, list_stacks, list_blocks)."""
+    """Register list profiles, stacks, layers. Returns list command callables."""
 
     @list_app.command("profiles")
     def list_profiles(
@@ -69,7 +69,7 @@ def register_list_commands(
             return {
                 "id": s.id,
                 "display_name": s.display_name,
-                "blocks": list(getattr(s, "blocks", []) or []),
+                "layers": list(getattr(s, "layers", []) or []),
                 "source": o.get("source"),
                 "source_path": o.get("source_path"),
                 "source_repo_url": o.get("source_repo_url"),
@@ -80,24 +80,24 @@ def register_list_commands(
             ("ID", "cyan", lambda s, o: s.id),
             ("Display Name", None, lambda s, o: s.display_name),
             ("Source", None, lambda s, o: format_source_label(o)),
-            ("Blocks", None, lambda s, o: str(len(getattr(s, "blocks", []) or []))),
+            ("Layers", None, lambda s, o: str(len(getattr(s, "layers", []) or []))),
         ]
         render_entity_list(
             console, ids, load_stack, origin_map,
             output_json, to_json, "Stack Specs", columns,
         )
 
-    @list_app.command("blocks")
-    def list_blocks(
+    @list_app.command("layers")
+    def list_layers(
         verbose: bool = verbose_option,
         output_json: bool = json_option,
     ) -> None:
-        """List available stack blocks."""
+        """List available stack layers."""
         setup_fn(verbose)
-        from stackwarden.config import get_block_origins, list_block_ids, load_block
+        from stackwarden.config import get_layer_origins, list_layer_ids, load_layer
 
-        ids = list_block_ids()
-        origin_map = get_block_origins(ids)
+        ids = list_layer_ids()
+        origin_map = get_layer_origins(ids)
 
         def to_json(b, o):
             return {
@@ -117,8 +117,8 @@ def register_list_commands(
             ("Tags", None, lambda b, o: ", ".join(b.tags)),
         ]
         render_entity_list(
-            console, ids, load_block, origin_map,
-            output_json, to_json, "Stack Blocks", columns,
+            console, ids, load_layer, origin_map,
+            output_json, to_json, "Stack Layers", columns,
         )
 
-    return list_profiles, list_stacks, list_blocks
+    return list_profiles, list_stacks, list_layers

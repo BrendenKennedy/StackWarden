@@ -23,7 +23,13 @@ from stackwarden.web.schemas import (
     JobSummaryDTO,
     RetryWithFixResponseDTO,
 )
-from stackwarden.config import compatibility_strict_default, load_block, load_profile, load_stack
+from stackwarden.config import (
+    compatibility_strict_default,
+    load_layer,
+    load_profile,
+    load_stack,
+    strict_host_optimization_default,
+)
 from stackwarden.domain.variants import validate_variant_flags
 from stackwarden.resolvers.resolver import resolve
 from stackwarden.web.jobs.helpers import get_failure_context
@@ -68,15 +74,16 @@ async def ensure_build(
     # Fail fast before enqueueing long-running build jobs.
     profile = load_profile(body.profile_id)
     stack = load_stack(body.stack_id)
-    block_specs = [load_block(block_id) for block_id in (stack.blocks or [])]
+    layer_specs = [load_layer(layer_id) for layer_id in (stack.layers or [])]
     if body.variants:
         validate_variant_flags(stack, body.variants)
     plan = resolve(
         profile,
         stack,
-        blocks=block_specs,
+        layers=layer_specs,
         variants=body.variants,
         strict_mode=compatibility_strict_default(),
+        strict_host_optimization=strict_host_optimization_default(),
     )
     requested_memory_gb = 2.0
     if plan.decision.build_optimization and plan.decision.build_optimization.estimated_build_memory_gb:

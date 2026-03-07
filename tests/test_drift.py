@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from stackwarden.domain.drift import DriftReason, detect_drift, drift_summary, is_stale
 from stackwarden.domain.enums import ArtifactStatus
 from stackwarden.domain.models import (
@@ -84,6 +82,27 @@ class TestDetectDrift:
         labels = {**plan.artifact.labels, "stackwarden.schema_version": "1"}
         reasons = detect_drift(labels, _record(), plan)
         assert DriftReason.STACK_SCHEMA_CHANGED in reasons
+
+    def test_layer_schema_uses_primary_label(self):
+        plan = _plan()
+        plan.artifact.labels["stackwarden.layer_schema_version"] = "2"
+        labels = {
+            **plan.artifact.labels,
+            "stackwarden.layer_schema_version": "1",
+            "stackwarden.block_schema_version": "2",
+        }
+        reasons = detect_drift(labels, _record(layer_schema_version=2), plan)
+        assert DriftReason.BLOCK_SCHEMA_CHANGED in reasons
+
+    def test_layer_schema_falls_back_to_legacy_label(self):
+        plan = _plan()
+        plan.artifact.labels["stackwarden.block_schema_version"] = "2"
+        labels = {
+            **plan.artifact.labels,
+            "stackwarden.block_schema_version": "1",
+        }
+        reasons = detect_drift(labels, _record(layer_schema_version=2), plan)
+        assert DriftReason.BLOCK_SCHEMA_CHANGED in reasons
 
     def test_builder_version_changed(self):
         plan = _plan()

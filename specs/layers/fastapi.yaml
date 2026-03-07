@@ -1,0 +1,21 @@
+kind: layer
+schema_version: 2
+id: fastapi
+display_name: "FastAPI API layer"
+stack_layer: serving_layer
+block_kind: api
+tags:
+  - api
+  - python
+components:
+  pip:
+    - name: "fastapi"
+      version: "==0.115.*"
+    - name: "uvicorn"
+      version: "[standard]==0.30.*"
+ports:
+  - 8000
+requires:
+  os: linux
+provides:
+  api: fastapi

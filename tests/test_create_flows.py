@@ -115,6 +115,59 @@ class TestNormalizeProfileRequest:
         result = normalize_profile_request(req)
         assert "Ignored user-supplied derived_capabilities" in result.decision_trace[-1]
 
+    def test_enriches_base_candidates_when_missing(self):
+        req = _minimal_profile_req(base_candidates=[])
+        result = normalize_profile_request(req)
+        assert len(result.base_candidates) >= 1
+        assert any("Auto-enriched base_candidates" in msg for msg in result.decision_trace)
+
+    def test_derives_capabilities_from_detected_hardware_when_needs_empty(self):
+        req = _minimal_profile_req(
+            arch="arm64",
+            os_version_id="ubuntu_24_04",
+            gpu=GpuCreateDTO(
+                vendor="nvidia",
+                family="blackwell",
+                vendor_id="nvidia",
+                family_id="blackwell",
+                model_id="nvidia_gb10",
+            ),
+            cuda=CudaCreateDTO(major=13, minor=0, variant="cuda13.0"),
+            base_candidates=[],
+        )
+        result = normalize_profile_request(req)
+        assert "cuda" in result.derived_capabilities
+        assert "tensor_cores" in result.derived_capabilities
+        assert "fp8" in result.derived_capabilities
+        assert "unified_memory" in result.derived_capabilities
+        assert any("Auto-derived capabilities" in msg for msg in result.decision_trace)
+
+    def test_normalizes_os_fields_and_optimize_for_defaults(self):
+        req = _minimal_profile_req(
+            os_family=None,
+            os_version=None,
+            os_family_id="ubuntu",
+            os_version_id="ubuntu_24_04",
+            requirements={"needs": [], "optimize_for": [], "constraints": {}},
+        )
+        result = normalize_profile_request(req)
+        assert result.os_family == "ubuntu"
+        assert result.os_version == "24.04"
+        assert result.requirements.optimize_for == ["latency", "throughput"]
+
+    def test_uses_curated_dgx_optimize_for_defaults_for_hopper(self):
+        req = _minimal_profile_req(
+            gpu=GpuCreateDTO(
+                vendor="nvidia",
+                family="hopper",
+                vendor_id="nvidia",
+                family_id="hopper",
+            ),
+            requirements={"needs": [], "optimize_for": [], "constraints": {}},
+        )
+        result = normalize_profile_request(req)
+        assert result.requirements.optimize_for == ["throughput", "latency", "reproducibility"]
+
 
 # ---------------------------------------------------------------------------
 # build_* functions

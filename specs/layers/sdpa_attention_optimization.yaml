@@ -1,0 +1,15 @@
+kind: layer
+schema_version: 2
+id: sdpa_attention_optimization
+display_name: "PyTorch SDPA Attention Optimization"
+stack_layer: optimization_compilation_layer
+block_kind: accelerator
+tags:
+  - optimization
+  - attention
+  - sdpa
+  - pytorch
+requires:
+  gpu_vendor: nvidia
+provides:
+  layer: optimization_compilation_layer

@@ -5,11 +5,12 @@ import JobsView from './views/JobsView.vue'
 import SettingsView from './views/SettingsView.vue'
 import ProfilesView from './views/ProfilesView.vue'
 import StacksView from './views/StacksView.vue'
-import BlocksView from './views/BlocksView.vue'
+import LayersView from './views/LayersView.vue'
 import DashboardView from './views/DashboardView.vue'
 import LoginView from './views/LoginView.vue'
 import SetupAdminView from './views/SetupAdminView.vue'
 import { useAuthSession } from './composables/useAuthSession'
+import { formatBlocksRouteDeprecation, isLegacyBlocksRoute } from './routerDeprecations'
 
 const routes = [
   { path: '/', redirect: '/catalog' },
@@ -27,13 +28,17 @@ const routes = [
   { path: '/stacks/new', name: 'create-stack', redirect: '/stacks?create=1' },
   { path: '/stacks/:id', redirect: '/stacks' },
   { path: '/stacks/:id/edit', redirect: '/stacks' },
-  { path: '/blocks', name: 'blocks', component: BlocksView },
-  { path: '/blocks/new', redirect: '/blocks?create=1' },
-  { path: '/blocks/:id', redirect: '/blocks' },
-  { path: '/blocks/:id/edit', redirect: '/blocks' },
+  { path: '/layers', name: 'layers', component: LayersView },
+  { path: '/layers/new', redirect: '/layers?create=1' },
+  { path: '/layers/:id', redirect: '/layers' },
+  { path: '/layers/:id/edit', redirect: '/layers' },
+  { path: '/blocks', redirect: '/layers' },
+  { path: '/blocks/new', redirect: '/layers?create=1' },
+  { path: '/blocks/:id', redirect: '/layers' },
+  { path: '/blocks/:id/edit', redirect: '/layers' },
   { path: '/create/profile', redirect: '/profiles?create=1' },
   { path: '/create/stack', redirect: '/stacks?create=1' },
-  { path: '/create/block', redirect: '/blocks?create=1' },
+  { path: '/create/block', redirect: '/layers?create=1' },
   { path: '/jobs', name: 'jobs', component: JobsView },
   { path: '/jobs/:id', name: 'job-detail', component: JobsView, props: true },
   { path: '/settings', name: 'settings', component: SettingsView },
@@ -51,7 +56,15 @@ const router = createRouter({
   routes,
 })
 
+let warnedLegacyBlocksRoute = false
+
 router.beforeEach(async (to) => {
+  const redirectedFromPath = to.redirectedFrom?.path
+  if (!warnedLegacyBlocksRoute && isLegacyBlocksRoute(redirectedFromPath)) {
+    warnedLegacyBlocksRoute = true
+    console.warn(formatBlocksRouteDeprecation(redirectedFromPath))
+  }
+
   if (to.name === 'not-found') return true
   const { refreshStatus, status } = useAuthSession()
   let session = status.value

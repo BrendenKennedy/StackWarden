@@ -26,11 +26,24 @@ def test_frontend_endpoint_shapes_match_backend_runtime(tmp_path) -> None:
     endpoints = (repo / "apps" / "web" / "src" / "api" / "endpoints.ts").read_text(
         encoding="utf-8"
     )
+    schema_versions = (repo / "apps" / "web" / "src" / "api" / "schemaVersions.ts").read_text(
+        encoding="utf-8"
+    )
     assert (
         "health: () => get<{ ok: boolean }>('/health')" in endpoints
         or 'health: () => get<{ ok: boolean }>("/health")' in endpoints
     )
-    assert "cancel: (id: string) => post<{ canceled: boolean; job_id: string }>" in endpoints
+    assert "cancel: (id: string)" in endpoints
+    assert "post<{ canceled: boolean; job_id: string; detail: string }>(`/jobs/${id}/cancel`)" in endpoints
+    assert "createContracts: (schema: 'v1' | 'v2' | 'v3' = 'v3')" in endpoints
+    assert "tupleCatalog: () => get<TupleCatalog>('/settings/tuple-catalog')" in endpoints
+    assert "classifyOptions: (payload: LayerOptionsClassifyPayload)" in endpoints
+    assert "'/blocks'" not in endpoints
+    assert '"/blocks"' not in endpoints
+    assert "profile: 3" in schema_versions
+    assert "stack: 3" in schema_versions
+    assert "layer: 2" in schema_versions
+    assert "resolveCreateSchemaVersion(" in schema_versions
 
     with patch.dict(
         os.environ,
@@ -51,8 +64,33 @@ def test_frontend_endpoint_shapes_match_backend_runtime(tmp_path) -> None:
         assert health.status_code == 200
         assert health.json() == {"ok": True}
 
+        setup = client.post("/api/auth/setup", json={"username": "sync", "password": "sync-pass-123"})
+        assert setup.status_code == 200
+        assert setup.json().get("authenticated") is True
+
         job = manager.create_job(profile_id="p-sync", stack_id="s-sync", variants=None, flags={})
         cancel = client.post(f"/api/jobs/{job.job_id}/cancel")
         assert cancel.status_code == 200
         payload = cancel.json()
         assert set(payload.keys()) >= {"canceled", "job_id"}
+
+        contracts_v1 = client.get("/api/meta/create-contracts")
+        assert contracts_v1.status_code == 200
+        body_v1 = contracts_v1.json()
+        assert body_v1["profile"]["defaults"]["schema_version"] == 1
+        assert body_v1["stack"]["defaults"]["schema_version"] == 1
+        assert body_v1["layer"]["defaults"]["schema_version"] == 2
+
+        contracts_v2 = client.get("/api/meta/create-contracts", params={"schema": "v2"})
+        assert contracts_v2.status_code == 200
+        body_v2 = contracts_v2.json()
+        assert body_v2["profile"]["defaults"]["schema_version"] == 2
+        assert body_v2["stack"]["defaults"]["schema_version"] == 2
+        assert body_v2["layer"]["defaults"]["schema_version"] == 2
+
+        contracts_v3 = client.get("/api/meta/create-contracts", params={"schema": "v3"})
+        assert contracts_v3.status_code == 200
+        body_v3 = contracts_v3.json()
+        assert body_v3["profile"]["defaults"]["schema_version"] == 3
+        assert body_v3["stack"]["defaults"]["schema_version"] == 3
+        assert body_v3["layer"]["defaults"]["schema_version"] == 2

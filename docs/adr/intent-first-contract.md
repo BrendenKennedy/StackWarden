@@ -1,21 +1,21 @@
-# ADR: Blocks-First Declarative Derivation Contract
+# ADR: Layers-First Declarative Derivation Contract
 
 ## Status
 Accepted (Phase 0 baseline)
 
 ## Context
-StackWarden currently accepts a mix of user-authored capability data and detected host facts, then resolves compatible stacks and builds. As features grow, implementation details are leaking into user input, making onboarding and explainability harder.
+StackWarden accepts user-authored intent plus detected host facts, then resolves compatible stacks and builds. This ADR keeps that contract explicit so onboarding and explainability remain strong as features evolve.
 
-This ADR defines the blocks-first contract:
-- User intent is declared by selecting `stack.blocks`.
+This ADR defines the layers-first contract:
+- User intent is declared by selecting `stack.layers`.
 - Profiles describe host facts and policy restrictions.
 - System derives implementation outputs deterministically.
 
 ## Contract Statement
-Users declare desired functionality by choosing **blocks**; StackWarden derives compatible implementation details from block requirements, host facts, and restrictions, and records a **decision_trace** for every derived output.
+Users declare desired functionality by choosing **layers**; StackWarden derives compatible implementation details from layer requirements, host facts, and restrictions, and records a **decision_trace** for every derived output.
 
 ## Frozen Terminology
-- `blocks`: primary user intent contract.
+- `layers`: primary user intent contract.
 - `intent`: optional metadata, not the primary user contract.
 - `requirements`: optional metadata, not the primary user contract.
 - `derived_capabilities`: system-computed capabilities used for compatibility and planning.
@@ -23,7 +23,7 @@ Users declare desired functionality by choosing **blocks**; StackWarden derives 
 - `decision_trace`: ordered rationale statements describing why values were derived or selected.
 
 ## Ownership Model
-- **User-authored input:** `stack.blocks`, explicit profile restrictions, optional metadata/legacy fields.
+- **User-authored input:** `stack.layers`, explicit profile restrictions, optional metadata/legacy fields.
 - **System-derived output:** `derived_capabilities`, selected/rejected feature candidates, fix suggestions, and `decision_trace`.
 - **Observed facts:** `host_facts` (detected/inferred/unknown confidence attached per field).
 
@@ -46,23 +46,38 @@ If two sources conflict, the higher-precedence source wins and the conflict is r
 
 ### Example A: GPU host with strong detection
 - Host reports NVIDIA runtime and CUDA-compatible driver.
-- User selects blocks that require GPU acceleration.
+- User selects layers that require GPU acceleration.
 - System derives `derived_capabilities` including `cuda`.
 - `decision_trace` captures host/runtime evidence and any fallback decisions.
 
 ### Example B: CPU-only host
 - Host facts indicate no GPU runtime.
-- User selects generic service blocks.
+- User selects generic service layers.
 - System derives CPU-safe capability set with no CUDA dependency.
 - `decision_trace` records GPU absence and selected non-GPU path.
 
 ### Example C: Partial/uncertain detection
 - Host facts include unknown runtime version confidence.
-- User selects blocks and strict profile restrictions.
+- User selects layers and strict profile restrictions.
 - System derives conservative defaults and emits fix suggestions.
 - `decision_trace` includes uncertainty and reason for conservative selection.
 
 ## Consequences
-- UX can simplify around block selection while preserving an advanced override path.
+- UX can simplify around layer selection while preserving an advanced override path.
 - Resolver and compatibility checks can converge on derived outputs instead of ad hoc/manual capability gating.
 - Explainability becomes a first-class API contract rather than an optional debug artifact.
+
+## Scope Boundary: Curated DGX First
+- **Primary production path:** curated DGX profiles, tuples, and layer compatibility rules are the authoritative defaults for NVIDIA DGX deployments.
+- **Secondary portability path:** auto-optimization remains available for heterogeneous or unknown hardware as best-effort guidance.
+- **Resolver charter:** resolver outputs must remain deterministic and explainable, and every heuristic decision must be represented in `decision_trace` and plan metadata.
+
+## Explicit Limitation Statement
+- Auto-optimization is heuristic and intentionally bounded. It is not a global tuner and does not guarantee optimal performance for every hardware/workload combination.
+- For production-grade reproducibility, curated profile/rule defaults override heuristic suggestions when conflicts exist.
+
+## DGX-First Catalog Policy
+- Bundled stacks use a mixed catalog model:
+  - `dgx_certified`: curated path intended for DGX-first deployments.
+  - `generic_best_effort`: portable path that is allowed but not guaranteed to be performance-optimal outside curated DGX targets.
+- Default behavior for non-DGX profiles remains **warn + allow** for DGX-certified stacks. Compatibility should emit an explicit warning and decision trace entry instead of hard-blocking by default.

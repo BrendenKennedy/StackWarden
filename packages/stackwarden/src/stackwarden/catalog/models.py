@@ -63,6 +63,8 @@ class ArtifactRow(Base):
     template_hash = Column(String, nullable=True)
     stack_schema_version = Column(Integer, default=1)
     profile_schema_version = Column(Integer, default=1)
+    layer_schema_version = Column(Integer, default=1)
+    # Legacy compatibility column kept during Blocks->Layers migration.
     block_schema_version = Column(Integer, default=1)
     status = Column(String, nullable=False, default="planned")
     manifest_path = Column(String, nullable=True)

@@ -48,15 +48,6 @@
             </svg>
             <span class="sidebar-nav-label">Catalog</span>
           </router-link>
-          <router-link to="/profiles" aria-label="Profiles" title="Profiles" @click="isSidebarOpen = false">
-            <svg viewBox="0 0 24 24" class="sidebar-nav-icon" aria-hidden="true">
-              <path d="M16 21V19C16 17.34 14.66 16 13 16H7C5.34 16 4 17.34 4 19V21" />
-              <circle cx="10" cy="10" r="3" />
-              <path d="M20 8V14" />
-              <path d="M23 11H17" />
-            </svg>
-            <span class="sidebar-nav-label">Profiles</span>
-          </router-link>
           <router-link to="/stacks" aria-label="Stacks" title="Stacks" @click="isSidebarOpen = false">
             <svg viewBox="0 0 24 24" class="sidebar-nav-icon" aria-hidden="true">
               <path d="M12 3L3 8L12 13L21 8L12 3Z" />
@@ -65,14 +56,20 @@
             </svg>
             <span class="sidebar-nav-label">Stacks</span>
           </router-link>
-          <router-link to="/blocks" aria-label="Blocks" title="Blocks" @click="isSidebarOpen = false">
+          <router-link to="/layers" aria-label="Layers" title="Layers" @click="isSidebarOpen = false">
             <svg viewBox="0 0 24 24" class="sidebar-nav-icon" aria-hidden="true">
-              <rect x="4" y="4" width="7" height="7" rx="1.5" />
-              <rect x="13" y="4" width="7" height="7" rx="1.5" />
-              <rect x="4" y="13" width="7" height="7" rx="1.5" />
-              <rect x="13" y="13" width="7" height="7" rx="1.5" />
+              <path d="M12 6L4 10L12 14L20 10L12 6Z" />
             </svg>
-            <span class="sidebar-nav-label">Blocks</span>
+            <span class="sidebar-nav-label">Layers</span>
+          </router-link>
+          <router-link to="/profiles" aria-label="Profiles" title="Profiles" @click="isSidebarOpen = false">
+            <svg viewBox="0 0 24 24" class="sidebar-nav-icon" aria-hidden="true">
+              <path d="M16 21V19C16 17.34 14.66 16 13 16H7C5.34 16 4 17.34 4 19V21" />
+              <circle cx="10" cy="10" r="3" />
+              <path d="M20 8V14" />
+              <path d="M23 11H17" />
+            </svg>
+            <span class="sidebar-nav-label">Profiles</span>
           </router-link>
         </div>
         <div class="sidebar-nav-bottom">

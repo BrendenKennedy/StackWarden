@@ -45,6 +45,67 @@
           </div>
         </div>
 
+        <div v-if="currentStep === 'inference_recommendation'" class="wizard-step">
+          <h4>Inference Recommendation</h4>
+          <div class="wizard-detail stack-warning-top-md">
+            <p>Pick target hardware profile and workload to pre-select recommended layers. You can reorder/remove layers before submit.</p>
+          </div>
+          <div v-if="showBestEffortWarning" class="wizard-warning stack-warning-top-md">
+            Non-DGX target profile selected. DGX-certified stack paths are best-effort on this profile.
+          </div>
+          <div v-if="showBestEffortWarning" class="wizard-warning stack-warning-top-md">
+            Non-DGX target profile selected. DGX-certified stack paths are best-effort on this profile.
+          </div>
+          <div v-if="showBestEffortWarning" class="wizard-warning stack-warning-top-md">
+            Non-DGX target profile selected. DGX-certified stack paths are best-effort on this profile.
+          </div>
+          <div class="row full">
+            <div>
+              <label :class="{ required: true }">Target Hardware Profile</label>
+              <select v-model="form.target_profile_id">
+                <option value="">Select target profile</option>
+                <option v-for="profile in availableProfiles" :key="profile.id" :value="profile.id">
+                  {{ profile.id }} - {{ profile.display_name }}
+                </option>
+              </select>
+              <p v-if="availableProfiles.length === 0" class="help help-gap-xs">
+                No profiles found. Create a profile first to continue.
+              </p>
+            </div>
+          </div>
+          <div class="row two">
+            <div>
+              <label>Inference Type</label>
+              <select v-model="inferenceType">
+                <option value="general">General</option>
+                <option value="llm">LLM</option>
+                <option value="diffusion">Diffusion</option>
+                <option value="vision">Vision</option>
+                <option value="asr">ASR</option>
+                <option value="tts">TTS</option>
+              </select>
+            </div>
+            <div>
+              <label>Performance Profile</label>
+              <select v-model="inferenceProfile">
+                <option value="balanced">Balanced</option>
+                <option value="latency">Low Latency</option>
+                <option value="throughput">High Throughput</option>
+              </select>
+            </div>
+          </div>
+          <div class="wizard-info stack-warning-top-lg">
+            <strong>Recommended Layers</strong>
+            <ul v-if="recommendedLayerIds.length" class="compact-list">
+              <li v-for="layerId in recommendedLayerIds" :key="layerId">{{ layerId }}</li>
+            </ul>
+            <p v-else class="help">No auto-recommendations found for this combination.</p>
+          </div>
+          <button class="btn stack-warning-top-md" @click="applyRecommendations">
+            Apply Recommendations
+          </button>
+        </div>
+
         <div v-if="currentLayerStep" class="wizard-step">
           <div class="wizard-detail stack-warning-top-md">
             <p><strong>Purpose:</strong> {{ currentLayerStep.purpose }}</p>
@@ -62,32 +123,72 @@
             </div>
             <div class="form-row">
               <select v-model="selectedByLayer[currentLayerStep.id]" class="stack-layer-select">
-                <option value="">Select block</option>
-                <option v-for="opt in currentLayerStep.options" :key="opt.id" :value="opt.id">
-                  {{ opt.id }} - {{ opt.display_name }}
-                </option>
+                <option value="">Select layer</option>
+                <optgroup
+                  v-if="recommendedOptions(currentLayerStep.id).length"
+                  label="Recommended"
+                >
+                  <option
+                    v-for="opt in recommendedOptions(currentLayerStep.id)"
+                    :key="`rec-${opt.id}`"
+                    :value="opt.id"
+                  >
+                    {{ optionLabel(opt) }}
+                  </option>
+                </optgroup>
+                <optgroup label="Everything else">
+                  <option
+                    v-for="opt in everythingElseOptions(currentLayerStep.id)"
+                    :key="`all-${opt.id}`"
+                    :value="opt.id"
+                  >
+                    {{ optionLabel(opt) }}
+                  </option>
+                </optgroup>
               </select>
-              <button class="btn" @click="addBlockFromLayer(currentLayerStep.id)" :disabled="!selectedByLayer[currentLayerStep.id]">Add</button>
+              <button class="btn" @click="addLayerFromGroup(currentLayerStep.id)" :disabled="!selectedByLayer[currentLayerStep.id]">Add</button>
             </div>
+            <p v-if="classifyLoading" class="help help-gap-xs">Refreshing recommendations...</p>
+            <p
+              v-if="selectedByLayer[currentLayerStep.id] && optionReason(currentLayerStep.id, selectedByLayer[currentLayerStep.id])"
+              class="help help-gap-xs"
+            >
+              {{ optionReason(currentLayerStep.id, selectedByLayer[currentLayerStep.id]) }}
+            </p>
             <p v-if="currentLayerStep.options.length === 0" class="help help-gap-sm">
-              No recommended blocks mapped for this layer yet.
+              No layer options available for this group.
             </p>
           </div>
           <div class="dependency-group">
             <div class="dependency-group-header">
-              <label class="wizard-label-inline">Selected Blocks (ordered)</label>
+              <label class="wizard-label-inline">Selected Layers (ordered)</label>
             </div>
-            <p v-if="form.blocks.length === 0" class="help">No blocks selected yet.</p>
+            <p v-if="form.layers.length === 0" class="help">No layers selected yet.</p>
             <div
-              v-for="(blockId, index) in form.blocks"
-              :key="`${blockId}-${index}`"
+              v-for="(layerId, index) in form.layers"
+              :key="`${layerId}-${index}`"
               class="form-row stack-block-row"
             >
-              <code class="stack-block-code">{{ index + 1 }}. {{ blockId }}</code>
-              <button class="btn" @click="moveBlockUp(index)" :disabled="index === 0">↑</button>
-              <button class="btn" @click="moveBlockDown(index)" :disabled="index === form.blocks.length - 1">↓</button>
-              <button class="btn dynamic-list-remove" @click="removeBlock(index)" title="Remove">&times;</button>
+              <code class="stack-block-code">{{ index + 1 }}. {{ layerId }}</code>
+              <button class="btn" @click="moveLayerUp(index)" :disabled="index === 0">↑</button>
+              <button class="btn" @click="moveLayerDown(index)" :disabled="index === form.layers.length - 1">↓</button>
+              <button class="btn dynamic-list-remove" @click="removeLayer(index)" title="Remove">&times;</button>
             </div>
+          </div>
+        </div>
+
+        <div v-if="currentStep === 'selection_review'" class="wizard-step">
+          <h4>Review Selected Layers</h4>
+          <p v-if="form.layers.length === 0" class="help">No layers selected yet.</p>
+          <div
+            v-for="(layerId, index) in form.layers"
+            :key="`review-${layerId}-${index}`"
+            class="form-row stack-block-row"
+          >
+            <code class="stack-block-code">{{ index + 1 }}. {{ layerId }}</code>
+            <button class="btn" @click="moveLayerUp(index)" :disabled="index === 0">↑</button>
+            <button class="btn" @click="moveLayerDown(index)" :disabled="index === form.layers.length - 1">↓</button>
+            <button class="btn dynamic-list-remove" @click="removeLayer(index)" title="Remove">&times;</button>
           </div>
         </div>
 
@@ -126,9 +227,19 @@
             <strong>Summary</strong>
             <ul class="compact-list">
               <li>Build strategy: {{ form.build_strategy || 'default' }}</li>
+              <li>Inference type/profile: {{ inferenceType }} / {{ inferenceProfile }}</li>
+              <li>Selected layers: {{ form.layers.length }}</li>
               <li>Inferred env vars: {{ inferredEnv.length }}</li>
               <li>Inferred ports: {{ inferredPorts.length }}</li>
               <li>Files copied: {{ form.copy_items.length }}</li>
+            </ul>
+          </div>
+          <div v-if="incompatibleSelectedLayers.length" class="wizard-warning stack-warning-top-md">
+            <strong>Selected layer compatibility warnings</strong>
+            <ul class="compact-list">
+              <li v-for="item in incompatibleSelectedLayers" :key="`warn-${item.id}`">
+                {{ item.id }}: {{ item.reason }}
+              </li>
             </ul>
           </div>
           <div v-if="composing" class="wizard-detail">Updating composed runtime preview...</div>
@@ -177,8 +288,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
-import type { BlockPresetCatalog, BlockSummary, CreateContractsResponse } from '@/api/types'
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
+import { layers as layersApi } from '@/api/endpoints'
+import type {
+  LayerPresetCatalog,
+  ProfileSummary,
+  LayerSummary,
+  CreateContractsResponse,
+  LayerOption,
+} from '@/api/types'
 import { SPEC_ID_RE, sanitizeSpecIdInput } from '@/utils/specId'
 import { inferLayersFromTags, STACK_LAYERS, type StackLayerId } from '@/utils/stackLayers'
 
@@ -190,12 +308,14 @@ const props = defineProps<{
     description: string
     build_strategy: string
     base_role: string
-    blocks: string[]
+    target_profile_id: string
+    layers: string[]
     copy_items: Array<{ src: string; dst: string }>
     variants: Record<string, { type: 'bool' | 'enum'; options: string[]; default: string | boolean }>
   }
-  availableBlocks: BlockSummary[]
-  blockCatalog: BlockPresetCatalog | null
+  availableProfiles: ProfileSummary[]
+  availableLayers: LayerSummary[]
+  layerCatalog: LayerPresetCatalog | null
   createContracts: CreateContractsResponse | null
   authEnabled: boolean
   canCreate: boolean
@@ -213,17 +333,22 @@ const emit = defineEmits<{
 
 const dialogRef = ref<HTMLElement | null>(null)
 const step = ref(1)
+const inferenceType = ref<'general' | 'llm' | 'diffusion' | 'vision' | 'asr' | 'tts'>('general')
+const inferenceProfile = ref<'balanced' | 'latency' | 'throughput'>('balanced')
 const selectedByLayer = ref<Record<StackLayerId, string>>({
   hardware_layer: '',
   system_runtime_layer: '',
   driver_accelerator_layer: '',
   core_compute_layer: '',
-  model_runtime_layer: '',
+  inference_engine_layer: '',
   optimization_compilation_layer: '',
   serving_layer: '',
   application_orchestration_layer: '',
   observability_operations_layer: '',
 })
+const classifiedByLayer = ref<Record<string, LayerOption[]>>({})
+const classifyLoading = ref(false)
+let classifyTimer: number | null = null
 
 const inferredEnv = computed<string[]>(() => {
   const raw = props.resolvedSpec?.env
@@ -242,7 +367,7 @@ const inferredEntrypoint = computed<string>(() => {
 
 const presetLayerById = computed<Record<string, StackLayerId[]>>(() => {
   const out: Record<string, StackLayerId[]> = {}
-  for (const preset of props.blockCatalog?.presets || []) {
+  for (const preset of props.layerCatalog?.presets || []) {
     const layers = Array.isArray(preset.layers) && preset.layers.length
       ? (preset.layers.filter(Boolean) as StackLayerId[])
       : inferLayersFromTags(preset.tags || [])
@@ -251,23 +376,75 @@ const presetLayerById = computed<Record<string, StackLayerId[]>>(() => {
   return out
 })
 
-const blockLayers = computed<Record<string, StackLayerId[]>>(() => {
-  const out: Record<string, StackLayerId[]> = {}
-  for (const block of props.availableBlocks) {
-    const resolved = presetLayerById.value[block.id] || inferLayersFromTags(block.tags || [])
-    // Keep a single primary layer in the wizard to avoid duplicate listing noise.
-    out[block.id] = resolved.length ? [resolved[0]] : []
+const resolvedStackLayerById = computed<Record<string, StackLayerId>>(() => {
+  const out: Record<string, StackLayerId> = {}
+  for (const layer of props.availableLayers) {
+    const fromApi = String(layer.stack_layer || '').trim()
+    if (fromApi) {
+      out[layer.id] = fromApi as StackLayerId
+      continue
+    }
+    const fallback = presetLayerById.value[layer.id] || inferLayersFromTags(layer.tags || [])
+    if (fallback.length) out[layer.id] = fallback[0]
   }
   return out
 })
 
-const layerRows = computed(() => STACK_LAYERS.map(layer => {
-  const options = props.availableBlocks.filter(block => (blockLayers.value[block.id] || []).includes(layer.id))
+const layerRows = computed(() => STACK_LAYERS.map((layer) => {
+  const classified = classifiedByLayer.value[layer.id] || []
+  const fallback = props.availableLayers
+    .filter(layerOpt => resolvedStackLayerById.value[layerOpt.id] === layer.id)
+    .map((layerOpt) => ({
+      id: layerOpt.id,
+      display_name: layerOpt.display_name,
+      stack_layer: layer.id,
+      tags: layerOpt.tags || [],
+      tier: 'compatible' as const,
+      score: 0,
+      reasons: [] as string[],
+      selected: props.form.layers.includes(layerOpt.id),
+    }))
+  const options = classified.length ? classified : fallback
   return { ...layer, options }
 }).filter(layer => !layer.profileManaged))
+const recommendedLayerIds = computed(() => {
+  const out: string[] = []
+  for (const row of layerRows.value) {
+    if (!row.options.length) continue
+    if (row.id === 'system_runtime_layer') {
+      const forced = row.options.find(opt => opt.tier !== 'incompatible') || row.options[0]
+      out.push(forced.id)
+      continue
+    }
+    const recommended = row.options.find(opt => opt.tier === 'recommended')
+    if (recommended) out.push(recommended.id)
+  }
+  return out
+})
+const incompatibleSelectedLayers = computed(() => {
+  const out: Array<{ id: string; reason: string }> = []
+  const lookup = new Map<string, LayerOption>()
+  for (const options of Object.values(classifiedByLayer.value)) {
+    for (const opt of options) lookup.set(opt.id, opt)
+  }
+  for (const layerId of props.form.layers) {
+    const opt = lookup.get(layerId)
+    if (opt?.tier === 'incompatible') {
+      out.push({ id: layerId, reason: opt.reasons[0] || 'Compatibility warning detected.' })
+    }
+  }
+  return out
+})
+const showBestEffortWarning = computed(() => {
+  const profileId = String(props.form.target_profile_id || '').trim().toLowerCase()
+  if (!profileId) return false
+  return !profileId.startsWith('dgx_')
+})
 const stepKeys = computed(() => [
   'build_strategy',
+  'inference_recommendation',
   ...layerRows.value.map(layer => `layer:${layer.id}`),
+  'selection_review',
   'review',
 ])
 const totalSteps = computed(() => stepKeys.value.length)
@@ -280,6 +457,8 @@ const currentLayerStep = computed(() => {
 })
 const stepLabel = computed(() => {
   if (currentStep.value === 'build_strategy') return 'Build Strategy'
+  if (currentStep.value === 'inference_recommendation') return 'Inference Recommendation'
+  if (currentStep.value === 'selection_review') return 'Layer Review'
   if (currentStep.value === 'review') return 'Review'
   return currentLayerStep.value?.label || 'Layer'
 })
@@ -295,13 +474,18 @@ const idError = computed(() => {
 })
 
 const canProceed = computed(() => {
+  if (currentStep.value === 'inference_recommendation') {
+    return Boolean(props.form.target_profile_id)
+  }
   if (currentLayerStep.value?.id === 'system_runtime_layer') {
     const selected = selectedByLayer.value.system_runtime_layer
-    const alreadyAdded = props.form.blocks.includes(selected) || props.form.blocks.some((blockId) => {
-      const layers = blockLayers.value[blockId] || []
-      return layers.includes('system_runtime_layer')
+    const alreadyAdded = props.form.layers.includes(selected) || props.form.layers.some((layerId) => {
+      return resolvedStackLayerById.value[layerId] === 'system_runtime_layer'
     })
     return Boolean(selected) || alreadyAdded
+  }
+  if (currentStep.value === 'selection_review') {
+    return props.form.layers.length > 0
   }
   return true
 })
@@ -313,11 +497,86 @@ watch(
   async (open) => {
     if (!open) return
     step.value = 1
+    inferenceType.value = 'general'
+    inferenceProfile.value = 'balanced'
     for (const layer of STACK_LAYERS) selectedByLayer.value[layer.id] = ''
+    classifiedByLayer.value = {}
     await nextTick()
     focusFirst()
+    if (open) scheduleRefreshClassifications()
   },
 )
+
+watch(
+  () => [props.form.target_profile_id, inferenceType.value, inferenceProfile.value, ...props.form.layers],
+  () => {
+    if (!props.show) return
+    scheduleRefreshClassifications()
+  },
+)
+
+function scheduleRefreshClassifications() {
+  if (classifyTimer !== null) window.clearTimeout(classifyTimer)
+  classifyTimer = window.setTimeout(() => {
+    void refreshClassifications()
+  }, 200)
+}
+
+async function refreshClassifications() {
+  if (!props.form.target_profile_id) {
+    classifiedByLayer.value = {}
+    return
+  }
+  classifyLoading.value = true
+  try {
+    const resp = await layersApi.classifyOptions({
+      selected_layers: [...props.form.layers],
+      inference_type: inferenceType.value,
+      inference_profile: inferenceProfile.value,
+      target_profile_id: props.form.target_profile_id,
+    })
+    const grouped: Record<string, LayerOption[]> = {}
+    for (const group of resp.groups || []) {
+      grouped[group.stack_layer] = (group.options || []).map(opt => ({ ...opt }))
+    }
+    classifiedByLayer.value = grouped
+  } catch {
+    classifiedByLayer.value = {}
+  } finally {
+    classifyLoading.value = false
+  }
+}
+
+function recommendedOptions(layerId: StackLayerId): LayerOption[] {
+  const classified = classifiedByLayer.value[layerId] || []
+  const options = classified.length
+    ? classified
+    : (layerRows.value.find(layer => layer.id === layerId)?.options || [])
+  return options.filter(opt => opt.tier === 'recommended')
+}
+
+function everythingElseOptions(layerId: StackLayerId): LayerOption[] {
+  const classified = classifiedByLayer.value[layerId] || []
+  const options = classified.length
+    ? classified
+    : (layerRows.value.find(layer => layer.id === layerId)?.options || [])
+  return options.filter(opt => opt.tier !== 'recommended')
+}
+
+function optionLabel(opt: LayerOption): string {
+  if (opt.tier === 'recommended') return `${opt.id} - ${opt.display_name} [recommended]`
+  if (opt.tier === 'incompatible') return `${opt.id} - ${opt.display_name} [incompatible]`
+  return `${opt.id} - ${opt.display_name} [compatible]`
+}
+
+function optionReason(layerId: StackLayerId, optionId: string): string {
+  const options = (classifiedByLayer.value[layerId] || []).length
+    ? (classifiedByLayer.value[layerId] || [])
+    : (layerRows.value.find(layer => layer.id === layerId)?.options || [])
+  const opt = options.find(item => item.id === optionId)
+  if (!opt || !opt.reasons.length) return ''
+  return opt.reasons[0]
+}
 
 function isStackRequired(field: string): boolean {
   const required = props.createContracts?.stack?.required_fields || []
@@ -335,46 +594,64 @@ function describeBuildStrategy(value: string): string {
   return 'Use resolver defaults for this stack'
 }
 
-function addBlockFromLayer(layerId: StackLayerId) {
-  const blockId = selectedByLayer.value[layerId]
-  if (!blockId) return
-  if (!props.form.blocks.includes(blockId)) {
-    props.form.blocks.push(blockId)
+function applyRecommendations() {
+  const addonGroups = new Set<StackLayerId>([
+    'optimization_compilation_layer',
+    'observability_operations_layer',
+  ])
+  for (const row of layerRows.value) {
+    const alreadySelected = props.form.layers.some(layerId => resolvedStackLayerById.value[layerId] === row.id)
+    if (alreadySelected) continue
+
+    const recommended = row.options.find(opt => opt.tier === 'recommended')
+    const compatible = row.options.find(opt => opt.tier === 'compatible')
+    const fallback = row.options.find(opt => opt.tier !== 'incompatible')
+
+    // Always prioritize strict recommendations for core groups.
+    let chosen = recommended
+    // For optimization/observability groups, allow first compatible addon if no strict recommendation exists.
+    if (!chosen && addonGroups.has(row.id)) chosen = compatible || fallback
+    if (!chosen && row.id === 'system_runtime_layer') chosen = fallback
+
+    if (chosen && !props.form.layers.includes(chosen.id)) {
+      props.form.layers.push(chosen.id)
+    }
+  }
+}
+
+function addLayerFromGroup(layerId: StackLayerId) {
+  const selectedLayerId = selectedByLayer.value[layerId]
+  if (!selectedLayerId) return
+  if (!props.form.layers.includes(selectedLayerId)) {
+    props.form.layers.push(selectedLayerId)
   }
   selectedByLayer.value[layerId] = ''
 }
 
-function removeBlock(index: number) {
-  if (index < 0 || index >= props.form.blocks.length) return
-  props.form.blocks.splice(index, 1)
+function removeLayer(index: number) {
+  if (index < 0 || index >= props.form.layers.length) return
+  props.form.layers.splice(index, 1)
 }
 
-function moveBlockUp(index: number) {
+function moveLayerUp(index: number) {
   if (index <= 0) return
-  const x = props.form.blocks[index - 1]
-  props.form.blocks[index - 1] = props.form.blocks[index]
-  props.form.blocks[index] = x
+  const x = props.form.layers[index - 1]
+  props.form.layers[index - 1] = props.form.layers[index]
+  props.form.layers[index] = x
 }
 
-function moveBlockDown(index: number) {
-  if (index >= props.form.blocks.length - 1) return
-  const x = props.form.blocks[index + 1]
-  props.form.blocks[index + 1] = props.form.blocks[index]
-  props.form.blocks[index] = x
+function moveLayerDown(index: number) {
+  if (index >= props.form.layers.length - 1) return
+  const x = props.form.layers[index + 1]
+  props.form.layers[index + 1] = props.form.layers[index]
+  props.form.layers[index] = x
 }
 
 function nextStep() {
-  if (currentStep.value === 'hardware' && props.form.blocks.length === 0) {
-    for (const layer of layerRows.value) {
-      const blockId = selectedByLayer.value[layer.id]
-      if (!blockId) continue
-      if (!props.form.blocks.includes(blockId)) props.form.blocks.push(blockId)
-    }
-  }
   if (currentLayerStep.value) {
-    const blockId = selectedByLayer.value[currentLayerStep.value.id]
-    if (blockId && !props.form.blocks.includes(blockId)) {
-      props.form.blocks.push(blockId)
+    const selectedLayerId = selectedByLayer.value[currentLayerStep.value.id]
+    if (selectedLayerId && !props.form.layers.includes(selectedLayerId)) {
+      props.form.layers.push(selectedLayerId)
     }
   }
   if (!canProceed.value) return
@@ -419,6 +696,13 @@ function focusFirst() {
   const first = root.querySelector<HTMLElement>('input, select, button, textarea')
   first?.focus()
 }
+
+onUnmounted(() => {
+  if (classifyTimer !== null) {
+    window.clearTimeout(classifyTimer)
+    classifyTimer = null
+  }
+})
 </script>
 
 <style scoped>
@@ -585,6 +869,22 @@ function focusFirst() {
 }
 
 .stack-warning-top-md {
+  margin-top: 0.45rem;
+}
+
+.stack-warning-top-lg {
+  margin-top: 0.75rem;
+}
+
+.stack-warning-top-70 {
+  margin-top: 0.7rem;
+}
+
+.stack-dependency-top {
+  margin-top: 0.7rem;
+}
+</style>
+tack-warning-top-md {
   margin-top: 0.45rem;
 }
 

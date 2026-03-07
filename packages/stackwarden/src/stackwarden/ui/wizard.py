@@ -194,11 +194,19 @@ def preview_plan(
     *,
     explain: bool = False,
     strict_mode: bool = False,
+    strict_host_optimization: bool = False,
 ) -> Plan:
     """Resolve a plan and return it (for rendering)."""
     from stackwarden.resolvers.resolver import resolve
 
-    return resolve(profile, stack, variants=variants, explain=explain, strict_mode=strict_mode)
+    return resolve(
+        profile,
+        stack,
+        variants=variants,
+        explain=explain,
+        strict_mode=strict_mode,
+        strict_host_optimization=strict_host_optimization,
+    )
 
 
 def render_plan_human(plan: Plan, *, console: Console | None = None) -> None:
@@ -304,7 +312,12 @@ def run_wizard(
     This function handles both interactive and non-interactive modes.
     When all required inputs are provided via arguments, no prompts are shown.
     """
-    from stackwarden.config import compatibility_strict_default, load_profile, load_stack
+    from stackwarden.config import (
+        compatibility_strict_default,
+        load_profile,
+        load_stack,
+        strict_host_optimization_default,
+    )
     from stackwarden.domain.loaders import load_all_profiles, load_all_stacks
 
     con = console or _console
@@ -359,6 +372,7 @@ def run_wizard(
         variants or None,
         explain=wiz_flags.explain,
         strict_mode=compatibility_strict_default(),
+        strict_host_optimization=strict_host_optimization_default(),
     )
     command = build_command(selection)
 

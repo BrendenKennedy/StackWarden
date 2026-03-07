@@ -1,0 +1,23 @@
+kind: layer
+schema_version: 2
+id: ubuntu_24_04_runtime
+display_name: "Ubuntu 24.04 Runtime Baseline"
+stack_layer: system_runtime_layer
+block_kind: runtime
+tags:
+  - system
+  - runtime
+  - infra
+  - ubuntu
+  - "24.04"
+components:
+  apt:
+    - ca-certificates
+    - curl
+    - tzdata
+requires:
+  os_family_id: ubuntu
+  os_version_id: ubuntu_24_04
+provides:
+  layer: system_runtime_layer
+  os_runtime: ubuntu_24_04

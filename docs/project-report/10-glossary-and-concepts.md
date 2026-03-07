@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This glossary defines core StackWarden terminology used across CLI, API, UI, tests, and architecture documentation.
+This glossary defines core StackWarden terminology used across CLI, API, UI, tests, and architecture docs.
 
 ## Core Concepts
 
@@ -14,15 +14,15 @@ Profiles should describe environment reality and constraints, not user software 
 
 ## Stack
 
-A workload intent specification describing what should be built/run, including ordered block composition, runtime hints, and optional variants.
+A workload intent specification describing what should be built/run, including ordered layer composition, runtime hints, and optional variants.
 
-## Block
+## Layer
 
-A reusable intent unit used in recipe stacks. Blocks compose into a concrete stack shape through deterministic merge and precedence rules.
+A reusable intent unit used in recipe stacks. Layers compose into a concrete stack shape through deterministic merge and precedence rules.
 
 ## Stack Recipe
 
-A stack form that references blocks (`stack.blocks`) as the primary intent surface. Composition resolves block contributions into effective configuration.
+A stack form that references layers (`stack.layers`) as the primary intent surface. Composition resolves layer contributions into effective configuration.
 
 ## Resolver
 
@@ -80,7 +80,7 @@ An architecture-aware decision layer that maps host/runtime facts to supported i
 
 ## Create Flow
 
-The layered process for authoring new profiles/stacks/blocks, usually including validation, dry-run preview, and explicit confirm-write behavior.
+The layered process for authoring new profiles/stacks/layers, usually including validation, dry-run preview, and explicit confirm-write behavior.
 
 ## Job (Web)
 
@@ -100,4 +100,4 @@ A system property where equivalent inputs produce equivalent planning/execution 
 
 ## Intent-First Contract
 
-The principle that user intent should be expressed through stack/block composition, with system behavior derived through compatibility and resolver logic.
+The principle that user intent should be expressed through stack/layer composition, with system behavior derived through compatibility and resolver logic.

@@ -12,7 +12,8 @@ from pathlib import Path
 from typing import Iterable
 
 from stackwarden.contracts import ALLOWED_BUILD_STRATEGIES, SPEC_ID_PATTERN
-from stackwarden.domain.errors import BlockNotFoundError, ProfileNotFoundError, StackNotFoundError
+from stackwarden.contracts import STACK_LAYER_IDS
+from stackwarden.domain.errors import LayerNotFoundError, ProfileNotFoundError, StackNotFoundError
 
 _SPEC_ID_RE = re.compile(SPEC_ID_PATTERN)
 _APT_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9+.\-]{0,63}$")
@@ -87,7 +88,7 @@ def validate_id_available_loader(
     """Try to load *spec_id* via *loader*; if it succeeds the id is taken."""
     try:
         loader(spec_id)
-    except (ProfileNotFoundError, StackNotFoundError, BlockNotFoundError):
+    except (ProfileNotFoundError, StackNotFoundError, LayerNotFoundError):
         return []
     raise ConflictError(f"Spec with id '{spec_id}' already exists (loadable)")
 
@@ -394,17 +395,17 @@ def run_stack_security_validation(req) -> None:
     errors.extend(validate_build_strategy_optional(req.build_strategy))
     if req.kind != "stack_recipe":
         errors.append(_err("kind", "Must be 'stack_recipe'"))
-    if not req.blocks:
-        errors.append(_err("blocks", "Recipe stack requires at least one block id"))
+    if not req.layers:
+        errors.append(_err("layers", "Recipe stack requires at least one layer id"))
     seen: set[str] = set()
-    for i, block_id in enumerate(req.blocks):
-        if not block_id or not isinstance(block_id, str):
-            errors.append(_err(f"blocks[{i}]", "Block id must be a non-empty string"))
+    for i, layer_id in enumerate(req.layers):
+        if not layer_id or not isinstance(layer_id, str):
+            errors.append(_err(f"layers[{i}]", "Layer id must be a non-empty string"))
             continue
-        if block_id in seen:
-            errors.append(_err(f"blocks[{i}]", f"Duplicate block id: {block_id}"))
-        seen.add(block_id)
-        errors.extend(validate_spec_id(block_id))
+        if layer_id in seen:
+            errors.append(_err(f"layers[{i}]", f"Duplicate layer id: {layer_id}"))
+        seen.add(layer_id)
+        errors.extend(validate_spec_id(layer_id))
     errors.extend(validate_copy_paths(req.copy_items))
     errors.extend(validate_variant_names(req.variants.keys()))
 
@@ -440,10 +441,17 @@ def run_profile_security_validation(req) -> None:
         raise ValidationErrors(errors)
 
 
-def run_block_security_validation(req) -> None:
-    """Run all security validators on a BlockCreateRequest. Raises ValidationErrors."""
+def run_layer_security_validation(req) -> None:
+    """Run all security validators on a LayerCreateRequest. Raises ValidationErrors."""
     errors: list[dict[str, str]] = []
     errors.extend(validate_spec_id(req.id))
+    if req.stack_layer not in STACK_LAYER_IDS:
+        errors.append(
+            _err(
+                "stack_layer",
+                "Invalid stack layer. Must be one of: " + ", ".join(STACK_LAYER_IDS),
+            )
+        )
     errors.extend(validate_build_strategy_optional(req.build_strategy))
     errors.extend(validate_pip_deps(req.pip))
     errors.extend(validate_pip_wheelhouse(req.pip_install_mode, req.pip_wheelhouse_path))
@@ -463,3 +471,7 @@ def run_block_security_validation(req) -> None:
 
     if errors:
         raise ValidationErrors(errors)
+
+
+# Backward-compatible alias while refactor completes.
+run_block_security_validation = run_layer_security_validation

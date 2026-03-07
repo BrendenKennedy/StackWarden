@@ -1,0 +1,36 @@
+kind: stack_recipe
+schema_version: 2
+id: vision_onnx_fastapi
+display_name: "Vision ONNX + FastAPI"
+layers:
+  - ubuntu_24_04_runtime
+  - nccl_accelerator
+  - onnx_core_compute
+  - vision_onnx_runtime
+  - sdpa_attention_optimization
+  - fastapi
+  - otel_observability
+build_strategy: overlay
+components:
+  base_role: pytorch
+  apt:
+    - git
+    - curl
+env:
+  - PYTHONUNBUFFERED=1
+ports:
+  - 8000
+entrypoint:
+  cmd:
+    - python
+    - "-m"
+    - uvicorn
+    - app.main:app
+    - "--host"
+    - "0.0.0.0"
+    - "--port"
+    - "8000"
+files:
+  copy:
+    - src: "services/vision_api/"
+      dst: "/app"

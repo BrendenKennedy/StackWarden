@@ -2,18 +2,25 @@ kind: stack_recipe
 schema_version: 2
 id: llm_sglang
 display_name: "LLM + SGLang + FastAPI"
-blocks:
-  - fastapi
+task: llm
+serve: python_api
+api: fastapi
+requirements:
+  constraints:
+    stackwarden_certification: dgx_certified
+    stackwarden_certification_note: Curated for DGX-class NVIDIA deployments. Non-DGX usage is best-effort.
+layers:
+  - ubuntu_24_04_runtime
+  - nccl_accelerator
+  - pytorch_core_compute
   - sglang_model_runtime
-  - flash_attention
+  - sdpa_attention_optimization
+  - torch_compile_optimization
+  - fastapi
+  - otel_observability
 
 components:
   base_role: pytorch
-  pip:
-    - name: fastapi
-      version: "==0.115.*"
-    - name: uvicorn
-      version: "[standard]==0.30.*"
   apt:
     - git
     - curl

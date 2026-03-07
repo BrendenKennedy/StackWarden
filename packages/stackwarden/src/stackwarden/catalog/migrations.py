@@ -57,6 +57,13 @@ _MIGRATIONS: list[tuple[str, str, list[str]]] = [
             "ALTER TABLE artifacts ADD COLUMN block_schema_version INTEGER DEFAULT 1",
         ],
     ),
+    (
+        "add layer_schema_version to artifacts",
+        "artifacts",
+        [
+            "ALTER TABLE artifacts ADD COLUMN layer_schema_version INTEGER DEFAULT 1",
+        ],
+    ),
     # Day-2: drift detection
     (
         "add stale_reason to artifacts",
@@ -147,6 +154,22 @@ _INDEX_MIGRATIONS: list[tuple[str, str, str]] = [
 ]
 
 
+def _sync_layer_schema_version(engine: Engine) -> None:
+    """Backfill layer_schema_version from legacy block_schema_version when needed."""
+    if not _column_exists(engine, "artifacts", "layer_schema_version"):
+        return
+    if not _column_exists(engine, "artifacts", "block_schema_version"):
+        return
+    with engine.begin() as conn:
+        conn.execute(text(
+            "UPDATE artifacts "
+            "SET layer_schema_version = block_schema_version "
+            "WHERE (layer_schema_version IS NULL OR layer_schema_version <= 1) "
+            "AND block_schema_version IS NOT NULL "
+            "AND block_schema_version > 1"
+        ))
+
+
 def run_migrations(engine: Engine) -> None:
     """Apply any pending migrations."""
     for desc, table, stmts in _MIGRATIONS:
@@ -165,3 +188,5 @@ def run_migrations(engine: Engine) -> None:
         log.info("Migration: %s", desc)
         with engine.begin() as conn:
             conn.execute(text(stmt))
+
+    _sync_layer_schema_version(engine)

@@ -19,8 +19,13 @@ ENV STACKWARDEN_BUILD_JOBS="${STACKWARDEN_BUILD_JOBS}" \
     CMAKE_BUILD_PARALLEL_LEVEL="${STACKWARDEN_BUILD_JOBS}" \
     NPM_CONFIG_JOBS="${STACKWARDEN_BUILD_JOBS}"
 
+{% for key, value in optimization_env.items() %}
+ENV {{ key }}="{{ value | replace('\\', '\\\\') | replace('"', '\\"') | replace('$', '\\$') }}"
+{% endfor %}
+
 {% if apt_packages %}
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get update && \
+  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
   {% for p in apt_packages %}{{ p }} {% endfor %}\
   && rm -rf /var/lib/apt/lists/*
 {% endif %}

@@ -2,7 +2,7 @@
 
 ## Decision Log Purpose
 
-This page consolidates major StackWarden design choices and links rationale to implementation boundaries. It complements formal ADRs and provides practical context for contributors making architecture-impacting changes.
+This page summarizes major StackWarden design choices and links rationale to implementation boundaries. It complements formal ADRs for contributors making architecture-impacting changes.
 
 Primary ADR reference:
 
@@ -10,11 +10,11 @@ Primary ADR reference:
 
 ## Major Decisions
 
-## 1) Blocks-First Intent Contract
+## 1) Layers-First Intent Contract
 
 Decision:
 
-- Treat ordered stack blocks as the primary authored intent surface.
+- Treat ordered stack layers as the primary authored intent surface.
 
 Why:
 
@@ -27,7 +27,7 @@ Trade-off:
 
 Where enforced:
 
-- Stack/block composition and resolver compatibility layers.
+- Stack/layer composition and resolver compatibility layers.
 
 ## 2) Shared Core for CLI and API
 
@@ -144,7 +144,7 @@ Where enforced:
 
 | Decision | Benefit | Cost | If You Change It |
 | --- | --- | --- | --- |
-| Blocks-first contract | clear user intent | stricter composition model | update schemas, resolver rules, and docs together |
+| Layers-first contract | clear user intent | stricter composition model | update schemas, resolver rules, and docs together |
 | Shared core across surfaces | parity and lower drift | layering discipline required | run parity and architecture guard tests |
 | Resolver purity | deterministic planning | boundaries must be guarded | isolate side effects to runtime/builders |
 | Compatibility-first checks | fail early, safer ops | rule maintenance overhead | update rule catalogs and compatibility tests |

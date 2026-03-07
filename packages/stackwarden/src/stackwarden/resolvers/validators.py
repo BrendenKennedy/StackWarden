@@ -34,7 +34,7 @@ def validate_profile(profile: Profile) -> None:
 
 
 def validate_stack(stack: StackSpec) -> None:
-    is_v2_composition = stack.schema_version >= 2 and bool(stack.blocks)
+    is_v2_composition = stack.schema_version >= 2 and bool(stack.layers)
     is_v3 = stack.schema_version >= 3
     if not is_v2_composition and not stack.components.base_role:
         raise ValidationError("components.base_role", "Stack must declare a base_role")

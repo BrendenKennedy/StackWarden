@@ -5,10 +5,14 @@ display_name: "Flux Schnell + FastAPI"
 task: diffusion
 serve: python_api
 api: fastapi
-blocks:
+layers:
+  - ubuntu_24_04_runtime
+  - nccl_accelerator
+  - pytorch_core_compute
   - fastapi
   - flux_schnell_runtime
-  - flash_attention
+  - sdpa_attention_optimization
+  - torch_compile_optimization
   - cudnn
 build_strategy: overlay
 

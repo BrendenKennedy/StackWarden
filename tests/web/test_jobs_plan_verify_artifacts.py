@@ -22,7 +22,7 @@ from stackwarden.web.jobs.models import JobStatus
 def client_bundle(tmp_path):
     (tmp_path / "stacks").mkdir()
     (tmp_path / "profiles").mkdir()
-    (tmp_path / "blocks").mkdir()
+    (tmp_path / "layers").mkdir()
     with patch.dict(
         os.environ,
         {
@@ -33,17 +33,23 @@ def client_bundle(tmp_path):
     ):
         from stackwarden.catalog.store import CatalogStore
         from stackwarden.web.app import create_app
-        from stackwarden.web.deps import get_catalog, get_job_manager
+        from stackwarden.web.deps import get_catalog, get_job_manager, reset_cached_dependencies
         from stackwarden.web.jobs.manager import JobManager
         from stackwarden.web.jobs.store import JobStore
         from stackwarden.web.settings import WebSettings
 
+        reset_cached_dependencies()
         catalog = CatalogStore(db_path=tmp_path / "catalog.sqlite3")
         manager = JobManager(store=JobStore(db_path=tmp_path / "catalog.sqlite3"))
         app = create_app(WebSettings(token=None, dev=True))
         app.dependency_overrides[get_catalog] = lambda: catalog
         app.dependency_overrides[get_job_manager] = lambda: manager
-        yield TestClient(app), catalog, manager
+        with TestClient(app) as test_client:
+            test_client.post(
+                "/api/auth/setup",
+                json={"username": "admin", "password": "dev-password-123"},
+            )
+            yield test_client, catalog, manager
 
 
 def test_jobs_endpoints_cover_queue_detail_cancel_events_and_ensure(client_bundle, monkeypatch):
@@ -74,8 +80,8 @@ def test_jobs_endpoints_cover_queue_detail_cancel_events_and_ensure(client_bundl
         "stackwarden.web.routes.jobs.load_profile",
         lambda _: SimpleNamespace(host_facts=SimpleNamespace(memory_gb_total=None)),
     )
-    monkeypatch.setattr("stackwarden.web.routes.jobs.load_stack", lambda _: SimpleNamespace(blocks=[]))
-    monkeypatch.setattr("stackwarden.web.routes.jobs.load_block", lambda _: object())
+    monkeypatch.setattr("stackwarden.web.routes.jobs.load_stack", lambda _: SimpleNamespace(layers=[]))
+    monkeypatch.setattr("stackwarden.web.routes.jobs.load_layer", lambda _: object())
     monkeypatch.setattr(
         "stackwarden.web.routes.jobs.resolve",
         lambda *args, **kwargs: SimpleNamespace(decision=SimpleNamespace(build_optimization=None)),
@@ -102,8 +108,8 @@ def test_ensure_rejects_when_admission_denies(client_bundle, monkeypatch):
         "stackwarden.web.routes.jobs.load_profile",
         lambda _: SimpleNamespace(host_facts=SimpleNamespace(memory_gb_total=8.0)),
     )
-    monkeypatch.setattr("stackwarden.web.routes.jobs.load_stack", lambda _: SimpleNamespace(blocks=[]))
-    monkeypatch.setattr("stackwarden.web.routes.jobs.load_block", lambda _: object())
+    monkeypatch.setattr("stackwarden.web.routes.jobs.load_stack", lambda _: SimpleNamespace(layers=[]))
+    monkeypatch.setattr("stackwarden.web.routes.jobs.load_layer", lambda _: object())
     monkeypatch.setattr(
         "stackwarden.web.routes.jobs.resolve",
         lambda *args, **kwargs: SimpleNamespace(decision=SimpleNamespace(build_optimization=None)),
@@ -184,8 +190,8 @@ def test_plan_verify_and_artifacts_route_coverage(client_bundle, monkeypatch):
         artifact=PlanArtifact(tag="local/stackwarden:test", fingerprint=fingerprint),
     )
     monkeypatch.setattr("stackwarden.web.routes.plan.load_profile", lambda _: object())
-    monkeypatch.setattr("stackwarden.web.routes.plan.load_stack", lambda _: SimpleNamespace(blocks=[]))
-    monkeypatch.setattr("stackwarden.web.routes.plan.load_block", lambda _: object())
+    monkeypatch.setattr("stackwarden.web.routes.plan.load_stack", lambda _: SimpleNamespace(layers=[]))
+    monkeypatch.setattr("stackwarden.web.routes.plan.load_layer", lambda _: object())
     monkeypatch.setattr("stackwarden.web.routes.plan.resolve", lambda *args, **kwargs: plan_obj)
 
     plan_resp = client.post(
@@ -230,6 +236,10 @@ def test_plan_verify_and_artifacts_route_coverage(client_bundle, monkeypatch):
     art_dir = artifact_dir(record.fingerprint)
     art_dir.mkdir(parents=True, exist_ok=True)
     (art_dir / "plan.json").write_text(json.dumps({"plan_id": "plan_test"}), encoding="utf-8")
+    (art_dir / "optimization.json").write_text(
+        json.dumps({"build_optimization": {"policy": "strict_host_specific"}}),
+        encoding="utf-8",
+    )
 
     list_resp = client.get("/api/artifacts")
     assert list_resp.status_code == 200
@@ -242,6 +252,10 @@ def test_plan_verify_and_artifacts_route_coverage(client_bundle, monkeypatch):
     file_resp = client.get("/api/artifacts/artifact_test/files/plan")
     assert file_resp.status_code == 200
     assert file_resp.json()["plan_id"] == "plan_test"
+
+    opt_resp = client.get("/api/artifacts/artifact_test/files/optimization")
+    assert opt_resp.status_code == 200
+    assert opt_resp.json()["build_optimization"]["policy"] == "strict_host_specific"
 
     stale_resp = client.post("/api/artifacts/artifact_test/mark-stale")
     assert stale_resp.status_code == 200
@@ -283,13 +297,13 @@ def test_compatibility_fix_endpoints(client_bundle, monkeypatch):
     record.error_message = "Build failed: ResolutionImpossible. The conflict is caused by: vllm requires setuptools<77"
     manager.update_job(record)
 
-    # Mock load_profile, load_stack, load_block, resolve for compatibility-fix analysis
+    # Mock load_profile, load_stack, load_layer, resolve for compatibility-fix analysis
     plan_obj = SimpleNamespace(
         decision=SimpleNamespace(base_image="nvcr.io/nvidia/pytorch:25.03-py3"),
     )
     monkeypatch.setattr("stackwarden.web.routes.jobs.load_profile", lambda _: object())
-    monkeypatch.setattr("stackwarden.web.routes.jobs.load_stack", lambda _: SimpleNamespace(blocks=[]))
-    monkeypatch.setattr("stackwarden.web.routes.jobs.load_block", lambda _: object())
+    monkeypatch.setattr("stackwarden.web.routes.jobs.load_stack", lambda _: SimpleNamespace(layers=[]))
+    monkeypatch.setattr("stackwarden.web.routes.jobs.load_layer", lambda _: object())
     monkeypatch.setattr("stackwarden.web.routes.jobs.resolve", lambda *args, **kwargs: plan_obj)
 
     # GET compatibility-fix

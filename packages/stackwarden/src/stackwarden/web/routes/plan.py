@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from stackwarden.config import compatibility_strict_default, load_block, load_profile, load_stack
+from stackwarden.config import (
+    compatibility_strict_default,
+    load_layer,
+    load_profile,
+    load_stack,
+    strict_host_optimization_default,
+)
 from stackwarden.domain.variants import validate_variant_flags
 from stackwarden.resolvers.resolver import resolve
 from stackwarden.web.schemas import PlanRequestDTO, PlanResponseDTO
@@ -16,7 +22,7 @@ router = APIRouter(tags=["plan"])
 def preview_plan(body: PlanRequestDTO):
     profile = load_profile(body.profile_id)
     stack = load_stack(body.stack_id)
-    blocks = [load_block(block_id) for block_id in (stack.blocks or [])]
+    layers = [load_layer(layer_id) for layer_id in (stack.layers or [])]
 
     if body.variants:
         validate_variant_flags(stack, body.variants)
@@ -26,10 +32,11 @@ def preview_plan(body: PlanRequestDTO):
     plan = resolve(
         profile,
         stack,
-        blocks=blocks,
+        layers=layers,
         variants=body.variants,
         explain=explain,
         strict_mode=compatibility_strict_default(),
+        strict_host_optimization=strict_host_optimization_default(),
     )
 
     return PlanResponseDTO.from_domain(plan)

@@ -1,0 +1,23 @@
+kind: layer
+schema_version: 2
+id: debian_system_runtime
+display_name: "Debian System Runtime (Compatibility Alias)"
+stack_layer: system_runtime_layer
+block_kind: runtime
+tags:
+  - system
+  - runtime
+  - infra
+  - debian
+  - compatibility
+components:
+  apt:
+    - ca-certificates
+    - wget
+    - tzdata
+requires:
+  os_family_id: debian
+  os_version_id: debian_12
+provides:
+  layer: system_runtime_layer
+  os_runtime: debian_bookworm

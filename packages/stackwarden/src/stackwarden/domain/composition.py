@@ -1,4 +1,4 @@
-"""Composable stack assembly from recipe + reusable blocks."""
+"""Composable stack assembly from recipe + reusable layers."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from packaging.version import InvalidVersion, Version
 from stackwarden.domain.enums import BuildStrategy
 from stackwarden.domain.models import (
     ApiType,
-    BlockSpec,
+    LayerSpec,
     ServeType,
     CopyItem,
     NpmDep,
@@ -145,16 +145,16 @@ def _merge_npm(
 
 def analyze_recipe_dependency_conflicts(
     recipe: StackRecipeSpec,
-    blocks: list[BlockSpec],
+    layers: list[LayerSpec],
 ) -> list[dict[str, str]]:
     """Return soft/hard dependency conflicts for a recipe composition preview."""
-    by_id = {b.id: b for b in blocks}
-    ordered_blocks: list[BlockSpec] = []
-    for block_id in recipe.blocks:
-        block = by_id.get(block_id)
-        if block is None:
+    by_id = {layer.id: layer for layer in layers}
+    ordered_layers: list[LayerSpec] = []
+    for layer_id in recipe.layers:
+        layer = by_id.get(layer_id)
+        if layer is None:
             continue
-        ordered_blocks.append(block)
+        ordered_layers.append(layer)
 
     pip_seen: dict[str, tuple[str, str]] = {}
     npm_seen: dict[tuple[str, str, str], tuple[str, str, str]] = {}
@@ -246,16 +246,16 @@ def analyze_recipe_dependency_conflicts(
         })
         wheelhouse_seen = (normalized_mode, normalized_path, source)
 
-    for block in ordered_blocks:
-        source = f"block:{block.id}"
+    for layer in ordered_layers:
+        source = f"layer:{layer.id}"
         _push_wheelhouse(
-            block.components.pip_install_mode,
-            block.components.pip_wheelhouse_path,
+            layer.components.pip_install_mode,
+            layer.components.pip_wheelhouse_path,
             source,
         )
-        for dep in block.components.pip:
+        for dep in layer.components.pip:
             _push_pip(dep, source)
-        for dep in block.components.npm:
+        for dep in layer.components.npm:
             _push_npm(dep, source)
 
     recipe_source = f"recipe:{recipe.id}"
@@ -274,11 +274,11 @@ def analyze_recipe_dependency_conflicts(
 
 def analyze_recipe_tuple_conflicts(
     recipe: StackRecipeSpec,
-    blocks: list[BlockSpec],
+    layers: list[LayerSpec],
 ) -> list[dict[str, str]]:
-    """Detect conflicting tuple-like requires keys across recipe blocks."""
-    by_id = {b.id: b for b in blocks}
-    ordered_blocks = [by_id[block_id] for block_id in recipe.blocks if block_id in by_id]
+    """Detect conflicting tuple-like requires keys across recipe layers."""
+    by_id = {layer.id: layer for layer in layers}
+    ordered_layers = [by_id[layer_id] for layer_id in recipe.layers if layer_id in by_id]
     watched = (
         "arch",
         "os_family_id",
@@ -289,9 +289,9 @@ def analyze_recipe_tuple_conflicts(
     )
     seen: dict[str, tuple[str, str]] = {}
     conflicts: list[dict[str, str]] = []
-    for block in ordered_blocks:
-        reqs = block.requires or {}
-        source = f"block:{block.id}"
+    for layer in ordered_layers:
+        reqs = layer.requires or {}
+        source = f"layer:{layer.id}"
         for key in watched:
             value = str(reqs.get(key, "")).strip()
             if not value:
@@ -321,11 +321,11 @@ def analyze_recipe_tuple_conflicts(
 
 def analyze_recipe_runtime_conflicts(
     recipe: StackRecipeSpec,
-    blocks: list[BlockSpec],
+    layers: list[LayerSpec],
 ) -> list[dict[str, str]]:
     """Detect runtime merge overrides for env/entrypoint/base_role."""
-    by_id = {b.id: b for b in blocks}
-    ordered_blocks = [by_id[block_id] for block_id in recipe.blocks if block_id in by_id]
+    by_id = {layer.id: layer for layer in layers}
+    ordered_layers = [by_id[layer_id] for layer_id in recipe.layers if layer_id in by_id]
     conflicts: list[dict[str, str]] = []
     env_seen: dict[str, tuple[str, str]] = {}
     entrypoint_seen: tuple[str, str] | None = None
@@ -348,7 +348,7 @@ def analyze_recipe_runtime_conflicts(
             "incoming": entry,
             "existing_source": prev_source,
             "incoming_source": source,
-            "message": "Env key overridden by later block precedence.",
+            "message": "Env key overridden by later layer precedence.",
         })
         env_seen[key] = (entry, source)
 
@@ -371,7 +371,7 @@ def analyze_recipe_runtime_conflicts(
             "incoming": incoming,
             "existing_source": prev_source,
             "incoming_source": source,
-            "message": "Entrypoint overridden by later block precedence.",
+            "message": "Entrypoint overridden by later layer precedence.",
         })
         entrypoint_seen = (incoming, source)
 
@@ -393,16 +393,16 @@ def analyze_recipe_runtime_conflicts(
             "incoming": base_role,
             "existing_source": prev_source,
             "incoming_source": source,
-            "message": "Base role overridden by later block precedence.",
+            "message": "Base role overridden by later layer precedence.",
         })
         base_role_seen = (base_role, source)
 
-    for block in ordered_blocks:
-        source = f"block:{block.id}"
-        for env in block.env:
+    for layer in ordered_layers:
+        source = f"layer:{layer.id}"
+        for env in layer.env:
             _push_env(env, source)
-        _push_entrypoint(block.entrypoint, source)
-        _push_base_role(block.components.base_role, source)
+        _push_entrypoint(layer.entrypoint, source)
+        _push_base_role(layer.components.base_role, source)
 
     recipe_source = f"recipe:{recipe.id}"
     for env in recipe.env:
@@ -413,21 +413,21 @@ def analyze_recipe_runtime_conflicts(
     return conflicts
 
 
-def compose_stack(recipe: StackRecipeSpec, blocks: list[BlockSpec]) -> StackSpec:
-    """Compose a concrete StackSpec from a stack recipe and ordered blocks."""
+def compose_stack(recipe: StackRecipeSpec, layers: list[LayerSpec]) -> StackSpec:
+    """Compose a concrete StackSpec from a stack recipe and ordered layers."""
     seen: set[str] = set()
-    for block_id in recipe.blocks:
-        if block_id in seen:
-            raise ValueError(f"Duplicate block reference in recipe: {block_id}")
-        seen.add(block_id)
+    for layer_id in recipe.layers:
+        if layer_id in seen:
+            raise ValueError(f"Duplicate layer reference in recipe: {layer_id}")
+        seen.add(layer_id)
 
-    by_id = {b.id: b for b in blocks}
-    ordered_blocks: list[BlockSpec] = []
-    for block_id in recipe.blocks:
-        block = by_id.get(block_id)
-        if block is None:
-            raise ValueError(f"Unknown block reference in recipe: {block_id}")
-        ordered_blocks.append(block)
+    by_id = {layer.id: layer for layer in layers}
+    ordered_layers: list[LayerSpec] = []
+    for layer_id in recipe.layers:
+        layer = by_id.get(layer_id)
+        if layer is None:
+            raise ValueError(f"Unknown layer reference in recipe: {layer_id}")
+        ordered_layers.append(layer)
 
     base_role: str | None = None
     build_strategy = recipe.build_strategy
@@ -446,7 +446,7 @@ def compose_stack(recipe: StackRecipeSpec, blocks: list[BlockSpec]) -> StackSpec
     copy_accum: dict[tuple[str, str], CopyItem] = {}
     variants: dict[str, VariantDef] = {}
 
-    def _consume_block(spec: BlockSpec, source: str) -> None:
+    def _consume_layer(spec: LayerSpec, source: str) -> None:
         nonlocal base_role, build_strategy, entrypoint, pip_install_mode, pip_wheelhouse_path
         nonlocal npm_install_mode, apt_install_mode
         if spec.components.base_role:
@@ -474,8 +474,8 @@ def compose_stack(recipe: StackRecipeSpec, blocks: list[BlockSpec]) -> StackSpec
         for key, val in spec.variants.items():
             variants[key] = val
 
-    for block in ordered_blocks:
-        _consume_block(block, f"block:{block.id}")
+    for layer in ordered_layers:
+        _consume_layer(layer, f"layer:{layer.id}")
 
     # Apply recipe-level overrides last.
     if recipe.components.base_role:
@@ -507,7 +507,7 @@ def compose_stack(recipe: StackRecipeSpec, blocks: list[BlockSpec]) -> StackSpec
     if build_strategy is None:
         build_strategy = BuildStrategy.OVERLAY
     if entrypoint is None:
-        # Deterministic safe default when no selected block declares a runtime command.
+        # Deterministic safe default when no selected layer declares a runtime command.
         entrypoint = StackEntrypoint(cmd=["python", "-c", "import time; time.sleep(3600)"])
 
     return StackSpec(
@@ -536,6 +536,13 @@ def compose_stack(recipe: StackRecipeSpec, blocks: list[BlockSpec]) -> StackSpec
         entrypoint=entrypoint,
         files=StackFiles(copy_items=[copy_accum[k] for k in sorted(copy_accum.keys())]),
         variants=variants,
-        blocks=list(recipe.blocks),
+        layers=list(recipe.layers),
+        intent=recipe.intent,
+        requirements=recipe.requirements,
+        derived_capabilities=list(recipe.derived_capabilities),
+        selected_features=list(recipe.selected_features),
+        rejected_candidates=list(recipe.rejected_candidates),
+        fix_suggestions=list(recipe.fix_suggestions),
+        decision_trace=list(recipe.decision_trace),
     )
 

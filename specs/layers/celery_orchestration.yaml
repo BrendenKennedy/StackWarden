@@ -1,0 +1,20 @@
+kind: layer
+schema_version: 2
+id: celery_orchestration
+display_name: "Celery Worker Orchestration"
+stack_layer: application_orchestration_layer
+block_kind: runtime
+tags:
+  - worker
+  - orchestration
+  - application
+components:
+  pip:
+    - name: celery
+      version: ">=5.4,<6.0"
+    - name: redis
+      version: ">=5.0,<6.0"
+env:
+  - CELERY_BROKER_URL=redis://redis:6379/0
+provides:
+  layer: application_orchestration_layer

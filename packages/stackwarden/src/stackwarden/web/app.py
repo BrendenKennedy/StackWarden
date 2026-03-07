@@ -111,7 +111,7 @@ def create_app(settings: WebSettings | None = None) -> FastAPI:
 
     # Global error handler for StackWarden domain errors
     from stackwarden.domain.errors import (
-        BlockNotFoundError,
+        LayerNotFoundError,
         BuildError,
         CatalogError,
         DriftError,
@@ -123,7 +123,7 @@ def create_app(settings: WebSettings | None = None) -> FastAPI:
 
     @app.exception_handler(ProfileNotFoundError)
     @app.exception_handler(StackNotFoundError)
-    @app.exception_handler(BlockNotFoundError)
+    @app.exception_handler(LayerNotFoundError)
     async def not_found_handler(request: Request, exc: StackWardenError):
         return JSONResponse(status_code=404, content={"detail": str(exc)})
 
@@ -155,12 +155,12 @@ def create_app(settings: WebSettings | None = None) -> FastAPI:
     # Routes
     from stackwarden.web.routes import (
         artifacts,
-        blocks,
         catalog,
         compatibility,
         create,
         detection,
         jobs,
+        layers,
         meta,
         plan,
         profiles,
@@ -174,7 +174,7 @@ def create_app(settings: WebSettings | None = None) -> FastAPI:
     app.include_router(profiles.router, prefix="/api")
     app.include_router(auth.router, prefix="/api")
     app.include_router(stacks.router, prefix="/api")
-    app.include_router(blocks.router, prefix="/api")
+    app.include_router(layers.router, prefix="/api")
     app.include_router(artifacts.router, prefix="/api")
     app.include_router(catalog.router, prefix="/api")
     app.include_router(compatibility.router, prefix="/api")
