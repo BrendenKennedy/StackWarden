@@ -72,7 +72,7 @@ export interface StackSummary {
   task: string
   serve: string
   api: string
-  certification: 'dgx_certified' | 'generic_best_effort'
+  certification: 'dgx_compatible' | 'dgx_optimized' | 'dgx_certified' | 'generic_best_effort'
   certification_note: string
   variants: Record<string, VariantDef>
   source?: string | null
@@ -559,7 +559,7 @@ export interface LayerOptionsClassifyPayload {
   selected_layers: string[]
   inference_type?: string
   inference_profile?: string
-  target_profile_id: string
+  target_profile_id?: string
 }
 
 export interface LayerOptionsClassifyResponse {

@@ -5,6 +5,10 @@ display_name: "Diffusion (PyTorch) + FastAPI"
 task: diffusion
 serve: python_api
 api: fastapi
+requirements:
+  constraints:
+    stackwarden_certification: dgx_optimized
+    stackwarden_certification_note: Tuned for DGX-class NVIDIA deployments. Non-DGX usage is allowed but may not be optimal.
 layers:
   - ubuntu_24_04_runtime
   - pytorch_core_compute

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Any
 
 from stackwarden.config import list_layer_ids, load_layer, load_profile
 from stackwarden.contracts.constants import STACK_LAYER_IDS
@@ -51,6 +50,12 @@ _CAPABILITY_MATRIX: dict[str, dict[str, _Rule]] = {
         "observability_operations_layer": _Rule(preferred=("observability", "metrics", "trace", "otel", "prometheus")),
     },
     "llm_chat": {
+        "core_compute_layer": _Rule(
+            preferred=("torch", "pytorch", "compute", "core"),
+        ),
+        "driver_accelerator_layer": _Rule(
+            preferred=("cuda", "accelerator", "nccl", "cudnn"),
+        ),
         "inference_engine_layer": _Rule(
             allowed=("llm", "vllm", "sglang", "transformer", "chat"),
             preferred=("vllm", "sglang", "llm"),
@@ -80,6 +85,12 @@ _CAPABILITY_MATRIX: dict[str, dict[str, _Rule]] = {
         ),
     },
     "embeddings": {
+        "core_compute_layer": _Rule(
+            preferred=("torch", "pytorch", "compute", "core"),
+        ),
+        "driver_accelerator_layer": _Rule(
+            preferred=("cuda", "accelerator", "nccl", "cudnn"),
+        ),
         "inference_engine_layer": _Rule(
             allowed=("embedding", "retrieval", "sentence", "vector"),
             preferred=("embedding", "sentence", "retrieval"),
@@ -93,6 +104,12 @@ _CAPABILITY_MATRIX: dict[str, dict[str, _Rule]] = {
         "observability_operations_layer": _Rule(preferred=("observability", "metrics", "trace", "otel")),
     },
     "multimodal_generation": {
+        "core_compute_layer": _Rule(
+            preferred=("torch", "pytorch", "compute", "core"),
+        ),
+        "driver_accelerator_layer": _Rule(
+            preferred=("cuda", "accelerator", "nccl", "cudnn"),
+        ),
         "inference_engine_layer": _Rule(
             allowed=("diffusion", "flux", "syncdreamer", "image-gen", "multimodal"),
             preferred=("flux", "diffusion", "syncdreamer"),
@@ -105,6 +122,12 @@ _CAPABILITY_MATRIX: dict[str, dict[str, _Rule]] = {
         "serving_layer": _Rule(preferred=("serving", "api", "grpc")),
     },
     "vision": {
+        "core_compute_layer": _Rule(
+            preferred=("torch", "pytorch", "compute", "core"),
+        ),
+        "driver_accelerator_layer": _Rule(
+            preferred=("cuda", "accelerator", "nccl", "cudnn"),
+        ),
         "inference_engine_layer": _Rule(
             allowed=("vision", "detector", "onnx", "classification", "segmentation"),
             preferred=("vision", "onnx", "detector"),
@@ -118,6 +141,12 @@ _CAPABILITY_MATRIX: dict[str, dict[str, _Rule]] = {
         "observability_operations_layer": _Rule(preferred=("observability", "metrics", "trace", "otel")),
     },
     "asr": {
+        "core_compute_layer": _Rule(
+            preferred=("torch", "pytorch", "compute", "core"),
+        ),
+        "driver_accelerator_layer": _Rule(
+            preferred=("cuda", "accelerator", "nccl", "cudnn"),
+        ),
         "inference_engine_layer": _Rule(
             allowed=("asr", "speech", "whisper"),
             preferred=("whisper", "asr", "speech"),
@@ -131,6 +160,12 @@ _CAPABILITY_MATRIX: dict[str, dict[str, _Rule]] = {
         "observability_operations_layer": _Rule(preferred=("observability", "metrics", "trace", "otel")),
     },
     "tts": {
+        "core_compute_layer": _Rule(
+            preferred=("torch", "pytorch", "compute", "core"),
+        ),
+        "driver_accelerator_layer": _Rule(
+            preferred=("cuda", "accelerator", "nccl", "cudnn"),
+        ),
         "inference_engine_layer": _Rule(
             allowed=("tts", "speech", "voice"),
             preferred=("tts", "voice"),

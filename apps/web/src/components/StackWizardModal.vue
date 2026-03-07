@@ -149,6 +149,7 @@
               <button class="btn" @click="addLayerFromGroup(currentLayerStep.id)" :disabled="!selectedByLayer[currentLayerStep.id]">Add</button>
             </div>
             <p v-if="classifyLoading" class="help help-gap-xs">Refreshing recommendations...</p>
+            <p v-if="classifyError" class="field-error help-gap-xs">{{ classifyError }}</p>
             <p
               v-if="selectedByLayer[currentLayerStep.id] && optionReason(currentLayerStep.id, selectedByLayer[currentLayerStep.id])"
               class="help help-gap-xs"
@@ -348,6 +349,7 @@ const selectedByLayer = ref<Record<StackLayerId, string>>({
 })
 const classifiedByLayer = ref<Record<string, LayerOption[]>>({})
 const classifyLoading = ref(false)
+const classifyError = ref('')
 let classifyTimer: number | null = null
 
 const inferredEnv = computed<string[]>(() => {
@@ -523,17 +525,15 @@ function scheduleRefreshClassifications() {
 }
 
 async function refreshClassifications() {
-  if (!props.form.target_profile_id) {
-    classifiedByLayer.value = {}
-    return
-  }
   classifyLoading.value = true
+  classifyError.value = ''
   try {
+    const targetProfileId = String(props.form.target_profile_id || '').trim()
     const resp = await layersApi.classifyOptions({
       selected_layers: [...props.form.layers],
       inference_type: inferenceType.value,
       inference_profile: inferenceProfile.value,
-      target_profile_id: props.form.target_profile_id,
+      target_profile_id: targetProfileId || undefined,
     })
     const grouped: Record<string, LayerOption[]> = {}
     for (const group of resp.groups || []) {
@@ -542,6 +542,7 @@ async function refreshClassifications() {
     classifiedByLayer.value = grouped
   } catch {
     classifiedByLayer.value = {}
+    classifyError.value = 'Could not refresh recommendations. Showing unranked options.'
   } finally {
     classifyLoading.value = false
   }
@@ -869,22 +870,6 @@ onUnmounted(() => {
 }
 
 .stack-warning-top-md {
-  margin-top: 0.45rem;
-}
-
-.stack-warning-top-lg {
-  margin-top: 0.75rem;
-}
-
-.stack-warning-top-70 {
-  margin-top: 0.7rem;
-}
-
-.stack-dependency-top {
-  margin-top: 0.7rem;
-}
-</style>
-tack-warning-top-md {
   margin-top: 0.45rem;
 }
 

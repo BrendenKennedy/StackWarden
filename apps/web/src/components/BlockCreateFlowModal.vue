@@ -1,10 +1,5 @@
-<template>
-  <LayerCreateFlowModal v-bind="attrs" />
-</template>
-
-<script setup lang="ts">
-import { useAttrs } from 'vue'
+<script lang="ts">
 import LayerCreateFlowModal from '@/components/LayerCreateFlowModal.vue'
 
-const attrs = useAttrs()
+export default LayerCreateFlowModal
 </script>

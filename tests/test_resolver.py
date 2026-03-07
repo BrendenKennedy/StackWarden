@@ -306,6 +306,30 @@ class TestResolver:
         assert plan.decision.build_optimization.strict_host_specific is True
         assert plan.artifact.labels.get("stackwarden.host_optimization")
 
+    def test_resolve_strict_host_optimization_allows_curated_profile_without_host_facts(self):
+        p = _profile(
+            tags=["curated", "dgx", "dgx-spark"],
+            labels={"optimization_scope": "curated_authoritative"},
+            host_facts=HostDiscoveryFacts(
+                cpu_cores_logical=None,
+                memory_gb_total=None,
+                driver_version=None,
+            ),
+        )
+        p.gpu.compute_capability = None
+        s = _stack()
+        plan = resolve(
+            p,
+            s,
+            layers=[_gpu_layer()],
+            strict_host_optimization=True,
+        )
+        assert plan.decision.build_optimization is not None
+        assert any(
+            "Strict host-specific optimization facts missing on curated profile" in warning
+            for warning in plan.decision.warnings
+        )
+
     def test_resolve_tuple_mode_is_explicit_and_deterministic(self, monkeypatch):
         p = _profile()
         s = _stack()

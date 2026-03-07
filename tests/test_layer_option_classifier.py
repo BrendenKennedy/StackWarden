@@ -291,3 +291,90 @@ def test_classify_layer_options_serving_prefers_tensorrt_and_blocks_unsloth(monk
     opts = {item.id: item for item in grouped["optimization_compilation_layer"]}
     assert opts["tensorrt_llm_serving_optimization"].tier == "recommended"
     assert opts["unsloth_finetune_optimization"].tier == "incompatible"
+
+
+def test_classify_layer_options_diffusion_recommends_core_compute_and_accelerator(monkeypatch):
+    layers = {
+        "pytorch_core_compute": _layer(
+            "pytorch_core_compute",
+            "core_compute_layer",
+            ["torch", "pytorch", "compute", "core"],
+        ),
+        "nccl_accelerator": _layer(
+            "nccl_accelerator",
+            "driver_accelerator_layer",
+            ["cuda", "accelerator", "nccl"],
+        ),
+        "flux_schnell_runtime": _layer(
+            "flux_schnell_runtime",
+            "inference_engine_layer",
+            ["diffusion", "flux", "image-gen"],
+        ),
+    }
+    monkeypatch.setattr(
+        "stackwarden.application.layer_option_classifier.list_layer_ids",
+        lambda: list(layers.keys()),
+    )
+    monkeypatch.setattr(
+        "stackwarden.application.layer_option_classifier.load_layer",
+        lambda layer_id: layers[layer_id],
+    )
+
+    groups = classify_layer_options(selected_layers=[], inference_type="diffusion")
+    grouped = {group.stack_layer: group.options for group in groups}
+    core_opts = {item.id: item for item in grouped["core_compute_layer"]}
+    accel_opts = {item.id: item for item in grouped["driver_accelerator_layer"]}
+
+    assert core_opts["pytorch_core_compute"].tier == "recommended"
+    assert accel_opts["nccl_accelerator"].tier == "recommended"
+
+
+def test_classify_layer_options_recommends_foundational_layers_across_inference_families(monkeypatch):
+    layers = {
+        "pytorch_core_compute": _layer(
+            "pytorch_core_compute",
+            "core_compute_layer",
+            ["torch", "pytorch", "compute", "core"],
+        ),
+        "nccl_accelerator": _layer(
+            "nccl_accelerator",
+            "driver_accelerator_layer",
+            ["cuda", "accelerator", "nccl"],
+        ),
+        "vllm_runtime": _layer(
+            "vllm_runtime",
+            "inference_engine_layer",
+            ["llm", "vllm", "runtime"],
+        ),
+        "whisper_asr_runtime": _layer(
+            "whisper_asr_runtime",
+            "inference_engine_layer",
+            ["asr", "whisper", "speech"],
+        ),
+        "vision_onnx_runtime": _layer(
+            "vision_onnx_runtime",
+            "inference_engine_layer",
+            ["vision", "onnx", "classification"],
+        ),
+        "flux_runtime": _layer(
+            "flux_runtime",
+            "inference_engine_layer",
+            ["diffusion", "flux", "image-gen"],
+        ),
+    }
+    monkeypatch.setattr(
+        "stackwarden.application.layer_option_classifier.list_layer_ids",
+        lambda: list(layers.keys()),
+    )
+    monkeypatch.setattr(
+        "stackwarden.application.layer_option_classifier.load_layer",
+        lambda layer_id: layers[layer_id],
+    )
+
+    for inference_type in ["llm", "diffusion", "asr", "vision", "embeddings", "tts"]:
+        groups = classify_layer_options(selected_layers=[], inference_type=inference_type)
+        grouped = {group.stack_layer: group.options for group in groups}
+        core_opts = {item.id: item for item in grouped["core_compute_layer"]}
+        accel_opts = {item.id: item for item in grouped["driver_accelerator_layer"]}
+        assert core_opts["pytorch_core_compute"].tier == "recommended"
+        assert accel_opts["nccl_accelerator"].tier == "recommended"

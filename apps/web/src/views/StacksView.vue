@@ -106,7 +106,7 @@ const tableRows = computed(() =>
     source: s.source === 'remote'
       ? `remote${s.source_repo_owner ? ` (${s.source_repo_owner})` : ''}`
       : (s.source || 'local'),
-    certification: s.certification === 'dgx_certified' ? 'dgx_certified' : 'generic_best_effort',
+    certification: s.certification || 'generic_best_effort',
     variants_count: Object.keys(s.variants || {}).length,
   })),
 )

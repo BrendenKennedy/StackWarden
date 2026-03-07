@@ -5,6 +5,10 @@ display_name: "Agentic RAG + FastAPI"
 task: rag
 serve: python_api
 api: fastapi
+requirements:
+  constraints:
+    stackwarden_certification: dgx_compatible
+    stackwarden_certification_note: Compatible with DGX-class NVIDIA deployments. Cross-hardware portability remains best-effort.
 layers:
   - ubuntu_24_04_runtime
   - nccl_accelerator

@@ -137,7 +137,12 @@ class StackSummaryDTO(BaseModel):
     task: str
     serve: str
     api: str
-    certification: Literal["dgx_certified", "generic_best_effort"] = "generic_best_effort"
+    certification: Literal[
+        "dgx_compatible",
+        "dgx_optimized",
+        "dgx_certified",
+        "generic_best_effort",
+    ] = "generic_best_effort"
     certification_note: str = ""
     variants: dict[str, VariantDefDTO]
     source: str | None = None
@@ -149,7 +154,12 @@ class StackSummaryDTO(BaseModel):
     def from_domain(cls, s: StackSpec, origin: dict[str, str] | None = None) -> StackSummaryDTO:
         constraints = dict(s.requirements.constraints or {})
         certification = str(constraints.get("stackwarden_certification") or "").strip().lower()
-        if certification not in {"dgx_certified", "generic_best_effort"}:
+        if certification not in {
+            "dgx_compatible",
+            "dgx_optimized",
+            "dgx_certified",
+            "generic_best_effort",
+        }:
             certification = "generic_best_effort"
         note = str(constraints.get("stackwarden_certification_note") or "").strip()
         variants = {
@@ -337,7 +347,7 @@ class LayerOptionsClassifyRequestDTO(BaseModel):
     selected_layers: list[str] = Field(default_factory=list)
     inference_type: str | None = None
     inference_profile: str | None = None
-    target_profile_id: str
+    target_profile_id: str | None = None
 
 
 class LayerOptionDTO(BaseModel):

@@ -78,6 +78,8 @@ If two sources conflict, the higher-precedence source wins and the conflict is r
 
 ## DGX-First Catalog Policy
 - Bundled stacks use a mixed catalog model:
-  - `dgx_certified`: curated path intended for DGX-first deployments.
+  - `dgx_compatible`: validated to run correctly on DGX-targeted paths.
+  - `dgx_optimized`: tuned for DGX behavior but not yet fully certified.
+  - `dgx_certified`: curated and benchmarked DGX-first path.
   - `generic_best_effort`: portable path that is allowed but not guaranteed to be performance-optimal outside curated DGX targets.
 - Default behavior for non-DGX profiles remains **warn + allow** for DGX-certified stacks. Compatibility should emit an explicit warning and decision trace entry instead of hard-blocking by default.

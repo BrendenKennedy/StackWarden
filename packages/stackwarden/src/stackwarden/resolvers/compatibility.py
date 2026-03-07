@@ -304,6 +304,23 @@ def evaluate_compatibility(
         suggested_fixes.append(
             "For certified behavior, switch to a DGX profile; otherwise proceed with best-effort portability mode."
         )
+    elif certification == "dgx_optimized" and not _is_dgx_profile(profile):
+        warnings.append(
+            CompatibilityIssue(
+                code="DGX_OPTIMIZED_STACK_PORTABILITY_WARNING",
+                severity="warning",
+                message=(
+                    "Selected stack is optimized for DGX profiles. Current non-DGX profile remains allowed, "
+                    "but performance and memory behavior may not be optimal."
+                ),
+                source=stack.id,
+                field="requirements.constraints.stackwarden_certification",
+                fix_hint="Use a DGX profile for optimized behavior, or continue with explicit portability expectations.",
+            )
+        )
+        suggested_fixes.append(
+            "For optimized behavior, switch to a DGX profile; otherwise continue in compatibility-first portability mode."
+        )
 
     for layer in layer_specs:
         for k, v in (layer.requires or {}).items():
@@ -417,7 +434,7 @@ def _profile_cuda(profile: Profile) -> float | None:
 def _stack_certification(stack: StackSpec) -> str:
     constraints = dict(stack.requirements.constraints or {})
     token = str(constraints.get("stackwarden_certification") or "").strip().lower()
-    if token in {"dgx_certified", "generic_best_effort"}:
+    if token in {"dgx_compatible", "dgx_optimized", "dgx_certified", "generic_best_effort"}:
         return token
     return "generic_best_effort"
 

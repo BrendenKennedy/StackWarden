@@ -78,6 +78,25 @@ def client(tmp_path, monkeypatch):
         ),
         encoding="utf-8",
     )
+    (tmp_path / "stacks" / "s2.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "kind": "stack",
+                "schema_version": 2,
+                "id": "s2",
+                "display_name": "S2",
+                "task": "custom",
+                "serve": "python_api",
+                "api": "none",
+                "build_strategy": "overlay",
+                "components": {"base_role": "python", "pip": [], "apt": []},
+                "entrypoint": {"cmd": ["python", "-V"]},
+                "requirements": {"constraints": {"stackwarden_certification": "dgx_optimized"}},
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
 
     with patch.dict(
         os.environ,
@@ -145,3 +164,14 @@ def test_compatibility_preview_uses_env_strict_default(client, monkeypatch):
     resp = client.post("/api/compatibility/preview", json={"profile_id": "p1", "stack_id": "s1"})
     assert resp.status_code == 200
     assert captured["strict_mode"] is True
+
+
+def test_dgx_optimized_stack_warns_on_non_dgx_profile(client):
+    resp = client.post(
+        "/api/compatibility/preview?strict=true",
+        json={"profile_id": "p1", "stack_id": "s2"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert any(w["code"] == "DGX_OPTIMIZED_STACK_PORTABILITY_WARNING" for w in body["warnings"])
+    assert body["requirements_summary"]["stack_certification"] == "dgx_optimized"

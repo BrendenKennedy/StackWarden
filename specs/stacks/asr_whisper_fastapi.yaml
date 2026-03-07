@@ -2,6 +2,10 @@ kind: stack_recipe
 schema_version: 2
 id: asr_whisper_fastapi
 display_name: "Speech Recognition (Whisper) + FastAPI"
+requirements:
+  constraints:
+    stackwarden_certification: dgx_compatible
+    stackwarden_certification_note: Compatible with DGX-class NVIDIA deployments. Cross-hardware portability remains best-effort.
 layers:
   - ubuntu_24_04_runtime
   - pytorch_core_compute

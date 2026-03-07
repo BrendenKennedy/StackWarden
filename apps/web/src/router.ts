@@ -60,7 +60,7 @@ let warnedLegacyBlocksRoute = false
 
 router.beforeEach(async (to) => {
   const redirectedFromPath = to.redirectedFrom?.path
-  if (!warnedLegacyBlocksRoute && isLegacyBlocksRoute(redirectedFromPath)) {
+  if (!warnedLegacyBlocksRoute && redirectedFromPath && isLegacyBlocksRoute(redirectedFromPath)) {
     warnedLegacyBlocksRoute = true
     console.warn(formatBlocksRouteDeprecation(redirectedFromPath))
   }

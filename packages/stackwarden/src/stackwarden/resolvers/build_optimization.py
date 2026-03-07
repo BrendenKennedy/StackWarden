@@ -171,6 +171,17 @@ def _validate_strict_host_facts(profile: Profile, *, requires_gpu: bool) -> None
         )
 
 
+def _is_curated_profile(profile: Profile) -> bool:
+    tags = {str(tag).strip().lower() for tag in (profile.tags or [])}
+    if "curated" in tags:
+        return True
+    labels = {
+        str(key).strip().lower(): str(value).strip().lower()
+        for key, value in (profile.labels or {}).items()
+    }
+    return labels.get("optimization_scope") == "curated_authoritative"
+
+
 def estimate_build_memory_gb(stack: StackSpec) -> float:
     """Estimate memory footprint for a single build.
 
@@ -198,9 +209,6 @@ def compute_build_optimization(
     Defaults to conservative settings when host facts are missing.
     """
     requires_gpu = _stack_requires_gpu(layers)
-    if strict_host_specific and requires_gpu:
-        _validate_strict_host_facts(profile, requires_gpu=requires_gpu)
-
     facts = profile.host_facts
     cpu_logical = facts.cpu_cores_logical
     memory_total = facts.memory_gb_total
@@ -209,6 +217,18 @@ def compute_build_optimization(
     warnings: list[str] = []
     notes: list[str] = []
     notes.append("Applied bounded heuristic optimization profile.")
+
+    if strict_host_specific and requires_gpu:
+        try:
+            _validate_strict_host_facts(profile, requires_gpu=requires_gpu)
+        except ValueError:
+            if _is_curated_profile(profile):
+                warnings.append(
+                    "Strict host-specific optimization facts missing on curated profile; "
+                    "falling back to conservative host tuning defaults."
+                )
+            else:
+                raise
 
     if not cpu_logical:
         warnings.append("Host logical CPU count unavailable; using conservative parallelism")
